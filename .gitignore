@@ -1,0 +1,13 @@
+# Rust
+chuck-core/target/
+chuck-core/pkg/
+!chuck-core/pkg/*.d.ts   # garde les types TS en repo
+
+# Node
+chuck-ide/node_modules/
+chuck-ide/dist/
+chuck-ide/.wrangler/
+
+# Artefacts WASM dans public/ (générés par build-core.yml)
+# On les commit pour que le dev clone et `npm run dev` sans build Rust
+# → on ne les ignore PAS volontairement
