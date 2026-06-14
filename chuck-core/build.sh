@@ -25,17 +25,17 @@ wasm-pack build \
 echo "✓ WASM généré dans pkg/"
 
 # 3. Copie dans chuck-ide/public/
-echo "▶ Copie vers chuck-ide/public/..."
-mkdir -p "$IDE_DIR/public"
+echo "▶ Copie vers chuck-ide/src/lib/..."
+mkdir -p "$IDE_DIR/src/lib"
 
-cp "$SCRIPT_DIR/pkg/chuck_core_bg.wasm"  "$IDE_DIR/public/"
-cp "$SCRIPT_DIR/pkg/chuck_core.js"        "$IDE_DIR/public/"
-cp "$SCRIPT_DIR/pkg/chuck_core.d.ts"      "$IDE_DIR/public/"
+cp "$SCRIPT_DIR/pkg/chuck_core_bg.wasm"  "$IDE_DIR/src/lib/"
+cp "$SCRIPT_DIR/pkg/chuck_core.js"        "$IDE_DIR/src/lib/"
+cp "$SCRIPT_DIR/pkg/chuck_core.d.ts"      "$IDE_DIR/src/lib/"
 
 echo "✓ Fichiers copiés :"
-echo "  public/chuck_core_bg.wasm  ($(du -sh "$IDE_DIR/public/chuck_core_bg.wasm" | cut -f1))"
-echo "  public/chuck_core.js"
-echo "  public/chuck_core.d.ts"
+echo "  src/lib/chuck_core_bg.wasm  ($(du -sh "$IDE_DIR/src/lib/chuck_core_bg.wasm" | cut -f1))"
+echo "  src/lib/chuck_core.js"
+echo "  src/lib/chuck_core.d.ts"
 
 echo ""
 echo "── Build terminé ────────────────────────────────────────"

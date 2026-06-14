@@ -551,63 +551,45 @@ const STYLES = /* css */`
 
 const DEFAULT_SOURCE = `; ══════════════════════════════════════════════════
 ;  CHUCK-8 COMPUTER — Programme de démonstration
-;  Plateforme : 128×128 px · 16 couleurs · 1 MHz
+;  Dessine des pixels aléatoires sur l'écran
 ; ══════════════════════════════════════════════════
 
-; ── Constantes de la plateforme ────────────────────
-; (normalement dans chuck.inc, ici inlinées pour la démo)
-SYS_CLEAR      = $F000  ; efface l'écran (A=couleur)
-SYS_DRAW_PIXEL = $F003  ; pixel(X,Y)=couleur A
-SYS_PRINT_CHAR = $F01E  ; affiche char A au curseur
-SYS_SET_CURSOR = $F02A  ; curseur(X,Y)
-SYS_SET_COLOR  = $F030  ; ink=bits7-4 paper=bits3-0
-SYS_WAIT_VBLANK= $F057  ; sync 60 Hz
-SYS_RAND       = $F05A  ; octet aléatoire → A
-VPU_CTRL       = $D000  ; 0=TXT 1=GFX
+SYS_CLEAR      = $F000
+SYS_DRAW_PIXEL = $F003
+SYS_RAND       = $F05A
+VPU_CTRL       = $D000
 
-COLOR_BLACK    = 0
-COLOR_WHITE    = 1
-COLOR_RED      = 2
-COLOR_CYAN     = 3
-COLOR_YELLOW   = 7
+  .org $E000
 
-  .org $E000             ; point d'entrée Chuck-8
-
-; ══════════════════════════════════════════════════
 INIT:
-  ; Passer en mode graphique
-  LDA #$81               ; bit7=enable bit0=mode GFX
+  LDA #$81
   STA VPU_CTRL
 
-  ; Effacer l'écran en noir
-  LDA #COLOR_BLACK
+  LDA #0
   JSR SYS_CLEAR
 
-; ══════════════════════════════════════════════════
-;  BOUCLE PRINCIPALE (sync 60 Hz via WAIT_VBLANK)
-; ══════════════════════════════════════════════════
-MAIN_LOOP:
-  JSR SYS_WAIT_VBLANK    ; attend le VBlank (NMI)
-  JSR UPDATE
-  JMP MAIN_LOOP
+LOOP:
+  ; Couleur aléatoire (évite le noir)
+  JSR SYS_RAND
+  AND #$0F
+  BEQ LOOP
 
-; ── Logique : peint un pixel aléatoire ────────────
-UPDATE:
-  JSR SYS_RAND           ; A = couleur aléatoire
-  AND #$0F               ; palette 0-15
-  BEQ UPDATE             ; évite le noir (0)
+  PHA
 
-  PHA                    ; sauvegarde couleur
-
-  JSR SYS_RAND           ; X = position x aléatoire
+  ; X aléatoire (0-127)
+  JSR SYS_RAND
+  AND #$7F
   TAX
 
-  JSR SYS_RAND           ; Y = position y aléatoire
+  ; Y aléatoire (0-127)
+  JSR SYS_RAND
+  AND #$7F
   TAY
 
-  PLA                    ; restaure couleur
-  JSR SYS_DRAW_PIXEL     ; dessine
-  RTS
+  PLA
+  JSR SYS_DRAW_PIXEL
+
+  JMP LOOP
 `;
 
 // ─────────────────────────────────────────────────────────────

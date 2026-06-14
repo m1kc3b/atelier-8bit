@@ -186,13 +186,20 @@ VPU_CHAR_OUT = $D00F
   STA $D00C              ; VPU_CURSOR_Y = 0
 
 ; Afficher chaque lettre
-  LDA #'B' : STA VPU_CHAR_OUT
-  LDA #'O' : STA VPU_CHAR_OUT
-  LDA #'N' : STA VPU_CHAR_OUT
-  LDA #'J' : STA VPU_CHAR_OUT
-  LDA #'O' : STA VPU_CHAR_OUT
-  LDA #'U' : STA VPU_CHAR_OUT
-  LDA #'R' : STA VPU_CHAR_OUT
+  LDA #'B'
+  STA VPU_CHAR_OUT
+  LDA #'O'
+  STA VPU_CHAR_OUT
+  LDA #'N'
+  STA VPU_CHAR_OUT
+  LDA #'J'
+  STA VPU_CHAR_OUT
+  LDA #'O'
+  STA VPU_CHAR_OUT
+  LDA #'U'
+  STA VPU_CHAR_OUT
+  LDA #'R'
+  STA VPU_CHAR_OUT
 
   BRK                    ; arrêt propre
 ```

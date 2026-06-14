@@ -229,6 +229,7 @@ export class Emulator {
       if (result.halted) {
         this._running = false;
         this._rafId = null;
+        this._flushDisplay(true);   // force rendu final même sans dirty
         bus.emit('chuck:cpu-halted', toBusState(result.state));
         bus.emit('chuck:log', {
           text:  `● BRK — PC=$${hex4(result.state.pc)} — frame #${this.core.frame_count()}`,
@@ -275,8 +276,8 @@ export class Emulator {
       level: 'ok',
     });
 
-    // Rendu initial
-    this._flushDisplay();
+    // Rendu initial — force même si rien de dirty (VRAM peut être propre)
+    this._flushDisplay(true);
     this._emitVpuState();
   }
 
@@ -309,7 +310,7 @@ export class Emulator {
       level: 'info',
     });
     bus.emit('chuck:cpu-updated', toBusState(result.state));
-    this._flushDisplay();
+    this._flushDisplay(true);
     this._emitVpuState();
     if (result.halted) bus.emit('chuck:cpu-halted', toBusState(result.state));
   }
@@ -385,15 +386,14 @@ export class Emulator {
 
   // ── Helpers display ───────────────────────────────────────────
 
-  private _flushDisplay(): void {
+  /** Envoie un snapshot de la VRAM au display. Force=true contourne le dirty tracking. */
+  private _flushDisplay(force = false): void {
     const dirty = this.core.take_dirty_pixels();
-    if (!dirty) return;
+    if (!dirty && !force) return;
 
-    // Demande un rendu complet : envoie la VRAM + mode au display
     const ram  = this.core.memory_view();
     const mode = this.core.video_mode();
 
-    // Émet un snapshot de la zone VRAM pour le composant chuck-display
     const vram = new Uint8Array(ram.subarray(0x4000, 0x8000));
     bus.emit('chuck:memory-data', { address: 0x4000, bytes: vram });
     bus.emit('chuck:vpu-mode' as any, { mode });

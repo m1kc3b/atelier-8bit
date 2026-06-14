@@ -278,6 +278,59 @@ impl IoState {
         if seed != 0 { self.lfsr = seed; }
     }
 
+    /// Lecture sans effet de bord d'un registre I/O (pour peek/debug/validation).
+    /// Contrairement à read_register(), ne déclenche pas de reset de timer, etc.
+    pub fn peek_register(&self, addr: u16) -> u8 {
+        match addr {
+            VPU_CTRL     => self.vpu.ctrl,
+            VPU_BORDER   => self.vpu.border,
+            VPU_SCROLL_X => self.vpu.scroll_x,
+            VPU_SCROLL_Y => self.vpu.scroll_y,
+            VPU_STATUS   => self.vpu.status,
+            VPU_CURSOR_X => self.vpu.cursor_x,
+            VPU_CURSOR_Y => self.vpu.cursor_y,
+            VPU_INK      => self.vpu.ink,
+            VPU_PAPER    => self.vpu.paper,
+            SPU_MASTER_VOL => self.spu.master_vol,
+            SPU_STATUS     => self.spu.status,
+            0xD100..=0xD117 => self.peek_spu_voice(addr),
+            KEY_ASCII    => self.kbd.ascii,
+            KEY_STATUS   => self.kbd.status,
+            KEY_MOD      => self.kbd.modifiers,
+            KEY_RAW      => self.kbd.raw,
+            PAD1_STATE   => self.pad.pad1,
+            PAD2_STATE   => self.pad.pad2,
+            MOUSE_X      => self.mouse.x,
+            MOUSE_Y      => self.mouse.y,
+            MOUSE_DX     => self.mouse.dx as u8,
+            MOUSE_DY     => self.mouse.dy as u8,
+            MOUSE_BTN    => self.mouse.btn,
+            MOUSE_SCROLL => self.mouse.scroll as u8,
+            SYS_TIMER_LO => (self.timer & 0xFF) as u8,
+            SYS_TIMER_HI => (self.timer >> 8) as u8,
+            SYS_FRAME_LO => (self.frame_count & 0xFF) as u8,
+            SYS_FRAME_HI => (self.frame_count >> 8) as u8,
+            SYS_RAND     => (self.lfsr & 0xFF) as u8,  // valeur courante sans avancer
+            SYS_IRQ_RATE => self.irq_rate,
+            SYS_IRQ_CTRL => self.irq_ctrl,
+            SYS_CAPS     => 0b0000_0010,
+            _            => 0,
+        }
+    }
+
+    fn peek_spu_voice(&self, addr: u16) -> u8 {
+        let voice_idx = ((addr - 0xD100) / 8) as usize;
+        let reg_idx   = ((addr - 0xD100) % 8) as usize;
+        if voice_idx >= 3 { return 0; }
+        let v = &self.spu.voices[voice_idx];
+        match reg_idx {
+            0 => v.freq_lo, 1 => v.freq_hi, 2 => v.vol,
+            3 => v.attack,  4 => v.decay,   5 => v.sustain,
+            6 => v.release, 7 => v.ctrl,
+            _ => 0,
+        }
+    }
+
     /// Lecture d'un registre I/O par le CPU
     pub fn read_register(&mut self, addr: u16) -> u8 {
         match addr {

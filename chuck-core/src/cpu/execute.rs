@@ -10,6 +10,21 @@ use super::addressing::{resolve, Operand};
 
 /// Exécute l'instruction au PC courant. Retourne true si BRK.
 pub fn step(cpu: &mut Cpu, mem: &mut Memory) -> bool {
+    // ── Intercepteur ROM API ──────────────────────────────────────────────
+    // Quand le PC pointe dans la jump table $F000–$F06F, exécuter
+    // directement l'implémentation Rust au lieu du bytecode 6502 fragile.
+    // Le CPU a été envoyé ici via JSR $Fxxx depuis le programme utilisateur.
+    // On simule un RTS en dépilant le retour.
+    if cpu.pc >= 0xF000 && cpu.pc < 0xF072 {
+        let api_addr = cpu.pc;
+        // Simuler RTS : dépiler l'adresse de retour (poussée par JSR)
+        let ret = cpu.pop16(mem).wrapping_add(1);
+        cpu.pc = ret;
+        cpu.cycles += 6; // coût minimum JSR+RTS
+        dispatch_api(cpu, mem, api_addr);
+        return false;
+    }
+
     let opcode = mem.read(cpu.pc);
     cpu.pc = cpu.pc.wrapping_add(1);
 
@@ -26,8 +41,264 @@ pub fn step(cpu: &mut Cpu, mem: &mut Memory) -> bool {
     opcode == 0x00 // BRK
 }
 
+/// Implémentation Rust des routines API Chuck-8 ($F000–$F06F).
+/// Appelée depuis l'intercepteur quand le PC entre dans la jump table.
+/// L'état CPU (A, X, Y) est déjà positionné par le programme appelant.
+fn dispatch_api(cpu: &mut Cpu, mem: &mut Memory, addr: u16) {
+    use crate::rom::*;
+    use crate::io::{VPU_CTRL_MODE, IoAction};
+
+    let gfx_mode = (mem.io.vpu.ctrl & VPU_CTRL_MODE) != 0;
+
+    match addr {
+        // ── SYS_CLEAR $F000 : A=couleur ou char ──────────────────────────
+        SYS_CLEAR => {
+            if gfx_mode {
+                mem.clear_gfx(cpu.a);
+            } else {
+                let ink   = mem.io.vpu.ink;
+                let paper = mem.io.vpu.paper;
+                mem.clear_text(0x20, ink, paper);
+                mem.io.vpu.cursor_x = 0;
+                mem.io.vpu.cursor_y = 0;
+            }
+        }
+
+        // ── SYS_DRAW_PIXEL $F003 : A=couleur X=px Y=py ───────────────────
+        SYS_DRAW_PIXEL => {
+            mem.set_pixel(cpu.x, cpu.y, cpu.a);
+        }
+
+        // ── SYS_DRAW_LINE $F006 : A=couleur $80=x0 $81=y0 $82=x1 $83=y1 ─
+        SYS_DRAW_LINE => {
+            let x0 = mem.peek(0x0080); let y0 = mem.peek(0x0081);
+            let x1 = mem.peek(0x0082); let y1 = mem.peek(0x0083);
+            mem.draw_line(x0, y0, x1, y1, cpu.a);
+        }
+
+        // ── SYS_DRAW_RECT $F009 : A=couleur $80=x $81=y $82=w $83=h ──────
+        SYS_DRAW_RECT => {
+            let x = mem.peek(0x0080); let y = mem.peek(0x0081);
+            let w = mem.peek(0x0082); let h = mem.peek(0x0083);
+            mem.draw_rect(x, y, w, h, cpu.a);
+        }
+
+        // ── SYS_FILL_RECT $F00C : A=couleur $80=x $81=y $82=w $83=h ──────
+        SYS_FILL_RECT => {
+            let x = mem.peek(0x0080); let y = mem.peek(0x0081);
+            let w = mem.peek(0x0082); let h = mem.peek(0x0083);
+            mem.fill_rect(x, y, w, h, cpu.a);
+        }
+
+        // ── SYS_BLIT $F00F : non implémenté (RTS) ────────────────────────
+        SYS_BLIT => {}
+
+        // ── SYS_DRAW_SPR $F012 : non implémenté ──────────────────────────
+        SYS_DRAW_SPR => {}
+
+        // ── SYS_GET_PIXEL $F015 : A=couleur à (X,Y) ─────────────────────
+        SYS_GET_PIXEL => {
+            cpu.a = mem.get_pixel(cpu.x, cpu.y);
+        }
+
+        // ── SYS_FLIP $F018 : swap framebuffers (NOP en émulateur simple) ─
+        SYS_FLIP => {}
+
+        // ── SYS_SET_MODE $F01B : A=0(texte) A=1(gfx) ────────────────────
+        SYS_SET_MODE => {
+            if cpu.a == 0 {
+                mem.io.vpu.ctrl &= !VPU_CTRL_MODE;
+            } else {
+                mem.io.vpu.ctrl |= VPU_CTRL_MODE;
+            }
+            mem.io.vpu.ctrl |= 0x80; // toujours enable
+        }
+
+        // ── SYS_PRINT_CHAR $F01E : A=char ASCII ──────────────────────────
+        SYS_PRINT_CHAR => {
+            mem.handle_io_action(IoAction::PrintChar(cpu.a));
+        }
+
+        // ── SYS_PRINT_STR $F021 : $80/$81=adresse chaîne ─────────────────
+        SYS_PRINT_STR => {
+            let lo = mem.peek(0x0080);
+            let hi = mem.peek(0x0081);
+            mem.print_str_at(lo, hi);
+        }
+
+        // ── SYS_PRINT_NUM $F024 : A=entier 8-bit ────────────────────────
+        SYS_PRINT_NUM => {
+            mem.print_num(cpu.a);
+        }
+
+        // ── SYS_PRINT_HEX $F027 : A=valeur → "$XX" ──────────────────────
+        SYS_PRINT_HEX => {
+            mem.print_hex(cpu.a);
+        }
+
+        // ── SYS_SET_CURSOR $F02A : X=col Y=ligne ────────────────────────
+        SYS_SET_CURSOR => {
+            mem.io.vpu.cursor_x = cpu.x;
+            mem.io.vpu.cursor_y = cpu.y;
+        }
+
+        // ── SYS_GET_CURSOR $F02D : retourne X=col Y=ligne ───────────────
+        SYS_GET_CURSOR => {
+            cpu.x = mem.io.vpu.cursor_x;
+            cpu.y = mem.io.vpu.cursor_y;
+        }
+
+        // ── SYS_SET_COLOR $F030 : A=(ink<<4)|paper ───────────────────────
+        SYS_SET_COLOR => {
+            mem.io.vpu.ink   = (cpu.a >> 4) & 0x0F;
+            mem.io.vpu.paper =  cpu.a        & 0x0F;
+        }
+
+        // ── SYS_SCROLL_UP $F033 ──────────────────────────────────────────
+        SYS_SCROLL_UP => {
+            mem.scroll_up();
+        }
+
+        // ── SYS_PLAY_NOTE $F036 : A=note_midi X=voix $80=durée ───────────
+        SYS_PLAY_NOTE => {
+            // Calcul fréquence depuis note MIDI
+            // freq_hz = 440 * 2^((A-69)/12)
+            // période = 1_000_000 / freq_hz
+            let note = cpu.a;
+            let semitones = note as i32 - 69;
+            let freq_hz = (440.0f64 * (semitones as f64 / 12.0).exp2()) as u32;
+            let period = if freq_hz > 0 { (1_000_000u32 / freq_hz).saturating_sub(1) } else { 0 };
+            let voice_base = 0xD100u16 + (cpu.x.min(2) as u16) * 8;
+            mem.io.write_register(voice_base,     (period & 0xFF) as u8);
+            mem.io.write_register(voice_base + 1, (period >> 8) as u8);
+            mem.io.write_register(voice_base + 2, 0xFF); // vol max
+            mem.io.write_register(voice_base + 7, 0x81); // gate=1, carré
+        }
+
+        // ── SYS_STOP_VOICE $F039 : X=voix ────────────────────────────────
+        SYS_STOP_VOICE => {
+            let voice_base = 0xD100u16 + (cpu.x.min(2) as u16) * 8;
+            mem.io.write_register(voice_base + 7, 0x01); // gate=0
+        }
+
+        // ── SYS_STOP_ALL $F03C ────────────────────────────────────────────
+        SYS_STOP_ALL => {
+            mem.io.write_register(0xD107, 0x01);
+            mem.io.write_register(0xD10F, 0x01);
+            mem.io.write_register(0xD117, 0x01);
+        }
+
+        // ── SYS_PLAY_SFX $F03F : NOP ─────────────────────────────────────
+        SYS_PLAY_SFX => {}
+
+        // ── SYS_SET_VOL $F042 : A=vol X=voix ─────────────────────────────
+        SYS_SET_VOL => {
+            let voice_base = 0xD100u16 + (cpu.x.min(2) as u16) * 8;
+            let vol = cpu.a & 0x0F;
+            mem.io.write_register(voice_base + 2, (vol << 4) | vol);
+        }
+
+        // ── SYS_MASTER_VOL $F045 : A=vol ─────────────────────────────────
+        SYS_MASTER_VOL => {
+            mem.io.spu.master_vol = cpu.a & 0x0F;
+        }
+
+        // ── SYS_READ_PAD $F048 : A=pad# → A=état ────────────────────────
+        SYS_READ_PAD => {
+            cpu.a = if cpu.a == 0 { mem.io.pad.pad1 } else { mem.io.pad.pad2 };
+        }
+
+        // ── SYS_READ_KEY $F04B : → A=ASCII ───────────────────────────────
+        SYS_READ_KEY => {
+            cpu.a = mem.io.kbd.ascii;
+        }
+
+        // ── SYS_WAIT_KEY $F04E : → A=ASCII (polling instantané) ──────────
+        SYS_WAIT_KEY => {
+            // En émulateur, retourne immédiatement la touche courante ou 0
+            cpu.a = mem.io.kbd.ascii;
+            mem.io.clear_key();
+        }
+
+        // ── SYS_READ_MOUSE $F051 : → X=x Y=y A=btn ──────────────────────
+        SYS_READ_MOUSE => {
+            cpu.x = mem.io.mouse.x;
+            cpu.y = mem.io.mouse.y;
+            cpu.a = mem.io.mouse.btn;
+        }
+
+        // ── SYS_KEY_DOWN $F054 : A=scancode → A=$FF si enfoncé ──────────
+        SYS_KEY_DOWN => {
+            cpu.a = if mem.io.kbd.raw == cpu.a && mem.io.kbd.status != 0 { 0xFF } else { 0x00 };
+        }
+
+        // ── SYS_WAIT_VBLANK $F057 : retour immédiat ──────────────────────
+        // La synchronisation 60 Hz est gérée par requestAnimationFrame côté JS.
+        // Le CPU ne doit PAS bloquer ici — il reviendrait à chaque rAF de toute façon.
+        SYS_WAIT_VBLANK => {
+            // RTS immédiat — déjà effectué par l'intercepteur
+        }
+
+        // ── SYS_RAND $F05A : → A=aléatoire ───────────────────────────────
+        SYS_RAND_API => {
+            cpu.a = mem.io.next_rand();
+        }
+
+        // ── SYS_RAND16 $F05D : → A=lo X=hi ──────────────────────────────
+        SYS_RAND16 => {
+            cpu.a = mem.io.next_rand();
+            cpu.x = mem.io.next_rand();
+        }
+
+        // ── SYS_MEMCPY $F060 : $80/$81=src $82/$83=dst $84/$85=len ───────
+        SYS_MEMCPY => {
+            let src = ((mem.peek(0x0081) as u16) << 8) | mem.peek(0x0080) as u16;
+            let dst = ((mem.peek(0x0083) as u16) << 8) | mem.peek(0x0082) as u16;
+            let len = ((mem.peek(0x0085) as u16) << 8) | mem.peek(0x0084) as u16;
+            for i in 0..len {
+                let v = mem.read(src.wrapping_add(i));
+                mem.write(dst.wrapping_add(i), v);
+            }
+        }
+
+        // ── SYS_MEMSET $F063 : $80/$81=dst A=val $82=len ─────────────────
+        SYS_MEMSET => {
+            let dst = ((mem.peek(0x0081) as u16) << 8) | mem.peek(0x0080) as u16;
+            let len = mem.peek(0x0082) as u16;
+            let val = cpu.a;
+            for i in 0..len {
+                mem.write(dst.wrapping_add(i), val);
+            }
+        }
+
+        // ── SYS_MEMCMP $F066 : NOP (sets Z=1) ────────────────────────────
+        SYS_MEMCMP => {
+            cpu.set_flag(flags::Z, true);
+        }
+
+        // ── SYS_FRAME_NUM $F069 : → A=lo X=hi ────────────────────────────
+        SYS_FRAME_NUM => {
+            cpu.a = (mem.io.frame_count & 0xFF) as u8;
+            cpu.x = (mem.io.frame_count >> 8) as u8;
+        }
+
+        // ── SYS_SOFT_RESET $F06C ─────────────────────────────────────────
+        SYS_SOFT_RESET => {
+            mem.io.pending_reset = true;
+        }
+
+        // ── SYS_VERSION $F06F : → A=major X=minor ────────────────────────
+        SYS_VERSION => {
+            cpu.a = 1;
+            cpu.x = 0;
+        }
+
+        _ => {} // Adresse inconnue dans la jump table
+    }
+}
+
 /// Exécute l'opcode et retourne les cycles supplémentaires (page cross, branch taken).
-fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, _mode: AddrMode, op: Operand) -> u64 {
+fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, mode: AddrMode, op: Operand) -> u64 {
     match opcode {
 
         // ── LDA ─────────────────────────────────────────────────────────
