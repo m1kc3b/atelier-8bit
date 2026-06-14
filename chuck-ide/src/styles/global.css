@@ -123,7 +123,9 @@ chuck-challenge-panel {
   border-left: 1px solid var(--border);
 }
 chuck-challenge-panel.panel-open {
-  width: 340px;
+  width: 25%; /* Largeur relative */
+  min-width: 300px; /* Largeur minimale pour éviter qu'il soit trop étroit */
+  max-width: 500px; /* Largeur maximale pour éviter qu'il soit trop large */
 }
 
 /* ── Status bar ────────────────────────────────────────────── */

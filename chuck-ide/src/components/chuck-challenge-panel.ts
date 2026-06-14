@@ -94,7 +94,7 @@ const STYLES = /* css */`
     border-bottom: 1px solid var(--border);
   }
   .item-title {
-    font-size: 15px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--text);
     line-height: 1.3;
@@ -109,7 +109,7 @@ const STYLES = /* css */`
     align-items: center;
     gap: 8px;
     margin-top: 6px;
-    font-size: 10px;
+    font-size: 13px;
     color: var(--text-muted);
     font-family: var(--font-mono);
   }
@@ -128,12 +128,12 @@ const STYLES = /* css */`
 
   /* theory */
   .block-theory {
-    font-size: 12.5px;
+    font-size: 14px;
     line-height: 1.7;
-    color: var(--text-dim);
+    color: var(--text);
   }
   .block-theory h3 {
-    font-size: 10px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .08em;
@@ -151,7 +151,7 @@ const STYLES = /* css */`
     border-radius: 3px;
   }
   .block-theory h2 {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--text);
     text-transform: uppercase;
@@ -168,7 +168,20 @@ const STYLES = /* css */`
   .block-theory p { margin: 0 0 6px; }
   .block-theory p:last-child { margin-bottom: 0; }
 
-  /* code */
+  /* ── code ───────────────────────────────────────────────── */
+  pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--surface-2); /* Fond cohérent avec ton thème */
+    color: var(--cyan);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    overflow-x: auto; /* Barre de défilement horizontale si nécessaire */
+    margin: 8px 0;
+    white-space: pre;
+  }
   .block-code {
     padding: 6px 16px;
   }
@@ -754,7 +767,8 @@ export class ChuckChallengePanel extends ChuckComponent {
       .replace(/^### (.+)$/gm, '<h3>$1</h3>')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/(```|`)([^`]+)\1/g, '<code>\$2</code>')
+      .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/^- (.+)$/gm, '<li>$1</li>')
       .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
       .replace(/\n{2,}/g, '</p><p>')
