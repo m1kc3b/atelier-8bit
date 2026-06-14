@@ -25,10 +25,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const displayEl = document.getElementById('modal-display') as
     (HTMLElement & { show(): void; toggle(): void }) | null;
 
-  // ── ChallengeManager ─────────────────────────────────────
-  const challengeManager = new ChallengeManager();
-  await challengeManager.init(await Emulator.create());
-
   // ── Titlebar — toggles modales flottantes ────────────────
   const registersEl  = document.getElementById('modal-registers')  as (HTMLElement & { toggle(): void }) | null;
   const memoryEl     = document.getElementById('modal-memory')      as (HTMLElement & { toggle(): void }) | null;
@@ -41,35 +37,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-show-memory')
     ?.addEventListener('click', () => memoryEl?.toggle());
 
-  // Ouvrir le panneau défi (aside) quand un défi est chargé
-  function openChallengeAside(): void {
-    challengeAside?.classList.add('panel-open');
-  }
-  function closeChallengeAside(): void {
-    challengeAside?.classList.remove('panel-open');
-  }
-
-  // ── Titre de la page et de la titlebar ──────────────────
+  function openChallengeAside(): void { challengeAside?.classList.add('panel-open'); }
+  function closeChallengeAside(): void { challengeAside?.classList.remove('panel-open'); }
 
   const titlebarFile = document.getElementById('titlebar-file')!;
 
-  // Mode libre au démarrage (pas de ?challenge=X)
-  // Le titre par défaut dans index.html est déjà "Chuck IDE"
+  // ── Enregistrer les listeners BUS avant init() ───────────
+  // init() émet chuck:challenge-loaded de façon synchrone — les listeners
+  // doivent exister avant l'appel.
 
-  // Quand un défi est chargé : ouvrir l'aside + titres
   bus.on('chuck:challenge-loaded', ({ challenge }) => {
-    const label = `Jour ${challenge.id} — ${challenge.title}`;
+    const label = `Défi ${challenge.id} — ${challenge.title}`;
     titlebarFile.textContent = label;
     document.title           = `${label} — Chuck IDE`;
     openChallengeAside();
   });
 
-  // Mode libre — fermer l'aside
   (bus as any).on('chuck:ide-free', () => {
     titlebarFile.textContent = 'mode libre';
     document.title           = "Chuck IDE — Chuck-8 Computer";
     closeChallengeAside();
   });
+
+  // ── ChallengeManager ─────────────────────────────────────
+  const challengeManager = new ChallengeManager();
+  await challengeManager.init(await Emulator.create());
   const sbState  = document.getElementById('sb-state')!;
   const sbCursor = document.getElementById('sb-cursor')!;
   const sbPc     = document.getElementById('sb-pc')!;
