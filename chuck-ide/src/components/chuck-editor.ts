@@ -309,13 +309,104 @@ const opcodeCompletions = [...OPCODES_6502].sort().map(op => {
   };
 });
 
+// ── Constantes Chuck-8 Platform pour l'autocomplétion ────────────────────────
+const CHUCK8_COMPLETIONS = [
+  // ── API Système ─────────────────────────────────────────────
+  { label: 'SYS_CLEAR',       detail: '$F000 · efface écran',    info: 'JSR SYS_CLEAR — A=couleur. Efface le framebuffer.' },
+  { label: 'SYS_DRAW_PIXEL',  detail: '$F003 · dessine pixel',   info: 'JSR SYS_DRAW_PIXEL — A=couleur, X=px, Y=py.' },
+  { label: 'SYS_DRAW_LINE',   detail: '$F006 · ligne',           info: 'JSR SYS_DRAW_LINE — A=couleur, $80/$81=x0/y0, $82/$83=x1/y1.' },
+  { label: 'SYS_DRAW_RECT',   detail: '$F009 · rectangle',       info: 'JSR SYS_DRAW_RECT — A=couleur, $80=x $81=y $82=w $83=h (contour).' },
+  { label: 'SYS_FILL_RECT',   detail: '$F00C · rect rempli',     info: 'JSR SYS_FILL_RECT — mêmes paramètres que DRAW_RECT.' },
+  { label: 'SYS_FLIP',        detail: '$F018 · swap buffers',    info: 'JSR SYS_FLIP — Swap framebuffer A↔B au prochain VBlank.' },
+  { label: 'SYS_SET_MODE',    detail: '$F01B · mode vidéo',      info: 'JSR SYS_SET_MODE — A=0 (texte) A=1 (graphique).' },
+  { label: 'SYS_PRINT_CHAR',  detail: '$F01E · affiche char',    info: 'JSR SYS_PRINT_CHAR — A=char ASCII. Avance le curseur.' },
+  { label: 'SYS_PRINT_STR',   detail: '$F021 · affiche chaîne',  info: 'JSR SYS_PRINT_STR — $80/$81=adresse chaîne null-terminated.' },
+  { label: 'SYS_PRINT_NUM',   detail: '$F024 · affiche nombre',  info: 'JSR SYS_PRINT_NUM — A=entier 8-bit en décimal.' },
+  { label: 'SYS_PRINT_HEX',   detail: '$F027 · affiche hex',     info: 'JSR SYS_PRINT_HEX — A=valeur → affiche "$XX".' },
+  { label: 'SYS_SET_CURSOR',  detail: '$F02A · positionne curseur', info: 'JSR SYS_SET_CURSOR — X=colonne, Y=ligne (mode texte).' },
+  { label: 'SYS_SET_COLOR',   detail: '$F030 · couleur texte',   info: 'JSR SYS_SET_COLOR — A=ink<<4|paper. Bits 7-4=ink, bits 3-0=paper.' },
+  { label: 'SYS_SCROLL_UP',   detail: '$F033 · scroll texte',    info: 'JSR SYS_SCROLL_UP — Fait défiler le texte d\'une ligne.' },
+  { label: 'SYS_PLAY_NOTE',   detail: '$F036 · joue note',       info: 'JSR SYS_PLAY_NOTE — A=note MIDI (21-108), X=voix, $80=durée.' },
+  { label: 'SYS_STOP_VOICE',  detail: '$F039 · arrête voix',     info: 'JSR SYS_STOP_VOICE — X=voix (0-2).' },
+  { label: 'SYS_STOP_ALL',    detail: '$F03C · arrête tout',     info: 'JSR SYS_STOP_ALL — Coupe toutes les voix.' },
+  { label: 'SYS_READ_PAD',    detail: '$F048 · lit manette',     info: 'JSR SYS_READ_PAD — A=0 (pad1) ou 1 (pad2). Retourne état dans A.' },
+  { label: 'SYS_READ_KEY',    detail: '$F04B · lit clavier',     info: 'JSR SYS_READ_KEY — Retourne ASCII dans A (0 si aucune touche).' },
+  { label: 'SYS_WAIT_KEY',    detail: '$F04E · attend touche',   info: 'JSR SYS_WAIT_KEY — Bloque jusqu\'à pression. Retourne ASCII dans A.' },
+  { label: 'SYS_READ_MOUSE',  detail: '$F051 · lit souris',      info: 'JSR SYS_READ_MOUSE — Retourne X=mouseX, Y=mouseY, A=boutons.' },
+  { label: 'SYS_WAIT_VBLANK', detail: '$F057 · sync 60 Hz',      info: 'JSR SYS_WAIT_VBLANK — Bloque jusqu\'au prochain VBlank (NMI). Sync frame.' },
+  { label: 'SYS_RAND',        detail: '$F05A · octet aléatoire', info: 'JSR SYS_RAND — Retourne octet pseudo-aléatoire dans A.' },
+  { label: 'SYS_RAND16',      detail: '$F05D · 16-bit aléatoire',info: 'JSR SYS_RAND16 — Retourne 16-bit dans A (lo) + X (hi).' },
+  { label: 'SYS_MEMCPY',      detail: '$F060 · copie mémoire',   info: 'JSR SYS_MEMCPY — $80/$81=src, $82/$83=dst, $84/$85=len.' },
+  { label: 'SYS_MEMSET',      detail: '$F063 · remplit mémoire', info: 'JSR SYS_MEMSET — $80/$81=dst, A=val, $82/$83=len.' },
+  { label: 'SYS_FRAME_NUM',   detail: '$F069 · numéro frame',    info: 'JSR SYS_FRAME_NUM — Retourne compteur frames: A=lo, X=hi.' },
+  // ── Registres VPU ───────────────────────────────────────────
+  { label: 'VPU_CTRL',        detail: '$D000 · contrôle VPU',    info: 'bit7=enable, bit1=flip, bit0=mode(0=TXT/1=GFX).' },
+  { label: 'VPU_BORDER',      detail: '$D001 · couleur bordure', info: 'Couleur de la bordure (0-15).' },
+  { label: 'VPU_SCROLL_X',    detail: '$D002 · scroll X',        info: 'Décalage horizontal 0-127 (mode gfx).' },
+  { label: 'VPU_SCROLL_Y',    detail: '$D003 · scroll Y',        info: 'Décalage vertical 0-127.' },
+  { label: 'VPU_STATUS',      detail: '$D004 · état VPU',        info: 'Lecture : bit7=vblank, bit0=frame pair/impair.' },
+  { label: 'VPU_CURSOR_X',    detail: '$D00B · curseur col',     info: 'Colonne du curseur texte (0-31).' },
+  { label: 'VPU_CURSOR_Y',    detail: '$D00C · curseur ligne',   info: 'Ligne du curseur texte (0-31).' },
+  { label: 'VPU_INK',         detail: '$D00D · couleur texte',   info: 'Couleur du texte (0-15).' },
+  { label: 'VPU_PAPER',       detail: '$D00E · couleur fond',    info: 'Couleur du fond texte (0-15).' },
+  { label: 'VPU_CHAR_OUT',    detail: '$D00F · char direct',     info: 'STA VPU_CHAR_OUT — affiche le char A au curseur et avance.' },
+  // ── Registres INPUT ─────────────────────────────────────────
+  { label: 'KEY_ASCII',       detail: '$D200 · touche ASCII',    info: 'Lecture : code ASCII de la touche courante (0 si aucune).' },
+  { label: 'KEY_STATUS',      detail: '$D201 · état clavier',    info: 'bit7=touche enfoncée. Écriture $00 = acquitter.' },
+  { label: 'KEY_MOD',         detail: '$D202 · modificateurs',   info: 'bit0=Shift, bit1=Ctrl, bit2=Alt.' },
+  { label: 'PAD1_STATE',      detail: '$D210 · manette 1',       info: 'Bits PAD_A PAD_B PAD_SELECT PAD_START PAD_RIGHT PAD_LEFT PAD_DOWN PAD_UP. 0=enfoncé.' },
+  { label: 'PAD2_STATE',      detail: '$D211 · manette 2',       info: 'Même format que PAD1_STATE.' },
+  { label: 'MOUSE_X',         detail: '$D220 · souris X',        info: 'Position X souris (0-127 gfx, 0-31 txt).' },
+  { label: 'MOUSE_Y',         detail: '$D221 · souris Y',        info: 'Position Y souris.' },
+  { label: 'MOUSE_BTN',       detail: '$D224 · boutons souris',  info: 'bit0=gauche, bit1=droit (0=enfoncé).' },
+  // ── Registres SYSTEM ────────────────────────────────────────
+  { label: 'SYS_RAND',        detail: '$D306 · PRNG',            info: 'Lecture : octet pseudo-aléatoire (LFSR 16-bit). Écriture : seed.' },
+  { label: 'SYS_FRAME_LO',    detail: '$D304 · frames lo',       info: 'Octet bas du compteur de frames.' },
+  { label: 'SYS_FRAME_HI',    detail: '$D305 · frames hi',       info: 'Octet haut du compteur de frames.' },
+  // ── Couleurs ────────────────────────────────────────────────
+  { label: 'COLOR_BLACK',     detail: '0',  info: 'Couleur 0 : Noir  #000000' },
+  { label: 'COLOR_WHITE',     detail: '1',  info: 'Couleur 1 : Blanc #FFFFFF' },
+  { label: 'COLOR_RED',       detail: '2',  info: 'Couleur 2 : Rouge #CC0000' },
+  { label: 'COLOR_CYAN',      detail: '3',  info: 'Couleur 3 : Cyan  #00CCCC' },
+  { label: 'COLOR_PURPLE',    detail: '4',  info: 'Couleur 4 : Violet #CC00CC' },
+  { label: 'COLOR_GREEN',     detail: '5',  info: 'Couleur 5 : Vert  #00CC00' },
+  { label: 'COLOR_BLUE',      detail: '6',  info: 'Couleur 6 : Bleu  #0000CC' },
+  { label: 'COLOR_YELLOW',    detail: '7',  info: 'Couleur 7 : Jaune #CCCC00' },
+  { label: 'COLOR_ORANGE',    detail: '8',  info: 'Couleur 8 : Orange #CC8800' },
+  { label: 'COLOR_BROWN',     detail: '9',  info: 'Couleur 9 : Brun  #884400' },
+  { label: 'COLOR_PINK',      detail: '10', info: 'Couleur 10 : Rose #FF8888' },
+  { label: 'COLOR_DKGRAY',    detail: '11', info: 'Couleur 11 : Gris foncé #444444' },
+  { label: 'COLOR_MDGRAY',    detail: '12', info: 'Couleur 12 : Gris moyen #888888' },
+  { label: 'COLOR_LTGREEN',   detail: '13', info: 'Couleur 13 : Vert clair #88FF88' },
+  { label: 'COLOR_LTBLUE',    detail: '14', info: 'Couleur 14 : Bleu clair #8888FF' },
+  { label: 'COLOR_LTGRAY',    detail: '15', info: 'Couleur 15 : Gris clair #CCCCCC' },
+  // ── Boutons manette ─────────────────────────────────────────
+  { label: 'PAD_A',           detail: '%10000000', info: 'Bit bouton A (bit7). Test : LDA PAD1_STATE : EOR #$FF : AND #PAD_A' },
+  { label: 'PAD_B',           detail: '%01000000', info: 'Bit bouton B (bit6).' },
+  { label: 'PAD_SELECT',      detail: '%00100000', info: 'Bit Select (bit5).' },
+  { label: 'PAD_START',       detail: '%00010000', info: 'Bit Start (bit4).' },
+  { label: 'PAD_RIGHT',       detail: '%00001000', info: 'Bit Droite (bit3).' },
+  { label: 'PAD_LEFT',        detail: '%00000100', info: 'Bit Gauche (bit2).' },
+  { label: 'PAD_DOWN',        detail: '%00000010', info: 'Bit Bas (bit1).' },
+  { label: 'PAD_UP',          detail: '%00000001', info: 'Bit Haut (bit0).' },
+  // ── Zones mémoire ───────────────────────────────────────────
+  { label: 'FRAMEBUF_A',      detail: '$4000', info: 'Framebuffer A (actif) — 128×128 px nibble-packed.' },
+  { label: 'FRAMEBUF_B',      detail: '$6000', info: 'Framebuffer B (backbuffer pour double buffering).' },
+  { label: 'VRAM_TEXT',       detail: '$4800', info: 'Mémoire texte — 32×32 chars. Adresse = $4800 + ligne*32 + col.' },
+  { label: 'VRAM_ATTR',       detail: '$4C00', info: 'Attributs couleur texte. Bits 7-4=paper, 3-0=ink.' },
+  { label: 'ZP_PARAMS',       detail: '$0080', info: 'Zone paramètres ABI (ZP $80–$EF). Utilisée pour passer des arguments aux routines.' },
+  { label: 'ZP_PTR0',         detail: '$00F0', info: 'Pointeur 0 (lo=$F0, hi=$F1). Utilisé pour l\'adressage indirect.' },
+  { label: 'ZP_PTR1',         detail: '$00F2', info: 'Pointeur 1 (lo=$F2, hi=$F3).' },
+].map(c => ({ ...c, type: 'variable' as const }));
+
 function asm6502Completions(context: import('@codemirror/autocomplete').CompletionContext) {
-  const word = context.matchBefore(/[A-Za-z]+/);
+  const word = context.matchBefore(/[A-Za-z_]+/);
   if (!word || (word.from === word.to && !context.explicit)) return null;
   const q = word.text.toUpperCase();
+  const all = [...opcodeCompletions, ...CHUCK8_COMPLETIONS];
   return {
     from:    word.from,
-    options: opcodeCompletions.filter(c => c.label.startsWith(q)),
+    options: all.filter(c => c.label.toUpperCase().startsWith(q)),
   };
 }
 
@@ -455,67 +546,68 @@ const STYLES = /* css */`
 `;
 
 // ─────────────────────────────────────────────────────────────
-// Code de démo affiché au lancement sur "/"
-// Montre : boucle, palette, écran, données statiques
+// Code de démo Chuck-8 Platform v1.0
 // ─────────────────────────────────────────────────────────────
 
-const DEFAULT_SOURCE = `; Chuck IDE — L'Atelier 8-Bit
-; ─────────────────────────────────────────
-; Ce code peint un arc-en-ciel sur l'écran.
-; Lance-le avec le bouton ▶ Run !
-;
-; Utilise ?challenge=1 dans l'URL pour
-; commencer les défis depuis le début.
-; ─────────────────────────────────────────
+const DEFAULT_SOURCE = `; ══════════════════════════════════════════════════
+;  CHUCK-8 COMPUTER — Programme de démonstration
+;  Plateforme : 128×128 px · 16 couleurs · 1 MHz
+; ══════════════════════════════════════════════════
 
-  LDX #$00       ; X = index pixel courant
+; ── Constantes de la plateforme ────────────────────
+; (normalement dans chuck.inc, ici inlinées pour la démo)
+SYS_CLEAR      = $F000  ; efface l'écran (A=couleur)
+SYS_DRAW_PIXEL = $F003  ; pixel(X,Y)=couleur A
+SYS_PRINT_CHAR = $F01E  ; affiche char A au curseur
+SYS_SET_CURSOR = $F02A  ; curseur(X,Y)
+SYS_SET_COLOR  = $F030  ; ink=bits7-4 paper=bits3-0
+SYS_WAIT_VBLANK= $F057  ; sync 60 Hz
+SYS_RAND       = $F05A  ; octet aléatoire → A
+VPU_CTRL       = $D000  ; 0=TXT 1=GFX
 
-BOUCLE:
-  LDA COULEURS,X ; charge la couleur X
-  AND #$0F       ; reste dans la palette (0-15)
-  STA $0200,X    ; écrit le pixel à l'écran
-  STA $0300,X    ; ligne 2
-  STA $0400,X    ; ligne 3
-  STA $0500,X    ; ligne 4
-  INX
-  BNE BOUCLE     ; tant que X != 0 (256 pixels)
+COLOR_BLACK    = 0
+COLOR_WHITE    = 1
+COLOR_RED      = 2
+COLOR_CYAN     = 3
+COLOR_YELLOW   = 7
 
-  BRK
+  .org $E000             ; point d'entrée Chuck-8
 
-; ── Palette arc-en-ciel (256 octets) ────
-COULEURS:
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
-  .byte $01,$02,$03,$04,$05,$06,$07,$08
-  .byte $09,$0A,$0B,$0C,$0D,$0E,$0F,$00
-  .byte $00,$0F,$0E,$0D,$0C,$0B,$0A,$09
-  .byte $08,$07,$06,$05,$04,$03,$02,$01
+; ══════════════════════════════════════════════════
+INIT:
+  ; Passer en mode graphique
+  LDA #$81               ; bit7=enable bit0=mode GFX
+  STA VPU_CTRL
+
+  ; Effacer l'écran en noir
+  LDA #COLOR_BLACK
+  JSR SYS_CLEAR
+
+; ══════════════════════════════════════════════════
+;  BOUCLE PRINCIPALE (sync 60 Hz via WAIT_VBLANK)
+; ══════════════════════════════════════════════════
+MAIN_LOOP:
+  JSR SYS_WAIT_VBLANK    ; attend le VBlank (NMI)
+  JSR UPDATE
+  JMP MAIN_LOOP
+
+; ── Logique : peint un pixel aléatoire ────────────
+UPDATE:
+  JSR SYS_RAND           ; A = couleur aléatoire
+  AND #$0F               ; palette 0-15
+  BEQ UPDATE             ; évite le noir (0)
+
+  PHA                    ; sauvegarde couleur
+
+  JSR SYS_RAND           ; X = position x aléatoire
+  TAX
+
+  JSR SYS_RAND           ; Y = position y aléatoire
+  TAY
+
+  PLA                    ; restaure couleur
+  JSR SYS_DRAW_PIXEL     ; dessine
+  RTS
 `;
 
 // ─────────────────────────────────────────────────────────────

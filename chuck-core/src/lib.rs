@@ -1,12 +1,13 @@
 // chuck-core/src/lib.rs
-// Moteur 6502 complet — assembleur + émulateur — exposé via WebAssembly
+// Moteur Chuck-8 — assembleur + émulateur 6502 + I/O + ROM système
 
 pub mod assembler;
 pub mod cpu;
+pub mod io;
 pub mod memory;
+pub mod rom;
 pub mod wasm_api;
 
-// Ré-exports publics pour les tests Rust natifs
 pub use assembler::Assembler;
 pub use cpu::Cpu;
 pub use memory::Memory;

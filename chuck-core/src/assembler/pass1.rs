@@ -47,7 +47,7 @@ impl SymbolTable {
 /// Construit la table des symboles en simulant le PC.
 pub fn build_symbol_table(stmts: &[Statement]) -> Result<SymbolTable, AssembleError> {
     let mut symbols: HashMap<String, u16> = HashMap::new();
-    let mut org = 0x0600u16;
+    let mut org = 0xE000u16;  // point d'entrée par défaut selon spec Chuck-8
     let mut pc  = org;
 
     // Deux passes pour résoudre les forward references dans les defines
@@ -116,7 +116,14 @@ pub fn build_symbol_table(stmts: &[Statement]) -> Result<SymbolTable, AssembleEr
 /// Estime la taille d'une instruction selon son mode d'adressage parsé.
 /// On préfère les modes zero page quand possible (2 octets plutôt que 3).
 pub fn estimate_size(mode: &ParsedMode) -> u16 {
-    match mode {
+    // Détecter ASL A / LSR A / ROL A / ROR A → mode implicite (accumulateur) = 1 octet
+    let effective = match mode {
+        ParsedMode::Abs(Expr::Label(name)) if name.eq_ignore_ascii_case("A") => {
+            return 1;
+        }
+        other => other,
+    };
+    match effective {
         ParsedMode::Imp         => 1,
         ParsedMode::Imm(_)      => 2,
         ParsedMode::Abs(e)      => if is_zp_expr(e) { 2 } else { 3 },

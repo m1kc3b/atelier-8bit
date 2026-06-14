@@ -34,7 +34,7 @@ impl Assembler {
                 ok: false,
                 error: Some(e),
                 bytes_written: 0,
-                org: 0x0600,
+                org: 0xE000,
             },
         };
 
@@ -45,7 +45,7 @@ impl Assembler {
                 ok: false,
                 error: Some(e),
                 bytes_written: 0,
-                org: 0x0600,
+                org: 0xE000,
             },
         };
 
@@ -56,7 +56,7 @@ impl Assembler {
                 ok: false,
                 error: Some(e),
                 bytes_written: 0,
-                org: 0x0600,
+                org: 0xE000,
             },
         };
 
@@ -67,7 +67,7 @@ impl Assembler {
                 ok: false,
                 error: Some(e),
                 bytes_written: 0,
-                org: 0x0600,
+                org: 0xE000,
             },
         }
     }

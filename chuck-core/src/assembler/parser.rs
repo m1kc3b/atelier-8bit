@@ -101,16 +101,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expect_newline_or_eof(&mut self) -> Result<(), AssembleError> {
-        match self.peek_kind() {
-            None | Some(TokenKind::Newline) => { self.advance(); Ok(()) }
-            Some(_) => {
-                let line = self.current_line();
-                Err(AssembleError { line, msg: format!("Fin de ligne attendue, trouvé {:?}", self.peek_kind()) })
-            }
-        }
-    }
-
     fn err(&self, msg: impl Into<String>) -> AssembleError {
         AssembleError { line: self.current_line(), msg: msg.into() }
     }
@@ -204,6 +194,50 @@ impl<'a> Parser<'a> {
 
     // ── Opérande instruction ──────────────────────────────────────────────────
 
+    /// Parse une expression dans un contexte indirect — s'arrête avant ')' ou ','
+    /// sans les consommer (contrairement à parse_primary qui absorbe les parens groupantes).
+    fn parse_expr_indirect(&mut self) -> Result<Expr, AssembleError> {
+        // Même logique que parse_expr mais parse_primary_indirect à la base
+        let mut lhs = self.parse_term_indirect()?;
+        loop {
+            match self.peek_kind() {
+                Some(TokenKind::Plus)      => { self.advance(); lhs = Expr::Add(Box::new(lhs), Box::new(self.parse_term_indirect()?)); }
+                Some(TokenKind::Minus)     => { self.advance(); lhs = Expr::Sub(Box::new(lhs), Box::new(self.parse_term_indirect()?)); }
+                Some(TokenKind::Pipe)      => { self.advance(); lhs = Expr::Or (Box::new(lhs), Box::new(self.parse_term_indirect()?)); }
+                Some(TokenKind::Ampersand) => { self.advance(); lhs = Expr::And(Box::new(lhs), Box::new(self.parse_term_indirect()?)); }
+                Some(TokenKind::Caret)     => { self.advance(); lhs = Expr::Xor(Box::new(lhs), Box::new(self.parse_term_indirect()?)); }
+                _ => break,
+            }
+        }
+        Ok(lhs)
+    }
+
+    fn parse_term_indirect(&mut self) -> Result<Expr, AssembleError> {
+        let mut lhs = self.parse_primary_indirect()?;
+        loop {
+            match self.peek_kind() {
+                Some(TokenKind::Star)  => { self.advance(); lhs = Expr::Mul(Box::new(lhs), Box::new(self.parse_primary_indirect()?)); }
+                Some(TokenKind::Slash) => { self.advance(); lhs = Expr::Div(Box::new(lhs), Box::new(self.parse_primary_indirect()?)); }
+                _ => break,
+            }
+        }
+        Ok(lhs)
+    }
+
+    /// Comme parse_primary mais NE consomme PAS les parenthèses comme groupement.
+    /// Dans un contexte indirect, ')' est un délimiteur, pas un fermant d'expression.
+    fn parse_primary_indirect(&mut self) -> Result<Expr, AssembleError> {
+        match self.peek_kind().cloned() {
+            Some(TokenKind::Lt)    => { self.advance(); Ok(Expr::Lo(Box::new(self.parse_primary_indirect()?))) }
+            Some(TokenKind::Gt)    => { self.advance(); Ok(Expr::Hi(Box::new(self.parse_primary_indirect()?))) }
+            Some(TokenKind::Minus) => { self.advance(); Ok(Expr::Neg(Box::new(self.parse_primary_indirect()?))) }
+            Some(TokenKind::Star)  => { self.advance(); Ok(Expr::Label("*".into())) }
+            Some(TokenKind::Number(n)) => { self.advance(); Ok(Expr::Num(n)) }
+            Some(TokenKind::Ident(name)) => { self.advance(); Ok(Expr::Label(name)) }
+            other => Err(self.err(format!("Expression attendue dans opérande indirect, trouvé {:?}", other))),
+        }
+    }
+
     fn parse_mode(&mut self) -> Result<ParsedMode, AssembleError> {
         match self.peek_kind() {
             // Pas d'opérande → implicite
@@ -218,7 +252,8 @@ impl<'a> Parser<'a> {
             // Indirect : (expr) ou (expr,X) ou (expr),Y
             Some(TokenKind::LParen) => {
                 self.advance();
-                let expr = self.parse_expr()?;
+                // Utilise parse_expr_indirect pour ne pas absorber la ')' finale
+                let expr = self.parse_expr_indirect()?;
                 match self.peek_kind() {
                     // (expr,X)
                     Some(TokenKind::Comma) => {

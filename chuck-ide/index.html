@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chuck IDE — L'Atelier 8-Bit</title>
+  <title>Chuck IDE — Chuck-8 Computer</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
 <body>
@@ -12,11 +12,11 @@
 
     <!-- ── Title bar ───────────────────────────────────────── -->
     <header id="titlebar">
-      <!-- <div class="tl-lights">
+      <div class="tl-lights">
         <span class="tl-close"></span>
         <span class="tl-min"></span>
         <span class="tl-max"></span>
-      </div> -->
+      </div>
       <span class="titlebar-logo">⬡ CHUCK IDE</span>
       <span class="titlebar-file" id="titlebar-file">mode libre</span>
       <div class="titlebar-actions">
@@ -64,9 +64,11 @@
     <footer id="statusbar">
       <span class="sb-state" id="sb-state">Prêt</span>
       <span class="sb-sep">|</span>
-      <span>MOS 6502</span>
+      <span>Chuck-8 · MOS 6502 · 1 MHz</span>
       <span class="sb-sep">|</span>
-      <span id="sb-pc">$0600</span>
+      <span id="sb-mode">TXT</span>
+      <span class="sb-sep">|</span>
+      <span id="sb-pc">$E000</span>
       <div class="sb-right">
         <span id="sb-cursor">Ln 1  Col 1</span>
         <span class="sb-sep">|</span>

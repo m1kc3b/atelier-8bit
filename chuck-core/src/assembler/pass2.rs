@@ -5,7 +5,7 @@
 
 use crate::memory::Memory;
 use super::{AssembleError, AssembleResult};
-use super::parser::{Statement, StmtKind, Directive, ParsedMode};
+use super::parser::{Statement, StmtKind, Directive, ParsedMode, Expr};
 use super::pass1::{SymbolTable, resolve_mode};
 
 const BRANCHES: &[&str] = &["BCC","BCS","BEQ","BMI","BNE","BPL","BVC","BVS"];
@@ -93,8 +93,18 @@ pub fn generate(
                 let mnem = &instr.mnem;
                 let is_branch = BRANCHES.contains(&mnem.as_str());
 
+                // Détecter le mode accumulateur explicite : ASL A, LSR A, ROL A, ROR A
+                // En ca65, "ASL A" est parsé comme Abs(Label("A")) — on le convertit en Imp
+                let effective_mode: std::borrow::Cow<ParsedMode> = match &instr.mode {
+                    ParsedMode::Abs(Expr::Label(name)) if name.eq_ignore_ascii_case("A") => {
+                        std::borrow::Cow::Owned(ParsedMode::Imp)
+                    }
+                    other => std::borrow::Cow::Borrowed(other),
+                };
+                let mode = effective_mode.as_ref();
+
                 // Résoudre l'expression de l'opérande
-                let val = match &instr.mode {
+                let val = match mode {
                     ParsedMode::Imp => 0u16,
 
                     ParsedMode::Imm(e)
@@ -128,7 +138,7 @@ pub fn generate(
                 };
 
                 // Sélectionner l'opcode et les octets d'opérande
-                let (opcode, operand_bytes) = resolve_mode(mnem, &instr.mode, effective_val, is_branch)
+                let (opcode, operand_bytes) = resolve_mode(mnem, mode, effective_val, is_branch)
                     .map_err(|e| AssembleError { line: stmt.line, msg: e })?;
 
                 // Écrire en mémoire
@@ -174,24 +184,24 @@ mod tests {
     #[test]
     fn lda_imm_opcode() {
         let mem = asm("  LDA #$42\n  BRK\n");
-        assert_eq!(mem.peek(0x0600), 0xA9); // opcode LDA imm
-        assert_eq!(mem.peek(0x0601), 0x42); // opérande
-        assert_eq!(mem.peek(0x0602), 0x00); // BRK
+        assert_eq!(mem.peek(0xE000), 0xA9); // opcode LDA imm
+        assert_eq!(mem.peek(0xE001), 0x42); // opérande
+        assert_eq!(mem.peek(0xE002), 0x00); // BRK
     }
 
     #[test]
     fn sta_zero_page() {
         let mem = asm("  LDA #$FF\n  STA $10\n  BRK\n");
-        assert_eq!(mem.peek(0x0602), 0x85); // STA zp
-        assert_eq!(mem.peek(0x0603), 0x10);
+        assert_eq!(mem.peek(0xE002), 0x85); // STA zp
+        assert_eq!(mem.peek(0xE003), 0x10);
     }
 
     #[test]
     fn sta_absolute() {
         let mem = asm("  LDA #$01\n  STA $0200\n  BRK\n");
-        assert_eq!(mem.peek(0x0602), 0x8D); // STA abs
-        assert_eq!(mem.peek(0x0603), 0x00); // lo
-        assert_eq!(mem.peek(0x0604), 0x02); // hi
+        assert_eq!(mem.peek(0xE002), 0x8D); // STA abs
+        assert_eq!(mem.peek(0xE003), 0x00); // lo
+        assert_eq!(mem.peek(0xE004), 0x02); // hi
     }
 
     #[test]
@@ -208,15 +218,13 @@ mod tests {
 
     #[test]
     fn label_branch_forward() {
-        // BNE vers un label en avant
         let src = "  LDA #$00\n  BEQ SKIP\n  LDA #$FF\nSKIP:\n  BRK\n";
         let (cpu, _) = run(src);
-        assert_eq!(cpu.a, 0x00); // LDA #$FF ignoré grâce au BEQ
+        assert_eq!(cpu.a, 0x00);
     }
 
     #[test]
     fn label_branch_backward() {
-        // Boucle : LDX #$03; DEX; BNE LOOP
         let src = "  LDX #$03\nLOOP:\n  DEX\n  BNE LOOP\n  BRK\n";
         let (cpu, _) = run(src);
         assert_eq!(cpu.x, 0);
@@ -233,16 +241,17 @@ mod tests {
     fn dot_byte_data() {
         let src = "  JMP AFTER\nDATA:\n  .byte $CA, $FE\nAFTER:\n  BRK\n";
         let mem = asm(src);
-        // JMP = 3 octets, puis DATA à $0603
-        assert_eq!(mem.peek(0x0603), 0xCA);
-        assert_eq!(mem.peek(0x0604), 0xFE);
+        // JMP = 3 octets depuis $E000, DATA à $E003
+        assert_eq!(mem.peek(0xE003), 0xCA);
+        assert_eq!(mem.peek(0xE004), 0xFE);
     }
 
     #[test]
     fn dot_word() {
         let mem = asm("  JMP AFTER\nAFTER:\n  .word $1234\n  BRK\n");
-        assert_eq!(mem.peek(0x0603), 0x34); // lo
-        assert_eq!(mem.peek(0x0604), 0x12); // hi
+        // JMP = 3 octets, AFTER/$E003 .word $1234
+        assert_eq!(mem.peek(0xE003), 0x34); // lo
+        assert_eq!(mem.peek(0xE004), 0x12); // hi
     }
 
     #[test]
@@ -254,15 +263,14 @@ mod tests {
 
     #[test]
     fn indirect_x_read() {
-        let src = "  LDA #$00\n  STA $14\n  LDA #$03\n  STA $15\n  LDX #$04\n  LDA ($10,X)\n  BRK\n";
         // $10 + X=4 = $14. vecteur $14/$15 = $0300. lit $0300 = 0
+        let src = "  LDA #$00\n  STA $14\n  LDA #$03\n  STA $15\n  LDX #$04\n  LDA ($10,X)\n  BRK\n";
         let (cpu, _) = run(src);
-        assert_eq!(cpu.a, 0x00); // $0300 = 0 initialement
+        assert_eq!(cpu.a, 0x00);
     }
 
     #[test]
     fn asl_explicit_a() {
-        // ca65 supporte les deux syntaxes : ASL et ASL A
         let src = "  LDA #$04\n  ASL A\n  BRK\n";
         let (cpu, _) = run(src);
         assert_eq!(cpu.a, 0x08);
@@ -279,23 +287,21 @@ mod tests {
     fn lo_hi_operators() {
         let src = "ADDR = $1234\n  LDA #<ADDR\n  LDX #>ADDR\n  BRK\n";
         let (cpu, _) = run(src);
-        assert_eq!(cpu.a, 0x34); // octet bas
-        assert_eq!(cpu.x, 0x12); // octet haut
+        assert_eq!(cpu.a, 0x34);
+        assert_eq!(cpu.x, 0x12);
     }
 
     #[test]
     fn dot_res() {
-        let src = ".org $0600\n  JMP SKIP\n  .res 8, $FF\nSKIP:\n  BRK\n";
+        let src = ".org $E000\n  JMP SKIP\n  .res 8, $FF\nSKIP:\n  BRK\n";
         let mem = asm(src);
-        // 8 octets $FF à partir de $0603
         for i in 0..8u16 {
-            assert_eq!(mem.peek(0x0603 + i), 0xFF, "byte {} wrong", i);
+            assert_eq!(mem.peek(0xE003 + i), 0xFF, "byte {} wrong", i);
         }
     }
 
     #[test]
     fn screen_constants_mario() {
-        // Reproduit exactement la syntaxe du code Mario qui échouait
         let src = r#"
 SCREEN = $0200
 SKY    = $01
@@ -308,13 +314,12 @@ BRICK  = $04
   BRK
 "#;
         let (_, mem) = run(src);
-        assert_eq!(mem.peek(0x0200), 0x01); // SKY
-        assert_eq!(mem.peek(0x0201), 0x04); // BRICK
+        assert_eq!(mem.peek(0x0200), 0x01);
+        assert_eq!(mem.peek(0x0201), 0x04);
     }
 
     #[test]
     fn branch_out_of_range_error() {
-        // Un branchement qui dépasse +127 octets doit échouer
         let mut mem = Memory::new();
         let src = "  BEQ TARGET\n  .res 200, $EA\nTARGET:\n  BRK\n";
         let result = crate::Assembler::assemble(src, &mut mem);

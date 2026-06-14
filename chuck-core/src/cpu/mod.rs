@@ -72,19 +72,50 @@ impl Default for Cpu {
 
 impl Cpu {
     pub fn new() -> Self {
-        Self { a: 0, x: 0, y: 0, pc: 0x0600, sp: 0xFD, p: flags::U | flags::I, cycles: 0 }
+        Self { a: 0, x: 0, y: 0, pc: 0xE000, sp: 0xFD, p: flags::U | flags::I, cycles: 0 }
     }
 
-    /// Reset hardware : lit le vecteur RESET ou démarre à $0600 si vecteur = 0
+    /// Reset hardware : lit le vecteur RESET ($FFFC/$FFFD) → $E000
     pub fn reset(&mut self, mem: &mut Memory) {
         let vec = mem.peek16(VEC_RESET);
-        self.pc = if vec != 0 { vec } else { 0x0600 };
-        self.sp = 0xFD;
-        self.a  = 0;
-        self.x  = 0;
-        self.y  = 0;
-        self.p  = flags::U | flags::I;
+        // La ROM place $E000 dans le vecteur RESET
+        // Si le vecteur est 0 (mémoire non initialisée), on démarre à $E000 par défaut
+        self.pc     = if vec != 0 { vec } else { 0xE000 };
+        self.sp     = 0xFD;
+        self.a      = 0;
+        self.x      = 0;
+        self.y      = 0;
+        self.p      = flags::U | flags::I;
         self.cycles = 7; // le reset coûte 7 cycles
+    }
+
+    /// Déclenche une interruption NMI (VBlank).
+    /// Sauvegarde PC et P sur la pile, saute vers le vecteur NMI ($FFFA/$FFFB).
+    /// La NMI n'est pas masquable (ignore le flag I).
+    pub fn trigger_nmi(&mut self, mem: &mut Memory) {
+        // Sauvegarder PC et P sur la pile
+        self.push16(mem, self.pc);
+        let p = self.p & !flags::B | flags::U;
+        self.push(mem, p);
+        // Désactiver les IRQ pendant le handler
+        self.set_flag(flags::I, true);
+        // Lire le vecteur NMI
+        let vec = mem.peek16(VEC_NMI);
+        self.pc     = vec;
+        self.cycles += 7;
+    }
+
+    /// Déclenche une interruption IRQ (timer).
+    /// Ignorée si le flag I est positionné.
+    pub fn trigger_irq(&mut self, mem: &mut Memory) {
+        if self.get_flag(flags::I) { return; }
+        self.push16(mem, self.pc);
+        let p = self.p & !flags::B | flags::U;
+        self.push(mem, p);
+        self.set_flag(flags::I, true);
+        let vec = mem.peek16(VEC_IRQ);
+        self.pc     = vec;
+        self.cycles += 7;
     }
 
     // ── Flags helpers ──────────────────────────────────────────────────────
@@ -154,12 +185,26 @@ impl Cpu {
 
     // ── Exécution ──────────────────────────────────────────────────────────
 
-    /// Lance N cycles max. Retourne quand BRK, ou cycles épuisés.
+    /// Lance N cycles max. Retourne quand BRK, NMI, ou cycles épuisés.
     pub fn run(&mut self, mem: &mut Memory, max_cycles: u64) -> RunResult {
-        let start = self.cycles;
+        let start  = self.cycles;
         let mut halted = false;
 
         while self.cycles - start < max_cycles {
+            // Vérifier reset logiciel
+            if mem.io.pending_reset {
+                mem.io.pending_reset = false;
+                self.reset(mem);
+                break;
+            }
+
+            // Vérifier NMI (VBlank)
+            if mem.io.pending_nmi {
+                mem.io.clear_vblank();
+                self.trigger_nmi(mem);
+                // Après trigger_nmi, on continue l'exécution dans le handler
+            }
+
             let halted_now = execute::step(self, mem);
             if halted_now {
                 halted = true;

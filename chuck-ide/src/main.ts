@@ -18,22 +18,16 @@ import { bus }              from './core/bus.js';
 import { Emulator }         from './core/emulator.js';
 import { ChallengeManager } from './core/challenge-manager.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
-  // ── Émulateur (Tâche 2.1 + 2.2) ─────────────────────────
-  const emulator = new Emulator();
-
-  // Câbler le canvas une fois le Web Component monté
+  // ── Émulateur WASM ───────────────────────────────────────
+  // Chargement async du module Rust/WASM
   const displayEl = document.getElementById('modal-display') as
-    (HTMLElement & { canvas?: HTMLCanvasElement; show(): void; toggle(): void }) | null;
+    (HTMLElement & { show(): void; toggle(): void }) | null;
 
-  customElements.whenDefined('chuck-display').then(() => {
-    if (displayEl?.canvas) emulator.initDisplay(displayEl.canvas);
-  });
-
-  // ── ChallengeManager (Tâche 1.3 + 2.3 + 3.3) ────────────
+  // ── ChallengeManager ─────────────────────────────────────
   const challengeManager = new ChallengeManager();
-  challengeManager.init();
+  await challengeManager.init(await Emulator.create());
 
   // ── Titlebar — toggles modales flottantes ────────────────
   const registersEl  = document.getElementById('modal-registers')  as (HTMLElement & { toggle(): void }) | null;
@@ -73,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Mode libre — fermer l'aside
   (bus as any).on('chuck:ide-free', () => {
     titlebarFile.textContent = 'mode libre';
-    document.title           = "Chuck IDE — L'Atelier 8-Bit";
+    document.title           = "Chuck IDE — Chuck-8 Computer";
     closeChallengeAside();
   });
   const sbState  = document.getElementById('sb-state')!;
@@ -98,6 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
     sbCursor.textContent = `Ln ${line}  Col ${col}`;
   });
 
+  // Mode vidéo dans la status bar
+  const sbMode = document.getElementById('sb-mode');
+  (bus as any).on('chuck:vpu-mode', ({ mode }: { mode: number }) => {
+    if (sbMode) sbMode.textContent = mode === 0 ? 'TXT' : 'GFX';
+  });
+
   // ── Keyboard shortcuts ───────────────────────────────────
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
@@ -110,5 +110,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'F10') { e.preventDefault(); bus.emit('chuck:step', undefined); }
   });
 
-  console.info('[Chuck IDE v0.1.0] Initialisé ✓');
+  console.info('[Chuck IDE v0.2.0 — Rust/WASM core] Initialisé ✓');
 });

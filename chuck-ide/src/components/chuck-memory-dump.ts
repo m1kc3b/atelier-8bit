@@ -7,7 +7,10 @@
 import { ChuckComponent } from '../core/base-component.js';
 import { makeDraggable, makeResizable } from './chuck-display.js';
 
-const num2hex = (n: number) => n.toString(16).padStart(2, '0').toUpperCase();
+function num2hex(num: number | undefined): string {
+  if (num === undefined) return '00'; // ou une valeur par défaut
+  return num.toString(16).padStart(2, '0');
+}
 
 const STYLES = /* css */`
   @import '/src/styles/tokens.css';

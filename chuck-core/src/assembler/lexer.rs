@@ -8,28 +8,28 @@ use super::AssembleError;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     // Valeurs
-    Number(u16),    // $FF, %1010, 42, 'A'
-    String(String), // "hello"
-    Ident(String),  // FOO, LABEL, LDA, .byte …
+    Number(u16),          // $FF, %1010, 42, 'A'
+    String(String),       // "hello"
+    Ident(String),        // FOO, LABEL, LDA, .byte …
 
     // Ponctuation
-    Colon,     // :
-    Comma,     // ,
-    Hash,      // #
-    LParen,    // (
-    RParen,    // )
-    Plus,      // +
-    Minus,     // -
-    Star,      // *
-    Slash,     // /
-    Pipe,      // |
-    Ampersand, // &
-    Caret,     // ^
-    Tilde,     // ~
-    Lt,        // <
-    Gt,        // >
-    Eq,        // =
-    Newline,   // \n (séparateur logique de lignes)
+    Colon,                // :
+    Comma,                // ,
+    Hash,                 // #
+    LParen,               // (
+    RParen,               // )
+    Plus,                 // +
+    Minus,                // -
+    Star,                 // *
+    Slash,                // /
+    Pipe,                 // |
+    Ampersand,            // &
+    Caret,                // ^
+    Tilde,                // ~
+    Lt,                   // <
+    Gt,                   // >
+    Eq,                   // =
+    Newline,              // \n (séparateur logique de lignes)
 }
 
 #[derive(Debug, Clone)]
@@ -39,15 +39,13 @@ pub struct Token {
 }
 
 impl Token {
-    fn new(kind: TokenKind, line: usize) -> Self {
-        Self { kind, line }
-    }
+    fn new(kind: TokenKind, line: usize) -> Self { Self { kind, line } }
 }
 
 pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
     let mut tokens = Vec::new();
-    let mut line = 1usize;
-    let mut chars = source.chars().peekable();
+    let mut line   = 1usize;
+    let mut chars  = source.chars().peekable();
 
     while let Some(&ch) = chars.peek() {
         match ch {
@@ -59,14 +57,10 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
             }
 
             // Retour chariot (Windows CRLF)
-            '\r' => {
-                chars.next();
-            }
+            '\r' => { chars.next(); }
 
             // Espaces / tabulations
-            ' ' | '\t' => {
-                chars.next();
-            }
+            ' ' | '\t' => { chars.next(); }
 
             // Commentaire ligne (; ou //)
             ';' => {
@@ -78,10 +72,10 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
             // Nombre hexadécimal $xx
             '$' => {
                 chars.next();
-                let hex: String = chars
-                    .by_ref()
-                    .take_while(|c| c.is_ascii_hexdigit())
-                    .collect();
+                let mut hex = String::new();
+                while chars.peek().map_or(false, |c| c.is_ascii_hexdigit()) {
+                    hex.push(chars.next().unwrap());
+                }
                 if hex.is_empty() {
                     return Err(AssembleError {
                         line,
@@ -98,15 +92,12 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
             // Nombre binaire %xxxxxxxx
             '%' => {
                 chars.next();
-                let bin: String = chars
-                    .by_ref()
-                    .take_while(|&c| c == '0' || c == '1')
-                    .collect();
+                let mut bin = String::new();
+                while chars.peek().map_or(false, |&c| c == '0' || c == '1') {
+                    bin.push(chars.next().unwrap());
+                }
                 if bin.is_empty() {
-                    return Err(AssembleError {
-                        line,
-                        msg: "Nombre binaire vide après '%'".into(),
-                    });
+                    return Err(AssembleError { line, msg: "Nombre binaire vide après '%'".into() });
                 }
                 let v = u16::from_str_radix(&bin, 2).map_err(|_| AssembleError {
                     line,
@@ -123,24 +114,25 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
                     msg: "Caractère ASCII incomplet".into(),
                 })?;
                 // Optionnel : apostrophe fermante
-                if chars.peek() == Some(&'\'') {
-                    chars.next();
-                }
+                if chars.peek() == Some(&'\'') { chars.next(); }
                 tokens.push(Token::new(TokenKind::Number(c as u16), line));
             }
 
             // Nombre décimal
             '0'..='9' => {
-                chars.next(); // avance sur ch
-                let mut v: u32 = ch.to_digit(10).unwrap() as u32;
+                // Lire ch (déjà dans ch), puis les suivants
+                chars.next(); // consomme ch
+                let mut num = String::new();
+                num.push(ch);
                 while chars.peek().map_or(false, |c| c.is_ascii_digit()) {
-                    v = v * 10 + chars.next().unwrap().to_digit(10).unwrap() as u32;
+                    num.push(chars.next().unwrap());
                 }
+                let v: u32 = num.parse().map_err(|_| AssembleError {
+                    line,
+                    msg: format!("Nombre invalide : {}", num),
+                })?;
                 if v > 0xFFFF {
-                    return Err(AssembleError {
-                        line,
-                        msg: format!("Nombre trop grand : {}", v),
-                    });
+                    return Err(AssembleError { line, msg: format!("Nombre trop grand : {}", v) });
                 }
                 tokens.push(Token::new(TokenKind::Number(v as u16), line));
             }
@@ -151,29 +143,18 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
                 let mut s = String::new();
                 loop {
                     match chars.next() {
-                        None => {
-                            return Err(AssembleError {
-                                line,
-                                msg: "Chaîne non fermée".into(),
-                            })
-                        }
+                        None => return Err(AssembleError { line, msg: "Chaîne non fermée".into() }),
                         Some('"') => break,
-                        Some('\\') => match chars.next() {
-                            Some('n') => s.push('\n'),
-                            Some('t') => s.push('\t'),
-                            Some('\\') => s.push('\\'),
-                            Some('"') => s.push('"'),
-                            Some(c) => {
-                                s.push('\\');
-                                s.push(c);
+                        Some('\\') => {
+                            match chars.next() {
+                                Some('n')  => s.push('\n'),
+                                Some('t')  => s.push('\t'),
+                                Some('\\') => s.push('\\'),
+                                Some('"')  => s.push('"'),
+                                Some(c)    => { s.push('\\'); s.push(c); }
+                                None => return Err(AssembleError { line, msg: "Chaîne non fermée".into() }),
                             }
-                            None => {
-                                return Err(AssembleError {
-                                    line,
-                                    msg: "Chaîne non fermée".into(),
-                                })
-                            }
-                        },
+                        }
                         Some(c) => s.push(c),
                     }
                 }
@@ -185,80 +166,31 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
                 chars.next();
                 let mut ident = String::new();
                 ident.push(ch);
-                while chars
-                    .peek()
-                    .map_or(false, |&c| c.is_alphanumeric() || c == '_' || c == '.')
-                {
+                while chars.peek().map_or(false, |&c| {
+                    c.is_alphanumeric() || c == '_' || c == '.'
+                }) {
                     ident.push(chars.next().unwrap());
                 }
                 tokens.push(Token::new(TokenKind::Ident(ident), line));
             }
 
             // Ponctuation
-            ':' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Colon, line));
-            }
-            ',' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Comma, line));
-            }
-            '#' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Hash, line));
-            }
-            '(' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::LParen, line));
-            }
-            ')' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::RParen, line));
-            }
-            '+' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Plus, line));
-            }
-            '-' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Minus, line));
-            }
-            '*' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Star, line));
-            }
-            '/' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Slash, line));
-            }
-            '|' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Pipe, line));
-            }
-            '&' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Ampersand, line));
-            }
-            '^' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Caret, line));
-            }
-            '~' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Tilde, line));
-            }
-            '<' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Lt, line));
-            }
-            '>' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Gt, line));
-            }
-            '=' => {
-                chars.next();
-                tokens.push(Token::new(TokenKind::Eq, line));
-            }
+            ':' => { chars.next(); tokens.push(Token::new(TokenKind::Colon,     line)); }
+            ',' => { chars.next(); tokens.push(Token::new(TokenKind::Comma,     line)); }
+            '#' => { chars.next(); tokens.push(Token::new(TokenKind::Hash,      line)); }
+            '(' => { chars.next(); tokens.push(Token::new(TokenKind::LParen,    line)); }
+            ')' => { chars.next(); tokens.push(Token::new(TokenKind::RParen,    line)); }
+            '+' => { chars.next(); tokens.push(Token::new(TokenKind::Plus,      line)); }
+            '-' => { chars.next(); tokens.push(Token::new(TokenKind::Minus,     line)); }
+            '*' => { chars.next(); tokens.push(Token::new(TokenKind::Star,      line)); }
+            '/' => { chars.next(); tokens.push(Token::new(TokenKind::Slash,     line)); }
+            '|' => { chars.next(); tokens.push(Token::new(TokenKind::Pipe,      line)); }
+            '&' => { chars.next(); tokens.push(Token::new(TokenKind::Ampersand, line)); }
+            '^' => { chars.next(); tokens.push(Token::new(TokenKind::Caret,     line)); }
+            '~' => { chars.next(); tokens.push(Token::new(TokenKind::Tilde,     line)); }
+            '<' => { chars.next(); tokens.push(Token::new(TokenKind::Lt,        line)); }
+            '>' => { chars.next(); tokens.push(Token::new(TokenKind::Gt,        line)); }
+            '=' => { chars.next(); tokens.push(Token::new(TokenKind::Eq,        line)); }
 
             other => {
                 return Err(AssembleError {
@@ -287,18 +219,12 @@ mod tests {
 
     #[test]
     fn hex_number() {
-        assert_eq!(
-            kinds("$FF"),
-            vec![TokenKind::Number(0xFF), TokenKind::Newline]
-        );
+        assert_eq!(kinds("$FF"), vec![TokenKind::Number(0xFF), TokenKind::Newline]);
     }
 
     #[test]
     fn binary_number() {
-        assert_eq!(
-            kinds("%1010"),
-            vec![TokenKind::Number(0b1010), TokenKind::Newline]
-        );
+        assert_eq!(kinds("%1010"), vec![TokenKind::Number(0b1010), TokenKind::Newline]);
     }
 
     #[test]
@@ -308,10 +234,7 @@ mod tests {
 
     #[test]
     fn char_literal() {
-        assert_eq!(
-            kinds("'A'"),
-            vec![TokenKind::Number(65), TokenKind::Newline]
-        );
+        assert_eq!(kinds("'A'"), vec![TokenKind::Number(65), TokenKind::Newline]);
     }
 
     #[test]
