@@ -349,8 +349,8 @@ const STYLES = /* css */`
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     /* Affiché à 384×384 (3×) ou 256×256 (2×) selon la place */
-    width: 256px;
-    height: 256px;
+    width: 350px;
+    height: 350px;
     border: 1px solid #1a1a1a;
     border-radius: 2px;
     display: block;

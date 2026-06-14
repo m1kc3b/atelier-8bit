@@ -53,6 +53,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     openChallengeAside();
   });
 
+  (bus as any).on('chuck:content-loaded', ({ item }: { item: { id: number; title: string } }) => {
+    titlebarFile.textContent = item.title;
+    document.title           = `${item.title} — Chuck IDE`;
+    openChallengeAside();
+  });
+
   (bus as any).on('chuck:ide-free', () => {
     titlebarFile.textContent = 'mode libre';
     document.title           = "Chuck IDE — Chuck-8 Computer";

@@ -11,7 +11,7 @@ import {
   type AssertionFailure,
   type Assertion,
 } from '../types/challenge.js';
-import type { ContentItem, ContentFile, ChallengeItem, ContentBlock } from '../types/content.ts';
+import type { ContentItem, ContentFile, ChallengeItem, ContentBlock } from '../types/content.js';
 
 const STORAGE_PREFIX     = 'chuck_day_';
 const DEFAULT_MAX_CYCLES = 100_000;
@@ -83,8 +83,12 @@ export class ChallengeManager {
 
   private _getIdFromUrl(): number | null {
     const params = new URLSearchParams(window.location.search);
-    const raw = params.get('challenge') ?? params.get('lesson');
-    if (!raw) return null;
+    const raw = params.get('challenge') ?? params.get('lesson') ?? params.get('learn');
+    if (!raw) {
+      // ?learn sans valeur → leçon 100 (intro)
+      if (params.has('learn')) return 100;
+      return null;
+    }
     const id = parseInt(raw, 10);
     return isNaN(id) ? null : id;
   }
@@ -223,8 +227,10 @@ export class ChallengeManager {
       bus.on('chuck:goto-challenge', ({ id }) => {
         this._loadById(id);
         const url = new URL(window.location.href);
-        const key = id >= 100 ? 'lesson' : 'challenge';
-        url.searchParams.delete('challenge'); url.searchParams.delete('lesson');
+        const key = id >= 100 ? 'learn' : 'challenge';
+        url.searchParams.delete('challenge');
+        url.searchParams.delete('lesson');
+        url.searchParams.delete('learn');
         url.searchParams.set(key, String(id));
         window.history.pushState({}, '', url.toString());
       }),
