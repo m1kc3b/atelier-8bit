@@ -35,7 +35,7 @@ const STYLES = /* css */`
   .block-theory h3 { font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin:0 0 6px; }
   .block-theory strong { color:var(--text);font-weight:600; }
   .block-theory em { color:var(--text-dim);font-style:italic; }
-  .block-theory code { font-family:var(--font-mono);font-size:11px;background:var(--surface-3);color:var(--cyan);padding:1px 5px;border-radius:3px; }
+  .block-theory code { font-family:var(--font-mono);font-size:12px;background:var(--surface-3);color:var(--cyan);padding:1px 5px;border-radius:3px; }
   .block-theory h2 { font-size:16px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px; }
   .block-theory ul { padding-left:16px;display:flex;flex-direction:column;gap:2px;margin:4px 0; }
   .block-theory p { margin:0 0 6px; }

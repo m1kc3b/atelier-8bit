@@ -33,7 +33,7 @@
 
   /* ── Typographie ──────────────────────────────────────── */
   --font-ui:     -apple-system, 'Inter', 'Segoe UI', sans-serif;
-  --font-mono:   'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --font-mono:   'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 
   /* ── Dimensions layout ────────────────────────────────── */
   --titlebar-h:  36px;
