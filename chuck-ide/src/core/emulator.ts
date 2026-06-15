@@ -270,12 +270,16 @@ export class Emulator {
 
     this._lastOrg = result.org;
 
-    bus.emit('chuck:assembled', { ok: true, bytes: result.bytes_written, buf: [] });
+    const fullMem = this.core.memory_view();
+    const compiledBytes = fullMem.subarray(result.org, result.org + result.bytes_written).slice();
+
+    bus.emit('chuck:assembled', { ok: true, bytes: result.bytes_written, buf: Array.from(compiledBytes) });
     bus.emit('chuck:cpu-updated', toBusState(this.core.get_state()));
     bus.emit('chuck:log', {
       text:  `✓ ${result.bytes_written} octets → $${hex4(result.org)}–$${hex4(result.org + result.bytes_written - 1)}`,
       level: 'ok',
     });
+    bus.emit('chuck:memory-data', { address: result.org, bytes: compiledBytes });
 
     // Rendu initial — force même si rien de dirty (VRAM peut être propre)
     this._flushDisplay(true);
