@@ -1,5 +1,5 @@
 # CHUCK-8 — MANUEL DE PROGRAMMATION
-## Apprendre à coder comme en 1980 pour devenir un meilleur développeur en 2026
+## Coder comme en 1980 pour devenir un meilleur développeur en 2026
 
 ---
 
@@ -14,26 +14,39 @@
 
 ---
 
-> *"To understand a computer, you must think like a computer."*
-> — Rodnay Zaks, Programming the 6502 (1978)
+> *"To understand a computer, you must think like a computer."* — Rodnay Zaks, *Programming the 6502* (1978)
 
-Ce manuel t'apprend à programmer le Chuck-8 — un vrai ordinateur 8-bit avec ses règles, ses contraintes, et sa logique propre. Il n'y a pas de garbage collector, pas de framework, pas de bibliothèque magique. Juste toi, 64 Ko de RAM, et un processeur qui exécute une instruction à la fois.
+---
 
-C'est difficile. C'est aussi profondément formateur. Tout ce que tu apprendras ici — la gestion manuelle de la mémoire, la pensée en registres, l'optimisation cycle par cycle — te rendra meilleur dans n'importe quel langage, n'importe quelle plateforme.
+## Pourquoi ce manuel existe
 
-**Comment utiliser ce manuel :**
+En 2026, tu peux écrire une application web complète sans jamais savoir ce qu'est un registre. Tu peux faire tourner de l'IA sans comprendre comment un processeur exécute une instruction. Les frameworks, les langages de haut niveau, les abstractions en couches — c'est formidable, mais ça te cache quelque chose d'essentiel.
 
-Chaque chapitre alterne théorie et exemples complets. Les exemples sont conçus pour être tapés et exécutés dans Chuck IDE. Ne te contente pas de lire — tape, exécute, modifie, casse.
+Ce que ce manuel te propose, c'est un détour. Un détour par 1980.
 
-**Structure des chapitres :**
+À cette époque, quand Steve Wozniak concevait l'Apple II ou quand des milliers de kids en Grande-Bretagne tapaient du BASIC sur leur ZX Spectrum, il n'y avait pas d'abstraction possible. Pour allumer un pixel à l'écran, tu calculais son adresse mémoire à la main. Pour lire un bouton de manette, tu testais un bit dans un registre. Pour écrire de la musique, tu programmais des fréquences en Hz.
 
-| # | Titre | Ce que tu apprendras |
-|---|-------|---------------------|
-| 1 | La Machine | Architecture, mémoire, processeur |
-| 2 | Le Langage | Instructions 6502, modes d'adressage |
-| 3 | Le Système | Vidéo, son, I/O — la plateforme Chuck-8 |
-| 4 | Les Patterns | Boucles, fonctions, données, structures |
-| 5 | Les Projets | Jeux, démos, outils — tout ensemble |
+Ces contraintes n'étaient pas des handicaps — elles forçaient à comprendre.
+
+Aujourd'hui, programmer sur le Chuck-8 te force à la même chose. Et ce que tu vas comprendre ici — la mémoire, les registres, les interruptions, la pile, l'arithmétique binaire — ça restera vrai dans cinquante ans, parce que c'est le fonctionnement fondamental de tous les ordinateurs, du plus modeste microcontrôleur au serveur de datacenter le plus puissant.
+
+**Le Chuck-8 est imaginaire. Ce qu'il t'apprend est réel.**
+
+> Pourquoi Chuck-8 ? En hommage à Chuck Peddle le concepteur du MOS 6502.
+
+---
+
+## Comment utiliser ce manuel
+
+Chaque section alterne explication, exemples et **exercices**. Les exercices sont signalés par `✏️`. Ils se font directement dans l'éditeur — tape, exécute, observe, modifie. Ne saute pas les exercices : c'est là que la théorie devient de la mémoire musculaire.
+
+| Chapitre | Titre | Ce que tu vas comprendre |
+|----------|-------|-----------------------------|
+| 1 | La Machine | Comment un ordinateur fonctionne vraiment |
+| 2 | Le Langage | Les instructions du 6502, mot par mot |
+| 3 | Le Système | L'écran, le son, les entrées — la plateforme Chuck-8 |
+| 4 | Les Patterns | Les techniques qui reviennent dans tous les jeux 8-bit |
+| 5 | Les Projets | Construire des vrais programmes, du début à la fin |
 
 ---
 
@@ -41,256 +54,343 @@ Chaque chapitre alterne théorie et exemples complets. Les exemples sont conçus
 
 ## 1.1 Ce qu'est le Chuck-8
 
-Le Chuck-8 est un ordinateur personnel imaginaire conçu pour l'enseignement. Il est réaliste — chaque décision de conception est motivée par ce qui existait ou existe encore en hardware. Un jour, on pourrait en construire un vrai.
+Le Chuck-8 est un ordinateur personnel imaginaire des années 1980. Imaginaire — mais cohérent. Chaque décision de sa conception est motivée par ce qui existait vraiment à cette époque, et tout ce qu'il contient est constructible avec du hardware réel. Un jour, on pourrait en souder un.
 
-Ses caractéristiques principales :
+Ses caractéristiques :
 
-- **Processeur :** MOS 6502 à 1 MHz — le même chip que l'Apple II, le Commodore 64, l'Atari 800, et la NES
-- **Mémoire :** 64 Ko de RAM adressables (65 536 octets)
-- **Écran :** 128×128 pixels, 16 couleurs — ou 32×32 caractères en mode texte
-- **Son :** 3 voix (carrée, triangle, bruit)
-- **I/O :** Clavier, manette (style NES), souris
+| Composant | Chuck-8 | Comparaison historique |
+|-----------|---------|------------------------|
+| Processeur | MOS 6502 à 1 MHz | Apple II, Commodore 64, NES, Atari 800 |
+| RAM | 64 Ko | Commodore 64 : 64 Ko, Apple II : 48 Ko |
+| Écran | 128×128 px, 16 couleurs | Atari 2600 : 160×192, 128 couleurs |
+| Son | 3 voix | Commodore 64 (SID) : 3 voix |
+| I/O | Clavier, manette, souris | Standard de l'époque |
 
-C'est intentionnellement limité. Ces limites sont des outils pédagogiques : quand tu n'as que 64 Ko et 1 MHz, chaque décision compte.
+Le 6502 mérite qu'on s'y attarde une seconde. Ce chip, conçu par Chuck Peddle et son équipe chez MOS Technology en 1975, a changé l'histoire. Vendu à 25 dollars quand son concurrent (l'Intel 8080) en coûtait 150, il a rendu l'ordinateur personnel financièrement accessible. Steve Jobs en a mis un dans l'Apple II. Atari en a mis un dans ses consoles. Nintendo en a mis un (légèrement modifié) dans la NES.
 
-## 1.2 Comment fonctionne un ordinateur
+Ce même 6502 — Western Design Center le fabrique encore aujourd'hui, en 2026. Tu peux en commander un pour quelques euros. C'est le chip que tu vas programmer.
 
-Avant de programmer, comprends ce qui se passe physiquement.
 
-Un ordinateur n'est pas magique. C'est une machine qui répète indéfiniment trois actions :
+## 1.2 Le cycle fondamental
 
-```
-1. FETCH  — lire l'instruction en mémoire à l'adresse PC
-2. DECODE — interpréter les bits de l'instruction
-3. EXECUTE — effectuer l'action (calcul, lecture/écriture mémoire)
-```
+Avant d'écrire une ligne de code, comprends ce qui se passe physiquement à l'intérieur du processeur. Tout le reste en découle.
 
-Chaque cycle de cette boucle prend 1 microseconde sur le Chuck-8 (à 1 MHz). Certaines instructions prennent 2 cycles, d'autres 7. En une seconde, le processeur effectue environ 500 000 à 1 000 000 d'opérations.
-
-La mémoire est un tableau linéaire d'octets. Chaque octet a une adresse, de 0 (`$0000`) à 65535 (`$FFFF`). L'adresse est toujours exprimée en hexadécimal dans ce manuel.
-
-## 1.3 Le hexadécimal — la langue du matériel
-
-Les humains comptent en base 10 (dix doigts). Les ordinateurs comptent en base 2 (deux états : 0 et 1). Le hexadécimal (base 16) est le compromis : un chiffre hex représente exactement 4 bits.
+Un CPU ne fait qu'une chose, indéfiniment, depuis qu'il est mis sous tension jusqu'à ce qu'on l'éteigne :
 
 ```
-Décimal  Hexadécimal  Binaire
-0        $00          0000 0000
-1        $01          0000 0001
-15       $0F          0000 1111
-16       $10          0001 0000
-127      $7F          0111 1111
-128      $80          1000 0000
-255      $FF          1111 1111
+    ┌─────────────────────────────────────┐
+    │                                     │
+    ▼                                     │
+FETCH — lit l'octet en mémoire à PC       │
+    │                                     │
+    ▼                                     │
+DECODE — interprète l'opcode              │
+    │                                     │
+    ▼                                     │
+EXECUTE — effectue l'action               │
+    │                                     │
+    └─────────────────────────────────────┘
 ```
 
-Dans l'assembleur Chuck-8 (syntaxe ca65) :
-- `$FF` — hexadécimal
-- `%11111111` — binaire
-- `255` — décimal
-- `'A'` — valeur ASCII du caractère A (= 65)
+**FETCH** : le processeur lit l'octet à l'adresse contenue dans le *Program Counter* (PC). Si PC vaut `$E000`, il lit `mem[$E000]`. PC s'incrémente automatiquement.
 
-**Un octet vaut toujours entre 0 et 255.** C'est fondamental. Quand on dépasse 255, ça déborde à 0. Quand on descend sous 0, ça déborde à 255. Cette arithmétique modulo est au cœur de nombreuses techniques.
+**DECODE** : cet octet est un *opcode* — un code d'opération. `$A9` signifie "LDA immédiat". `$8D` signifie "STA absolu". Il y en a 151 au total.
 
-## 1.4 La mémoire du Chuck-8
+**EXECUTE** : l'action est effectuée. Ça peut être un calcul, une lecture ou une écriture en mémoire, un changement de direction (branchement).
 
-Les 64 Ko ne sont pas tous équivalents. Certaines zones ont des usages réservés :
+Sur le Chuck-8, chaque cycle dure exactement **1 microseconde** (un millionième de seconde). Les instructions les plus simples prennent 2 cycles. Les plus complexes prennent 7. En une seconde : environ 500 000 instructions.
+
+Ton smartphone fait la même chose, mais à 3 milliards de cycles par seconde. Le principe est identique. La vitesse change. Rien d'autre.
+
+
+## 1.3 La mémoire : un tableau de 65 536 cases
+
+La mémoire d'un ordinateur, c'est fondamentalement un tableau. Un tableau de 65 536 cases (sur le Chuck-8), numérotées de `$0000` à `$FFFF`. Chaque case contient exactement un octet — une valeur entre 0 et 255.
 
 ```
-$0000–$00FF   Zero Page       Tes 256 variables les plus importantes
-$0100–$01FF   Stack           La pile hardware (gérée automatiquement)
-$0200–$3FFF   RAM libre       Tes données, buffers, tableaux
-$4000–$7FFF   VRAM            L'écran (géré par le VPU)
-$8000–$BFFF   Cartouche ROM   Code optionnel en ROM
-$D000–$DFFF   I/O Registers   Les périphériques (lecture/écriture)
-$E000–$EFFF   RAM haute       Ton programme principal
-$F000–$FFFF   ROM système     L'API Chuck-8 (lecture seule)
+Adresse   Contenu
+$0000     [  42 ]   ← variable de ton programme
+$0001     [   0 ]
+$0002     [ 255 ]
+  ...       ...
+$4000     [  119]   ← pixel de l'écran
+  ...       ...
+$E000     [ 169 ]   ← première instruction de ton programme
+$E001     [  81 ]
+  ...       ...
+$FFFC     [   0 ]   ← vecteur RESET (lo)
+$FFFD     [ 224 ]   ← vecteur RESET (hi) → $E000
 ```
 
-**La Zero Page ($0000–$00FF) est spéciale.** Les instructions qui y accèdent sont plus courtes (1 octet d'adresse au lieu de 2) et plus rapides. C'est là que tu mets tes variables les plus utilisées.
+Quand tu "accèdes à la mémoire" en assembleur, tu lis ou tu écris dans ce tableau. C'est tout. Il n'y a pas de type, pas d'objet, pas de référence. Juste des octets à des adresses.
 
-**La ROM système ($F000–$FFFF) est en lecture seule.** Elle contient les routines d'API (dessin, son, I/O) et les vecteurs d'interruption. Tu ne peux pas la modifier — c'est voulu.
+> **Lien avec le présent** — En C, quand tu fais `int* p = malloc(4)`, tu obtiens une adresse dans un tableau de mémoire. En JavaScript, quand V8 stocke un objet, il le place quelque part dans la RAM et garde son adresse. L'abstraction change selon le langage — le tableau d'octets reste.
 
-**Ton programme commence à $E000.** C'est là que pointe le vecteur RESET. Toujours commencer par `.org $E000`.
+> ✏️ **Exercice 1.3** — Écris le programme suivant et clique Run. Puis ouvre le panneau **Mémoire** et cherche les adresses `$0010` et `$0011`. Que contiennent-elles ?
+> ```asm
+>   .org $E000
+>   LDA #42
+>   STA $10
+>   LDA #255
+>   STA $11
+>   BRK
+> ```
+> Change les valeurs 42 et 255 par d'autres nombres (entre 0 et 255). Vérifie que la mémoire reflète exactement ce que tu as écrit.
 
-### Les registres I/O
 
-La zone $D000–$DFFF n'est pas de la RAM ordinaire. Écrire à une adresse I/O déclenche une action matérielle. Lire retourne l'état courant d'un périphérique.
+## 1.4 La memory map du Chuck-8
+
+Toutes les cases ne se valent pas. Certaines zones ont des rôles précis, définis une fois pour toutes :
+
+```
+$0000  ┌──────────────────────┐
+       │  ZERO PAGE (256 o.)  │ ← tes variables les plus importantes
+       │  $10–$7F libres      │
+       │  $80–$EF paramètres  │
+$0100  ├──────────────────────┤
+       │  STACK (256 o.)      │ ← pile hardware, gérée automatiquement
+$0200  ├──────────────────────┤
+       │  RAM LIBRE (15 Ko)   │ ← données, buffers, tableaux
+$4000  ├──────────────────────┤
+       │  VRAM (16 Ko)        │ ← tout ce qui s'affiche à l'écran
+       │  $4000  framebuffer  │   (mode graphique)
+       │  $4800  texte 32×32  │   (mode texte)
+       │  $4C00  attributs    │   (couleurs du texte)
+$8000  ├──────────────────────┤
+       │  CARTOUCHE (16 Ko)   │ ← ROM optionnelle
+$D000  ├──────────────────────┤
+       │  I/O (4 Ko)          │ ← périphériques : écran, son, manette...
+$E000  ├──────────────────────┤
+       │  TON PROGRAMME       │ ← tu démarres ici
+$F000  ├──────────────────────┤
+       │  ROM SYSTÈME (4 Ko)  │ ← API Chuck-8, charset, vecteurs
+$FFFF  └──────────────────────┘
+```
+
+**La Zero Page** (`$0000–$00FF`) est spéciale. Les instructions qui y accèdent sont d'un octet plus courtes et d'un cycle plus rapides que les accès ailleurs. Mets tes variables les plus utilisées ici.
+
+**La zone I/O** (`$D000–$DFFF`) est magique. Quand tu écris à l'adresse `$D000`, tu ne modifies pas un octet en mémoire — tu envoies une commande au VPU (la puce vidéo). Quand tu lis `$D210`, tu reçois l'état actuel des boutons de la manette. C'est le principe des *memory-mapped I/O*, utilisé sur tous les ordinateurs 8-bit de l'époque — et encore aujourd'hui dans les microcontrôleurs embarqués.
+
+**La ROM système** (`$F000–$FFFF`) contient les routines toutes faites. `JSR $F003` dessine un pixel. `JSR $F000` efface l'écran. Tu ne peux pas modifier cette zone — elle est en lecture seule, comme son nom l'indique.
+
+
+## 1.5 L'hexadécimal — s'y habituer
+
+L'hexadécimal te semblera bizarre pendant une semaine. Puis tu ne pourras plus t'en passer.
+
+Les ordinateurs pensent en binaire (0 et 1). L'hexadécimal (base 16) est le pont entre le binaire et le décimal : chaque chiffre hex représente exactement 4 bits. Deux chiffres hex = 1 octet.
+
+```
+Binaire       Hex    Décimal
+0000 0000  =  $00  =   0
+0000 1111  =  $0F  =  15
+0001 0000  =  $10  =  16
+0111 1111  =  $7F  = 127
+1000 0000  =  $80  = 128
+1111 1111  =  $FF  = 255
+```
+
+Dans l'assembleur ca65 que tu utilises ici, les constantes s'écrivent :
 
 ```asm
-; Activer le VPU en mode graphique
-LDA #$81          ; valeur à écrire
-STA $D000         ; écriture dans VPU_CTRL → le VPU s'active
-
-; Lire l'état du clavier
-LDA $D200         ; lecture de KEY_ASCII → code ASCII de la touche
+LDA #$FF        ; hexadécimal — valeur 255
+LDA #%11111111  ; binaire — même valeur
+LDA #255        ; décimal — même valeur
+LDA #'A'        ; ASCII — code du caractère A (= 65 = $41)
 ```
 
-C'est le même principe que sur tous les vrais ordinateurs 8-bit. Sur le Commodore 64, le chip vidéo VIC-II occupait la zone $D000–$D3FF. Sur l'Atari, c'était GTIA et POKEY. Le Chuck-8 suit cette tradition.
+Une astuce : quand tu vois une adresse comme `$D210`, lis-la comme un code postal. Tu n'as pas besoin de la convertir en décimal. `$D210` c'est `$D210`, point final.
 
-## 1.5 Le processeur 6502
+> **Pourquoi le $ ?** Convention de l'assembleur MOS de 1975. Dans d'autres assembleurs, tu verras `0xFF` (C/C++), `FFh` (x86/Intel), ou `&HFF` (BASIC). C'est la même chose, habillée différemment.
 
-Le 6502 a cinq registres visibles du programmeur :
+> ✏️ **Exercice 1.5** — Sans calculatrice, convertis mentalement ces valeurs hex en décimal : `$10`, `$20`, `$40`, `$80`, `$FF`. Puis vérifie en écrivant `LDA #$10 : BRK` et en regardant le registre A dans le panneau Registres. Essaie aussi `$3F` (indice : `$3F` = `$40` - 1 = 64 - 1).
 
-```
-A   (Accumulateur)  8 bits  Le registre principal. Toutes les opérations arithmétiques
-                             passent par lui. Seul A peut lire/écrire la mémoire directement.
 
-X   (Index X)       8 bits  Registre d'index. Compteurs, adressage indexé.
-Y   (Index Y)       8 bits  Registre d'index. Même rôle que X mais pour certains modes.
+## 1.6 Les registres du 6502
 
-PC  (Program Counter) 16 bits  Adresse de la prochaine instruction. Avance automatiquement.
-SP  (Stack Pointer)   8 bits   Pointe dans la stack ($0100+SP). Géré par PHA/PLA/JSR/RTS.
-P   (Processor Status) 8 bits  7 flags qui décrivent le résultat de la dernière opération.
-```
-
-### Les flags (registre P)
-
-Chaque instruction arithmétique ou logique positionne certains flags :
+Le processeur dispose de petites zones de stockage ultra-rapides, intégrées directement dans le chip : les **registres**. Il y en a cinq sur le 6502.
 
 ```
-N — Negative   : 1 si le résultat a le bit 7 à 1 (≥ 128 en non-signé, ou négatif en signé)
-V — oVerflow   : 1 si un débordement signé s'est produit (+127+1 = -128 !)
-B — Break      : 1 quand BRK s'exécute
-D — Decimal    : mode BCD (arithmétique décimale — rare)
-I — Interrupt  : 1 = IRQ masquées
-Z — Zero       : 1 si le résultat est exactement 0
-C — Carry      : 1 si l'opération a produit un report (carry) au-delà de 8 bits
+A : Accumulateur (8 bits)
+Le registre principal. Toute opération arithmétique passe par lui.
+Tu ne peux lire ou écrire en mémoire que depuis A.
+
+X : Index X (8 bits)
+Y : Index Y (8 bits)
+Registres secondaires. Compteurs, adressage indexé.
+Ils ne peuvent pas directement lire/écrire en mémoire.
+
+PC : Program Counter (16 bits)
+L'adresse de la prochaine instruction à exécuter.
+S'incrémente automatiquement. On ne le touche pas directement.
+
+SP : Stack Pointer (8 bits)
+Pointe dans la pile ($0100–$01FF). Géré par PHA/PLA/JSR/RTS.
+
+P : Processor Status (8 bits)
+7 drapeaux (flags) décrivant le résultat de la dernière opération.
 ```
 
-Ces flags sont la seule façon de prendre des décisions. Le 6502 n'a pas d'instruction `if` — il a des branchements conditionnels qui testent ces flags.
+Les **flags** du registre P sont essentiels :
 
-## 1.6 Premier programme complet
+```
+Bit  7   6   5   4   3   2   1   0
+     N   V   —   B   D   I   Z   C
+     │   │       │   │   │   │   └── Carry    : report (addition/soustraction)
+     │   │       │   │   │   └────── Zero     : résultat = 0
+     │   │       │   │   └────────── Interrupt: IRQ masquées (1=masquées)
+     │   │       │   └────────────── Decimal  : mode BCD (rare)
+     │   │       └────────────────── Break    : BRK en cours
+     │   └────────────────────────── oVerflow : débordement signé
+     └────────────────────────────── Negative : bit 7 du résultat = 1
+```
 
-Voici le programme le plus simple possible sur le Chuck-8 :
+Ces flags sont ta seule façon de prendre des décisions. Le 6502 n'a pas d'instruction `if`. Il a des branchements conditionnels qui testent ces flags — `BEQ` (branche si Z=1), `BCC` (branche si C=0), etc.
+
+> **En 2026** — Ton CPU moderne a des dizaines de registres et des flags similaires. Les processeurs ARM et x86 ont leurs propres PSR (Program Status Register). Le principe est le même depuis 50 ans.
+
+> ✏️ **Exercice 1.6** — Exécute ce programme et observe le panneau Registres à chaque étape. Quel flag s'allume quand on charge 0 ? Quel flag s'allume quand on charge 200 (`$C8`) ?
+> ```asm
+>   .org $E000
+>   LDA #0     ; charge zéro
+>   LDA #200   ; charge 200 ($C8 = 1100 1000 — bit 7 = 1)
+>   LDA #127   ; charge 127 ($7F = 0111 1111 — bit 7 = 0)
+>   BRK
+> ```
+> *Réponse attendue : Z=1 après LDA #0, N=1 après LDA #200, N=0 après LDA #127.*
+
+
+## 1.7 Premier programme : "BONJOUR"
+
+Voilà le programme le plus simple qui soit sur le Chuck-8 :
 
 ```asm
 ; ══════════════════════════════════════════
-;  PREMIER PROGRAMME CHUCK-8
-;  Affiche "BONJOUR" en mode texte
+;  BONJOUR — Premier programme Chuck-8
 ; ══════════════════════════════════════════
 
-; Constantes
-VPU_CTRL     = $D000
-VPU_CHAR_OUT = $D00F
+VPU_CTRL     = $D000   ; registre de contrôle vidéo
+VPU_CHAR_OUT = $D00F   ; écrire un caractère à l'écran
 
-  .org $E000              ; commence ici (vecteur RESET pointe ici)
+  .org $E000            ; mon programme commence ici
 
-; Activer le VPU en mode texte
-  LDA #$80               ; $80 = VPU enable, bit0=0 = mode texte
+; Activer le VPU (puce vidéo) en mode texte
+  LDA #$80
   STA VPU_CTRL
 
-; Positionner le curseur en (0, 0)
-  LDA #$00
-  STA $D00B              ; VPU_CURSOR_X = 0
-  STA $D00C              ; VPU_CURSOR_Y = 0
+; Placer le curseur en (0, 0)
+  LDA #0
+  STA $D00B            ; VPU_CURSOR_X = colonne 0
+  STA $D00C            ; VPU_CURSOR_Y = ligne 0
 
-; Afficher chaque lettre
-  LDA #'B'
-  STA VPU_CHAR_OUT
-  LDA #'O'
-  STA VPU_CHAR_OUT
-  LDA #'N'
-  STA VPU_CHAR_OUT
-  LDA #'J'
-  STA VPU_CHAR_OUT
-  LDA #'O'
-  STA VPU_CHAR_OUT
-  LDA #'U'
-  STA VPU_CHAR_OUT
-  LDA #'R'
-  STA VPU_CHAR_OUT
+; Afficher "BONJOUR" lettre par lettre
+  LDA #'B' : STA VPU_CHAR_OUT
+  LDA #'O' : STA VPU_CHAR_OUT
+  LDA #'N' : STA VPU_CHAR_OUT
+  LDA #'J' : STA VPU_CHAR_OUT
+  LDA #'O' : STA VPU_CHAR_OUT
+  LDA #'U' : STA VPU_CHAR_OUT
+  LDA #'R' : STA VPU_CHAR_OUT
 
-  BRK                    ; arrêt propre
+  BRK                  ; arrêt
 ```
 
-Tape ce programme dans Chuck IDE et exécute-le. "BONJOUR" apparaît en haut à gauche.
+Tape ce programme et clique **Run**. "BONJOUR" apparaît en haut à gauche.
 
-**Que se passe-t-il exactement ?**
+**`.org $E000`** — dit à l'assembleur "place mon code à partir de l'adresse $E000". C'est là que pointe le vecteur RESET — l'adresse où le CPU commence à exécuter au démarrage.
 
-1. Le CPU démarre à $E000 (le vecteur RESET $FFFC/$FFFD pointe ici)
-2. `LDA #$80` charge la valeur 128 dans le registre A
-3. `STA VPU_CTRL` écrit 128 dans le registre $D000 → le VPU s'active
-4. Les `STA $D00B` et `$D00C` positionnent le curseur en (0,0)
-5. Chaque `STA VPU_CHAR_OUT` envoie un caractère au VPU qui l'affiche et avance le curseur
-6. `BRK` arrête le CPU
+**`LDA #$80`** — charge la valeur 128 (`$80`) dans le registre A. Le `#` signifie "valeur immédiate" (la valeur elle-même, pas une adresse).
 
-Deux instructions, sept caractères. C'est tout. Il n'y a pas de runtime, pas d'OS, pas de couche d'abstraction. Le programme parle directement au matériel.
+**`STA VPU_CTRL`** — écrit A dans `$D000`. Ça active la puce vidéo. L'écriture à cette adresse n'est pas un simple stockage en mémoire — c'est une commande matérielle.
 
-## 1.7 La structure canonique d'un programme Chuck-8
+**`STA VPU_CHAR_OUT`** — écrire à `$D00F` envoie un caractère au VPU, qui l'affiche à la position du curseur et avance le curseur d'une position.
 
-Tout programme Chuck-8 sérieux suit ce modèle :
+**`BRK`** — Break. Arrête le CPU proprement.
+
+Rien d'autre. Pas de runtime, pas d'OS, pas de bibliothèque standard chargée en arrière-plan. Ton programme parle directement au matériel.
+
+> ✏️ **Exercice 1.7** — Modifie le programme pour :
+> 1. Afficher ton prénom à la place de "BONJOUR"
+> 2. Positionner le texte au centre de l'écran (colonne 13, ligne 15)
+> 3. Ajouter une deuxième ligne sous ton prénom avec le message "CHUCK-8" (astuce : `LDA #10 : STA VPU_CHAR_OUT` envoie un saut de ligne)
+
+
+## 1.8 Structure canonique d'un programme
+
+Pour les programmes qui tournent en continu (des jeux, des démos), on utilise une structure standard :
 
 ```asm
 ; ══════════════════════════════════════════
-;  NOM DU PROGRAMME
-;  Auteur, version, description
+;  STRUCTURE CHUCK-8 STANDARD
 ; ══════════════════════════════════════════
 
-; ── Constantes (noms des registres et API) ─
-VPU_CTRL        = $D000
+; ── Constantes (addresses et API) ─────────
 SYS_CLEAR       = $F000
-SYS_WAIT_VBLANK = $F057
-; ... etc.
+SYS_DRAW_PIXEL  = $F003
+SYS_RAND        = $F05A
 
-; ── Variables Zero Page ─────────────────────
-POS_X  = $10     ; position du joueur x
-POS_Y  = $11     ; position du joueur y
+; ── Variables en Zero Page ────────────────
+; La ZP est précieuse — mets-y tout ce qui change souvent
+POS_X  = $10     ; position x du joueur
+POS_Y  = $11     ; position y du joueur
+DIR_X  = $12     ; direction x (1 ou $FF = -1)
 SCORE  = $20     ; score courant
 
   .org $E000
 
-; ── INIT : s'exécute une seule fois ─────────
+; ── INIT : exécuté une seule fois ─────────
 INIT:
-  LDA #$81               ; mode graphique
-  STA VPU_CTRL
-  LDA #$00 : JSR SYS_CLEAR  ; efface l'écran en noir
+  LDA #$81 : STA $D000    ; mode graphique
+  LDA #0 : JSR SYS_CLEAR  ; écran noir
   ; ... initialiser les variables ...
 
-; ── MAIN LOOP : boucle principale ────────────
+; ── BOUCLE PRINCIPALE ─────────────────────
 MAIN_LOOP:
-  JSR SYS_WAIT_VBLANK    ; attendre 1/60e de seconde (sync VBlank)
-  JSR UPDATE             ; mettre à jour la logique
-  JSR DRAW               ; dessiner la frame
-  JMP MAIN_LOOP          ; recommencer
+  JSR UPDATE    ; logique du jeu
+  JSR DRAW      ; rendu
+  JMP MAIN_LOOP
 
-; ── UPDATE ───────────────────────────────────
+; ── LOGIQUE ───────────────────────────────
 UPDATE:
-  ; lire les entrées, mettre à jour la physique
+  ; lire les entrées, déplacer, collision...
   RTS
 
-; ── DRAW ─────────────────────────────────────
+; ── RENDU ─────────────────────────────────
 DRAW:
-  ; dessiner l'état courant
+  ; dessiner l'état courant...
   RTS
-
-; ── Données statiques ──────────────────────────
-  .org $EC00
-DONNEES:
-  .byte $01, $02, $03
 ```
 
-Cette structure — INIT, MAIN_LOOP, UPDATE, DRAW — est universelle dans les jeux 8-bit. Le Commodore 64, l'Atari, la NES : tous les jeux de l'époque suivaient ce pattern fondamental.
+Cette architecture — INIT, MAIN_LOOP, UPDATE, DRAW — est universelle. Elle s'appelle la *game loop*. Tous les jeux de l'époque l'utilisaient. Tous les jeux modernes aussi. Unity, Unreal, Pygame — tous ont une boucle principale qui appelle Update() et Render() en alternance.
 
-**Pourquoi `JSR SYS_WAIT_VBLANK` ?**
+Tu viens de toucher une des constantes de l'informatique.
 
-Le VPU dessine l'écran de haut en bas, 60 fois par seconde. Pendant qu'il dessine, si ton programme modifie le framebuffer, des artefacts visuels apparaissent (lignes brisées, déchirements). `SYS_WAIT_VBLANK` bloque ton programme jusqu'à ce que le VPU ait terminé de dessiner et recommence. Tu modifies l'écran pendant cette fenêtre "sûre".
+---
 
-C'est exactement ce que fait `requestAnimationFrame` en JavaScript — sauf que là, tu contrôles le mécanisme depuis le bas.
+## ✏️ Atelier chapitre 1 — "CARTE DE VISITE"
 
-## 1.8 Résumé du chapitre 1
+Tu as appris ce qu'est la mémoire, les registres, l'hexadécimal et les I/O. Il est temps de tout assembler.
 
-- Le Chuck-8 est un ordinateur avec 64 Ko de RAM, un processeur 6502 à 1 MHz, et des périphériques câblés en mémoire ($D000–$DFFF)
-- L'hexadécimal est la base de travail : un octet = deux chiffres hex
-- Les registres du 6502 : A (accumulateur), X/Y (index), PC (compteur programme), SP (pile), P (flags)
-- Les flags décrivent le résultat de la dernière opération — ce sont les seuls outils de décision
-- Tout programme commence à `.org $E000` et suit la structure INIT / MAIN_LOOP / UPDATE / DRAW
+**Objectif :** afficher une carte de visite en mode texte avec :
+- Ton prénom centré sur la ligne 12
+- Le texte "CLUB CHUCK-8" centré sur la ligne 14, en couleur différente
+- Une ligne de séparation faite de tirets `---` sur la ligne 11
 
-**Exercices :**
+**Ce dont tu as besoin :**
+```asm
+VPU_CTRL     = $D000
+VPU_CHAR_OUT = $D00F
+SYS_SET_COLOR = $F030
+; SYS_SET_COLOR : A = (ink << 4) | paper
+; Exemples : $10 = blanc sur noir, $70 = jaune sur noir, $20 = rouge sur noir
 
-1. Modifie le premier programme pour afficher ton prénom
-2. Change la position du curseur pour afficher le texte au centre (col 13, ligne 15)
-3. Ajoute une deuxième ligne de texte en appuyant sur la touche entrée : `LDA #10 : STA VPU_CHAR_OUT` (code ASCII de la nouvelle ligne)
+  LDA #col : STA $D00B   ; positionner curseur (colonne)
+  LDA #lig : STA $D00C   ; positionner curseur (ligne)
+  LDA #$XX : JSR SYS_SET_COLOR  ; choisir couleur
+  LDA #'?' : STA VPU_CHAR_OUT   ; écrire un caractère
+```
+
+**Bonus :** Ajoute une bordure de `*` sur tout le pourtour de l'écran (colonnes 0 et 31, lignes 0 et 31). Indice : utilise une boucle avec `LDX` / `DEX` / `BNE`.
 
 ---
 
@@ -298,735 +398,644 @@ C'est exactement ce que fait `requestAnimationFrame` en JavaScript — sauf que 
 
 ## 2.1 L'assembleur ca65
 
-Le Chuck-8 utilise la syntaxe **ca65**, le même assembleur qu'utilisent aujourd'hui les développeurs NES et 6502. La syntaxe est claire et précise.
+Un programme assembleur est une suite d'instructions humainement lisibles — les *mnémoniques* — que l'assembleur traduit en octets machine. Le Chuck-8 utilise la syntaxe **ca65**, le même outil qu'utilisent aujourd'hui les développeurs qui programment sur NES, Atari, ou 6502 en général.
 
-Une ligne d'assembleur suit ce format :
-
-```
-[label:]  mnémonique  [opérande]  [; commentaire]
-```
-
-Exemples :
+Une ligne suit ce format :
 
 ```asm
-DEBUT:   LDA  #$42    ; charge 42 hex dans A
-         STA  $10     ; écrit A dans la case mémoire $10
-         BNE  DEBUT   ; si Z=0, retourne à DEBUT
+[label:]   mnémonique   [opérande]   [; commentaire]
+
+DEBUT:     LDA          #$42        ; charge 42 en A
 ```
 
-### Définir des constantes
+**Définir des constantes** avec `=` :
+```asm
+VPU_CTRL = $D000    ; un nom pour une adresse
+VITESSE  = 3        ; un nom pour une valeur
+COULEUR  = %0111    ; binaire : 4 bits, valeur 7
+```
+
+**Directives d'assemblage** :
+```asm
+.org $E000          ; fixer l'adresse courante
+.byte $01, $02, $03 ; émettre des octets bruts
+.word $1234         ; émettre 2 octets (little-endian : lo, hi)
+.res 16, $00        ; réserver 16 octets à zéro
+```
+
+**Opérateurs `<` et `>` pour les adresses 16-bit** :
+```asm
+LABEL = $E123
+
+LDA #<LABEL    ; octet bas : $23
+LDA #>LABEL    ; octet haut : $E1
+```
+
+C'est essentiel pour passer des adresses à l'API :
+```asm
+MSG: .byte "Chuck-8", 0     ; chaîne null-terminated
+
+  LDA #<MSG : STA $80       ; adresse lo de MSG
+  LDA #>MSG : STA $81       ; adresse hi de MSG
+  JSR SYS_PRINT_STR         ; $F021 — affiche la chaîne
+```
+
+> ✏️ **Exercice 2.1** — Déclare deux constantes `VITESSE = 3` et `LIMITE = 100`. Écris un programme qui charge VITESSE dans A, la stocke à l'adresse `$10`, puis charge LIMITE dans A et la stocke à `$11`. Vérifie en hexdump.
+
+
+## 2.2 Les trois registres actifs — A, X, Y
+
+**A** est le seul registre qui peut lire et écrire en mémoire directement. X et Y servent d'index et de compteurs.
 
 ```asm
-VITESSE    = 3         ; constante numérique
-VPU_CTRL   = $D000     ; alias d'adresse
-SKY        = %00000001 ; valeur binaire
-NOM        = 'Z'       ; valeur ASCII
+; ── Charger dans A ──────────────────────────────────
+LDA #42       ; A ← 42 (valeur immédiate)
+LDA $10       ; A ← mem[$0010] (Zero Page)
+LDA $1000     ; A ← mem[$1000] (absolu)
+LDA $10,X     ; A ← mem[$10 + X] (ZP indexé)
+LDA $1000,X   ; A ← mem[$1000 + X] (absolu indexé)
+LDA $1000,Y   ; A ← mem[$1000 + Y]
+
+; ── Écrire depuis A ─────────────────────────────────
+STA $10       ; mem[$10] ← A
+STA $1000     ; mem[$1000] ← A
+STA $10,X     ; mem[$10 + X] ← A
+
+; ── Même chose pour X et Y ──────────────────────────
+LDX #5        ; X ← 5
+STX $20       ; mem[$20] ← X
+LDY #0        ; Y ← 0
+STY $30       ; mem[$30] ← Y
 ```
 
-### Directives d'assemblage
-
-```asm
-.org $E000             ; fixe l'adresse courante
-.byte $01, $02, $03    ; émet des octets
-.word $1234            ; émet un mot 16-bit (lo, hi)
-.res 16, $00           ; réserve 16 octets initialisés à 0
-.ascii "Hello"         ; émet les codes ASCII de la chaîne
-```
-
-### Opérateurs d'adresse
-
-```asm
-LDA #<LABEL    ; octet bas de l'adresse de LABEL
-LDA #>LABEL    ; octet haut de l'adresse de LABEL
-LDA #SCORE + 1 ; expression arithmétique
-```
-
-## 2.2 Les 56 instructions du 6502
-
-Le 6502 n'a que 56 instructions distinctes (mais 151 opcodes car chaque instruction existe en plusieurs modes d'adressage). Voici les groupes essentiels.
-
-### Chargement et stockage
-
-```asm
-LDA #$42     ; A ← $42          (Load Accumulator, immédiat)
-LDA $10      ; A ← mem[$10]     (Load depuis Zero Page)
-LDA $1000    ; A ← mem[$1000]   (Load depuis adresse absolue)
-STA $10      ; mem[$10] ← A     (Store A)
-STA $1000    ; mem[$1000] ← A
-LDX #5       ; X ← 5
-STX $20      ; mem[$20] ← X
-LDY #0       ; Y ← 0
-STY $30
-```
-
-**Règle fondamentale :** seul A peut interagir avec la mémoire. X et Y servent d'index et de compteurs, mais pour écrire en mémoire depuis X ou Y, il faut d'abord passer par A :
-
+**Pour écrire X ou Y en mémoire, passe par A** :
 ```asm
 LDX #$FF
-TXA          ; A ← X  (Transfer X to A)
-STA $0200    ; maintenant on peut écrire
+TXA           ; A ← X   (Transfer X to A)
+STA $0200     ; maintenant tu peux écrire en mémoire
 ```
 
-### Transferts entre registres
+Les transferts disponibles :
+```asm
+TAX  ; A → X       TXA  ; X → A
+TAY  ; A → Y       TYA  ; Y → A
+TXS  ; X → SP      TSX  ; SP → X
+```
+
+> ✏️ **Exercice 2.2** — Remplis les 8 premières cases de la Zero Page ($10 à $17) avec la valeur 42 en utilisant `STX` avec un index. Tu auras besoin de `LDA #42`, `STA $10`, `STA $11`... mais essaie de faire ça avec `LDX` et `STA $10,X` dans une boucle. *Indice : `LDX #7` puis boucle avec `STA $10,X : DEX : BPL BOUCLE`.*
+
+
+## 2.3 L'arithmétique et le Carry
+
+Voici quelque chose qui va te déstabiliser au début, puis qui va changer ta façon de penser.
+
+Le 6502 n'a pas d'instruction "additionne A et B". Il a **ADC** — *Add with Carry*. Et **SBC** — *Subtract with Borrow*. Ces instructions incluent systématiquement le Carry flag dans le calcul.
+
+**Pourquoi ?** Parce que ça permet de faire de l'arithmétique sur des nombres plus grands qu'un octet, en enchaînant les additions octet par octet. Le Carry "déborde" d'un octet vers le suivant — exactement comme tu poses un "1" en colonne quand tu fais une addition à la main.
 
 ```asm
-TAX   ; A → X    TXA   ; X → A
-TAY   ; A → Y    TYA   ; Y → A
-TXS   ; X → SP   TSX   ; SP → X
+; Addition simple : A = A + 5
+  CLC          ; efface le Carry avant ADC (TOUJOURS faire ça)
+  ADC #5
+
+; Soustraction simple : A = A - 3
+  SEC          ; met le Carry avant SBC (TOUJOURS faire ça)
+  SBC #3
 ```
 
-### Arithmétique
+**Règle d'or :**
+- Avant `ADC` : toujours `CLC` (Clear Carry)
+- Avant `SBC` : toujours `SEC` (Set Carry)
+
+**Addition 16-bit** — additionner deux valeurs 16-bit stockées en ZP :
 
 ```asm
-CLC          ; TOUJOURS avant ADC (efface le Carry)
-LDA #$10
-ADC #$05     ; A = A + 5 + Carry = $15
+; VAL1 = $1234 stocké en $10/$11 (lo en $10, hi en $11)
+; VAL2 = $0056 stocké en $12/$13
+; Résultat dans $14/$15
 
-SEC          ; TOUJOURS avant SBC (met le Carry)
-LDA #$20
-SBC #$08     ; A = A - 8 - (1-Carry) = $18
+  CLC
+  LDA $10 : ADC $12 : STA $14   ; octets bas + carry sortant
+  LDA $11 : ADC $13 : STA $15   ; octets hauts + carry entrant
 ```
 
-**Le Carry est le bit de liaison.** Pour une addition 16-bit :
+Si les octets bas dépassent 255, le carry est automatiquement reporté sur l'addition des octets hauts. C'est de la magie — non, c'est juste du binaire.
+
+> **Lien avec le présent** — Quand ton CPU moderne fait `a + b` sur des entiers 64-bit, il fait exactement la même chose, mais en un seul cycle grâce à des circuits parallèles. La logique de propagation du Carry est identique.
+
+**Incrément et décrément** — ces instructions sont rapides et ne touchent pas au Carry :
 
 ```asm
-; Additionner $1234 + $0056
-CLC
-LDA #$34 : ADC #$56 : STA $10  ; octets bas : $8A, Carry=0
-LDA #$12 : ADC #$00 : STA $11  ; octets hauts : $12 + Carry = $12
-; Résultat en $10/$11 = $128A
+INX   ; X = X + 1  (2 cycles)
+DEX   ; X = X - 1  (2 cycles)
+INY   ; Y = Y + 1
+DEY   ; Y = Y - 1
+INC $10   ; mem[$10]++ (5 cycles)
+DEC $10   ; mem[$10]-- (5 cycles)
 ```
 
-### Incrément et décrément
+`INX` + `DEX` sont tes meilleurs amis pour les boucles. Bien plus rapides que `LDA $10 : CLC : ADC #1 : STA $10` (10 cycles vs 2).
 
-```asm
-INX   ; X++    DEX   ; X--
-INY   ; Y++    DEY   ; Y--
-INC $10   ; mem[$10]++
-DEC $20   ; mem[$20]--
-```
+> ✏️ **Exercice 2.3** — Calcule 200 + 100 avec `CLC : ADC`. Que se passe-t-il ? (200 + 100 = 300 > 255 — le résultat déborde !) Regarde le flag C dans les registres : il vaut 1, ce qui signifie qu'il y a eu un débordement. La valeur dans A sera 44 (`300 - 256`). C'est le comportement normal en 8-bit.
+> ```asm
+>   .org $E000
+>   LDA #200
+>   CLC
+>   ADC #100    ; résultat = 44, Carry = 1
+>   STA $10     ; vérifie en hexdump : $10 = $2C = 44
+>   BRK
+> ```
+> Maintenant calcule `300` sur 16 bits : stocke 200 en `$10` et 0 en `$11`, stocke 100 en `$12` et 0 en `$13`. Additionne les deux paires. Le résultat `$012C` (= 300) doit apparaître en `$14`/`$15`.
 
-Ces instructions sont utilisées massivement pour les compteurs de boucles. `INX` coûte seulement 2 cycles — beaucoup plus efficace que `LDA $10 : CLC : ADC #1 : STA $10`.
 
-### Comparaison
+## 2.4 Comparer et brancher
 
-`CMP`, `CPX`, `CPY` effectuent une soustraction fantôme (le résultat est jeté) et positionnent les flags :
+Le 6502 n'a pas de `if`. Il a `CMP` + une instruction de branchement.
+
+`CMP` fait une soustraction fantôme — le résultat est jeté, mais les flags sont mis à jour :
 
 ```asm
 LDA #$42
-CMP #$42      ; Z=1 (égaux), C=1 (A >= valeur)
-CMP #$43      ; Z=0, C=0 (A < valeur), N=1
-CMP #$41      ; Z=0, C=1 (A > valeur), N=0
+CMP #$42      ; $42 - $42 = 0   → Z=1, C=1
+CMP #$41      ; $42 - $41 = 1   → Z=0, C=1 (A > valeur)
+CMP #$43      ; $42 - $43 = -1  → Z=0, C=0 (A < valeur)
 ```
 
-**Règle pour CMP :**
-- `Z=1` → A = valeur → utiliser `BEQ`
-- `C=0` → A < valeur → utiliser `BCC`
-- `C=1` → A ≥ valeur → utiliser `BCS`
+**La règle CMP à retenir** :
+- Résultat = 0  → Z=1 → utilise `BEQ` / `BNE`
+- A < valeur   → C=0 → utilise `BCC` (*Branch if Carry Clear*)
+- A >= valeur  → C=1 → utilise `BCS` (*Branch if Carry Set*)
 
-### Branchements conditionnels
-
+Les branchements disponibles :
 ```asm
-BEQ LABEL   ; si Z=1 (résultat = 0, ou dernière CMP était égale)
-BNE LABEL   ; si Z=0
-BCC LABEL   ; si C=0 (Carry Clear = inférieur après CMP)
-BCS LABEL   ; si C=1 (Carry Set = supérieur ou égal après CMP)
-BMI LABEL   ; si N=1 (résultat négatif, bit 7 = 1)
-BPL LABEL   ; si N=0 (résultat positif)
-BVC LABEL   ; si V=0 (pas de débordement signé)
-BVS LABEL   ; si V=1
+BEQ LABEL   ; si Z=1  (égal, ou résultat = 0)
+BNE LABEL   ; si Z=0  (différent, ou résultat ≠ 0)
+BCC LABEL   ; si C=0  (inférieur après CMP)
+BCS LABEL   ; si C=1  (supérieur ou égal après CMP)
+BMI LABEL   ; si N=1  (résultat négatif, bit 7 = 1)
+BPL LABEL   ; si N=0  (résultat positif ou nul)
 ```
 
-**Important :** les branchements sont relatifs (+127/-128 octets). Si la cible est trop loin, l'assembleur génère une erreur. La solution : utiliser `JMP` pour les grands sauts.
-
-### Sauts inconditionnels et sous-routines
-
+**Construire un if/else** :
 ```asm
-JMP $E100    ; saut inconditionnel (PC ← $E100)
-JMP (VECT)   ; saut indirect (PC ← mem[VECT])
-
-JSR $F003    ; appel de sous-routine (SYS_DRAW_PIXEL)
-             ; pousse PC sur la pile, saute à $F003
-RTS          ; retour de sous-routine
-             ; dépile PC, continue après le JSR
+; if (A == 7) { ... } else { ... }
+  CMP #7
+  BNE ELSE
+  ; — code du if —
+  JMP SUITE
+ELSE:
+  ; — code du else —
+SUITE:
 ```
 
-### Opérations logiques
-
+**Boucle for — la forme idiomatique** :
 ```asm
-AND #$0F     ; A = A ET $0F   (masque : ne garde que les bits 0-3)
-ORA #$80     ; A = A OU $80   (fusionne : allume le bit 7)
-EOR #$FF     ; A = A XOR $FF  (inverse tous les bits)
-```
-
-Applications typiques :
-
-```asm
-; Forcer une valeur dans [0, 15] pour la palette
-AND #$0F
-
-; Vérifier si un bit est à 1 (sans modifier A)
-PHA
-AND #$08          ; isole le bit 3
-BEQ BIT_EST_ZERO  ; Z=1 si le bit était 0
-PLA
-
-; Inverser les bits d'état manette (0=enfoncé → 1=enfoncé)
-EOR #$FF
-```
-
-### Décalages
-
-```asm
-ASL         ; A << 1  (× 2, Carry = ancien bit 7)
-LSR         ; A >> 1  (÷ 2, Carry = ancien bit 0)
-ROL         ; A << 1 avec Carry en entrée/sortie
-ROR         ; A >> 1 avec Carry en entrée/sortie
-```
-
-`ASL` est fondamental pour les calculs d'adresses écran. La ligne Y du framebuffer commence à `$4000 + Y × 64`. Calculer `Y × 64` :
-
-```asm
-LDA #Y_POS
-ASL          ; × 2
-ASL          ; × 4
-ASL          ; × 8
-ASL          ; × 16
-ASL          ; × 32
-ASL          ; × 64
-```
-
-### La pile
-
-```asm
-PHA    ; pousse A sur la pile   (SP--)
-PLA    ; dépile A depuis la pile (SP++)
-PHP    ; pousse P (flags)
-PLP    ; dépile P
-```
-
-La pile est **LIFO** (Last In, First Out). Chaque `PHA` doit correspondre à exactement un `PLA`. Une pile déséquilibrée est l'une des erreurs les plus courantes — et les plus difficiles à déboguer.
-
-## 2.3 Les 13 modes d'adressage
-
-Le même mnémonique (`LDA`) peut accéder à la mémoire de 8 façons différentes. Chaque façon a une utilité spécifique.
-
-### Immédiat `#val`
-
-```asm
-LDA #$42     ; charge la constante 66 dans A
-LDA #'H'     ; charge le code ASCII de 'H'
-```
-
-La valeur est dans l'instruction elle-même. C'est le plus rapide (2 cycles).
-
-### Zero Page `$zz`
-
-```asm
-LDA $10      ; charge mem[$0010] dans A — 3 cycles
-STA $10      ; sauvegarde A dans mem[$0010]
-```
-
-Accès ultra-rapide (instruction de 2 octets au lieu de 3). Toujours préférer la Zero Page pour les variables fréquentes.
-
-### Zero Page indexée `$zz,X` et `$zz,Y`
-
-```asm
-LDA $10,X    ; charge mem[$0010 + X] — parfait pour les tableaux en ZP
-STA $20,Y    ; sauvegarde à mem[$0020 + Y]
-```
-
-Si X = 3, `LDA $10,X` lit `mem[$0013]`. L'adresse wrap-around dans la page 0 (si $10+X > $FF, revient à $00).
-
-### Absolu `$xxxx`
-
-```asm
-LDA $4800    ; charge mem[$4800] — lecture VRAM texte
-STA $D000    ; écrit dans un registre I/O
-```
-
-3 octets, 4 cycles. Nécessaire pour les adresses > $FF.
-
-### Absolu indexé `$xxxx,X` et `$xxxx,Y`
-
-```asm
-STA $4000,X  ; mem[$4000 + X] ← A
-LDA $4800,Y  ; A ← mem[$4800 + Y]
-```
-
-Idéal pour parcourir des tableaux de plus de 256 éléments. La version `$xxxx,X` coûte un cycle de plus si le calcul traverse une page (le high byte de l'adresse change).
-
-### Indirect `($xxxx)` — uniquement pour JMP
-
-```asm
-JMP ($FFFC)  ; lit le vecteur à $FFFC/$FFFD et saute là
-```
-
-C'est comment le processeur lit le vecteur RESET au démarrage.
-
-### Indirect pré-indexé `($zz,X)` — "pré"
-
-```asm
-LDA ($10,X)  ; lit le vecteur à mem[$10+X]/$11+X, puis accède à cette adresse
-```
-
-Utile pour sélectionner un pointeur dans une table de pointeurs.
-
-### Indirect post-indexé `($zz),Y` — "post"
-
-```asm
-LDA ($F0),Y  ; lit le vecteur 16-bit à $F0/$F1, ajoute Y, accède à l'adresse
-STA ($F0),Y  ; same
-```
-
-**C'est le mode le plus puissant du 6502.** Il permet d'accéder à n'importe quelle adresse via un pointeur 16-bit en Zero Page. Exemples :
-
-```asm
-; Pointer vers $4000 (framebuffer)
-LDA #$00 : STA $F0   ; lo
-LDA #$40 : STA $F1   ; hi
-
-LDY #$00
-LDA #$77            ; jaune
-STA ($F0),Y         ; écrit à $4000 + 0 = $4000
-
-LDY #$40
-STA ($F0),Y         ; écrit à $4000 + 64 = $4040 (début de la ligne 1)
-```
-
-### Relatif — uniquement pour les branches
-
-```asm
-BEQ LABEL    ; saute de -128 à +127 octets depuis l'instruction suivante
-```
-
-L'offset est signé : positif = en avant, négatif = en arrière.
-
-## 2.4 Construire les structures de contrôle
-
-Le 6502 n'a pas de `if`, `while`, `for`. Mais il a tout ce qu'il faut pour les construire.
-
-### If / else
-
-```asm
-; if (A == $42) { ... } else { ... }
-  CMP #$42
-  BNE ELSE_BRANCH    ; si différent, saute vers ELSE
-  ; code du if
-  JMP APRES
-ELSE_BRANCH:
-  ; code du else
-APRES:
-```
-
-### While
-
-```asm
-; while (X != 0) { X-- }
-WHILE:
-  CPX #$00
-  BEQ FIN_WHILE
-  DEX
-  JMP WHILE
-FIN_WHILE:
-```
-
-Ou plus idiomatique (le 6502 positionne Z automatiquement après DEX) :
-
-```asm
-  LDX #$10    ; 16 itérations
-WHILE:
+; for (X = 8; X > 0; X--)
+  LDX #8
+BOUCLE:
   ; corps de la boucle
   DEX
-  BNE WHILE   ; continue tant que X != 0
+  BNE BOUCLE   ; DEX positionne Z → BNE si X ≠ 0
 ```
 
-### For loop — compter de 0 à N
+Cette forme est omniprésente. `DEX` + `BNE` = 2 instructions = 5 cycles. Mémorise-la.
 
+**Astuce : 256 itérations avec DEX** :
 ```asm
-; for (X = 0; X < 8; X++) { mem[$0200 + X] = 7; }
-  LDA #7
-  LDX #$00
-FOR:
-  STA $0200,X
-  INX
-  CPX #8
-  BNE FOR
+; Remplir 256 octets depuis $4000
+  LDA #$77    ; jaune nibble-packed
+  LDX #0
+FILL:
+  STA $4000,X
+  DEX         ; 0 → $FF → $FE → ... → 1 → 0
+  BNE FILL    ; boucle 256 fois
 ```
 
-### For loop — 256 itérations (l'astuce DEX)
+**Attention** : les branchements ne peuvent atteindre que ±127 octets depuis l'instruction suivante. Pour les sauts longs, utilise `JMP`.
 
-Pour exactement 256 itérations, `DEX/BNE` depuis 0 est élégant :
+> ✏️ **Exercice 2.4a — Le if/else** — Écris un programme qui stocke une valeur en `$10`, puis affiche `'G'` si cette valeur est >= 50, et `'P'` sinon (G pour Grand, P pour Petit). Change la valeur entre 0 et 100 pour vérifier que les deux branches fonctionnent.
+
+> ✏️ **Exercice 2.4b — La boucle** — Écris une boucle qui calcule la somme de 1 à 10 et la stocke en `$20`. Utilise `LDX #10` et `TXA : CLC : ADC $20 : STA $20 : DEX : BNE`. Vérifie que `$20` contient 55 (`$37`) à la fin.
+
+
+## 2.5 Les modes d'adressage
+
+C'est ici que le 6502 révèle sa richesse. La même instruction `LDA` peut accéder à la mémoire de huit façons différentes — chacune avec ses cas d'usage.
 
 ```asm
-  LDA #$AA     ; valeur à écrire
-  LDX #$00     ; commence à 0
-BOUCLE:
-  STA $4000,X  ; écrit à $4000 + X
-  DEX          ; X-- (0 → $FF → $FE → ... → $01 → $00)
-  BNE BOUCLE   ; s'arrête quand X revient à 0
-; 256 tours exactement
+; Immédiat — la valeur est dans l'instruction
+LDA #$42         ; A ← 42
+
+; Zero Page — accès rapide (3 cycles, 2 octets)
+LDA $10          ; A ← mem[$0010]
+
+; Zero Page indexée
+LDA $10,X        ; A ← mem[$0010 + X]
+LDA $10,Y        ; A ← mem[$0010 + Y]
+
+; Absolu (4 cycles, 3 octets)
+LDA $1000        ; A ← mem[$1000]
+
+; Absolu indexée
+LDA $4000,X      ; A ← mem[$4000 + X]
+LDA $4000,Y      ; A ← mem[$4000 + Y]
+
+; Indirect (uniquement pour JMP)
+JMP ($FFFC)      ; PC ← mem[$FFFC] (lit le vecteur)
+
+; (Indirect,X) — pré-indexé
+LDA ($10,X)      ; lit le vecteur à mem[$10+X], accède à l'adresse trouvée
+
+; (Indirect),Y — post-indexé ← le plus puissant
+LDA ($F0),Y      ; lit le vecteur 16-bit à $F0/$F1, accède à (adresse + Y)
+STA ($F0),Y
 ```
 
-### Switch / dispatch table
+**Le mode `($zp),Y` est le plus puissant du 6502.** Il te permet d'accéder à n'importe quelle adresse via un pointeur stocké en Zero Page. C'est l'équivalent d'un pointeur C.
 
 ```asm
-; switch (A) { case 0: ...; case 1: ...; case 2: ...; }
-  CMP #0 : BEQ CASE_0
-  CMP #1 : BEQ CASE_1
-  CMP #2 : BEQ CASE_2
-  JMP DEFAULT
-CASE_0:
+; Exemple : écrire dans le framebuffer via un pointeur
+; PTR = $F0/$F1 (deux octets en ZP = un pointeur 16-bit)
+
+  LDA #$00 : STA $F0   ; PTR lo = $00
+  LDA #$40 : STA $F1   ; PTR hi = $40  →  PTR = $4000
+
+  LDY #0
+  LDA #$77             ; jaune nibble-packed
+  STA ($F0),Y          ; mem[$4000 + 0] ← $77
+  INY
+  STA ($F0),Y          ; mem[$4000 + 1] ← $77
+```
+
+Pense à `($F0),Y` comme `*(ptr + Y) = valeur` en C. C'est exactement ça.
+
+> **Anecdote** — Le mode `($zp),Y` a permis à des programmeurs comme Jordan Mechner (auteur de Prince of Persia sur Apple II) d'écrire des routines d'affichage impossibles sur d'autres chips de l'époque. En changeant simplement le pointeur en ZP, la même routine peut écrire n'importe où dans les 64 Ko.
+
+> ✏️ **Exercice 2.5** — Utilise le mode indexé `STA $10,X` pour remplir un tableau de 5 octets aux adresses `$10` à `$14` avec les valeurs 10, 20, 30, 40, 50. Puis relis-les avec `LDA $10,X` dans une deuxième boucle et stocke leur somme en `$20`.
+
+
+## 2.6 La logique bit à bit
+
+Les opérations logiques sont omniprésentes en assembleur. Apprends-les par cœur.
+
+```asm
+AND #$0F     ; A = A ET $0F   — garde seulement les bits 0-3
+ORA #$80     ; A = A OU $80   — allume le bit 7
+EOR #$FF     ; A = A XOR $FF  — inverse tous les bits
+```
+
+**AND — masquer** :
+```asm
+LDA $D306          ; lit le registre aléatoire
+AND #$0F           ; force dans 0-15 (garde les 4 bits bas)
+AND #$7F           ; force dans 0-127 (garde les 7 bits bas)
+```
+
+**ORA — fusionner** :
+```asm
+LDA $D000          ; lit VPU_CTRL
+ORA #$01           ; allume le bit 0 (mode graphique) sans toucher les autres
+STA $D000
+```
+
+**EOR — inverser** :
+```asm
+; La manette NES : bit=0 si bouton enfoncé
+; Pour avoir bit=1 si enfoncé :
+LDA $D210          ; PAD1_STATE
+EOR #$FF           ; inverse tout — maintenant 1=enfoncé
+AND #%00000001     ; teste le bouton Haut
+BEQ PAS_HAUT
+```
+
+**Décalages — multiplier ou diviser par 2** :
+```asm
+ASL   ; Arithmetic Shift Left  — A × 2  (C = ancien bit 7)
+LSR   ; Logical Shift Right    — A ÷ 2  (C = ancien bit 0)
+```
+
+`ASL` est crucial pour calculer des adresses écran. La ligne Y du framebuffer est à `$4000 + Y × 64`. Pour calculer Y × 64 :
+```asm
+LDA POS_Y
+ASL   ; × 2
+ASL   ; × 4
+ASL   ; × 8
+ASL   ; × 16
+ASL   ; × 32
+ASL   ; × 64
+```
+
+Six `ASL` enchaînés. 6 cycles. Pas de multiplication. Pas de division. C'est du binaire pur.
+
+> ✏️ **Exercice 2.6** — Le générateur aléatoire du Chuck-8 est à l'adresse `$D306` (lecture seule). Écris une boucle qui :
+> 1. Lit `$D306` pour obtenir un octet aléatoire
+> 2. Applique `AND #$0F` pour le forcer dans 0–15
+> 3. Si le résultat est 0, recommence (pour éviter le noir)
+> 4. Stocke le résultat en `$10`
+> 5. Recommence la boucle 8 fois en stockant en `$10`, `$11`, ..., `$17`
+> Tu dois obtenir 8 couleurs aléatoires différentes (entre 1 et 15) en mémoire.
+
+
+## 2.7 La pile et les sous-routines
+
+La pile (stack) est une zone de 256 octets à `$0100–$01FF`. Elle fonctionne en LIFO — *Last In, First Out*. Le premier entré est le dernier sorti.
+
+```asm
+PHA   ; pousse A sur la pile (SP--)
+PLA   ; dépile dans A (SP++)
+PHP   ; pousse les flags P
+PLP   ; dépile les flags P
+```
+
+**Règle absolue : chaque PHA doit avoir son PLA correspondant.** La pile déséquilibrée est l'erreur la plus classique du débutant en assembleur. Le CPU ne le détecte pas — il va juste sauter au mauvais endroit au prochain RTS.
+
+**JSR / RTS — appeler une sous-routine** :
+```asm
+  JSR DESSINER_POINT   ; pousse PC+2 sur la pile, saute à DESSINER_POINT
+  ; on revient ici après RTS
+
+DESSINER_POINT:
+  ; A=couleur, X=px, Y=py
+  JSR SYS_DRAW_PIXEL   ; $F003
+  RTS                  ; dépile PC+2, continue
+```
+
+`JSR` et `RTS` utilisent la pile automatiquement. C'est pourquoi tu ne peux jamais faire plus de PHA que de PLA dans une sous-routine — ça déséquilibrerait la pile et `RTS` sauterait à la mauvaise adresse.
+
+```asm
+; MAUVAIS — la pile se déséquilibre
+MA_ROUTINE:
+  PHA        ; pousse A
+  ; oublie PLA !
+  RTS        ; dépile... la valeur de A, pas l'adresse → CRASH
+
+; BON
+MA_ROUTINE:
+  PHA        ; sauvegarde A
   ; ...
-  JMP FIN_SWITCH
-CASE_1:
-  ; ...
+  PLA        ; restaure A
+  RTS        ; dépile correctement l'adresse de retour
 ```
 
-Ou avec une table d'adresses pour un dispatch plus efficace :
+> ✏️ **Exercice 2.7** — Écris une sous-routine `DOUBLE` qui double la valeur dans A (A = A × 2) avec `ASL` et retourne le résultat dans A. Appelle-la 3 fois de suite depuis le programme principal sur la valeur 1. Tu dois obtenir 8. Vérifie en observant A dans le panneau Registres.
+> ```asm
+>   .org $E000
+>   LDA #1
+>   JSR DOUBLE   ; A = 2
+>   JSR DOUBLE   ; A = 4
+>   JSR DOUBLE   ; A = 8
+>   STA $10
+>   BRK
+>
+> DOUBLE:
+>   ASL          ; A × 2
+>   RTS
+> ```
 
-```asm
-; Index dans A (0-3)
-  ASL          ; × 2 (les adresses font 2 octets)
-  TAX
-  LDA DISPATCH,X   ; lo
-  STA $F0
-  LDA DISPATCH+1,X ; hi
-  STA $F1
-  JMP ($F0)    ; saute vers la routine
+---
 
-DISPATCH:
-  .word ROUTINE_0, ROUTINE_1, ROUTINE_2, ROUTINE_3
-```
+## ✏️ Atelier chapitre 2 — "CALCULATRICE 8-BIT"
 
-## 2.5 Exemple complet : calculer et afficher un score
+Tu maîtrises maintenant les registres, l'arithmétique et les branchements. Construis une mini-calculatrice.
 
-Cet exemple combine plusieurs concepts : variables ZP, arithmétique 16-bit, affichage.
+**Objectif :** écrire un programme qui effectue les 4 opérations sur deux nombres stockés en `$10` et `$11`, et stocke les résultats en mémoire :
+- Addition (`$10` + `$11`) → résultat en `$20`
+- Soustraction (`$10` - `$11`) → résultat en `$21`
+- Multiplication par 2 de `$10` → résultat en `$22` (utilise ASL)
+- Division par 2 de `$10` → résultat en `$23` (utilise LSR)
 
-```asm
-; ══════════════════════════════════════════
-;  EXEMPLE : score 16-bit avec affichage
-; ══════════════════════════════════════════
+**Puis affiche les résultats** en mode texte avec `SYS_PRINT_NUM` (`$F024`, A=valeur à afficher) et `SYS_SET_CURSOR` (`$F02A`, X=col, Y=ligne).
 
-VPU_CTRL     = $D000
-SYS_SET_COLOR = $F030
-SYS_PRINT_HEX = $F027
-SYS_PRINT_NUM = $F024
-VPU_CHAR_OUT  = $D00F
-VPU_CURSOR_X  = $D00B
-VPU_CURSOR_Y  = $D00C
+**Teste avec** `$10 = 40` et `$11 = 10`. Résultats attendus : 50, 30, 80, 20.
 
-; Variables Zero Page
-SCORE_LO = $10    ; octet bas du score
-SCORE_HI = $11    ; octet haut du score
-MULT     = $12    ; multiplicateur courant
-
-  .org $E000
-
-  ; Init
-  LDA #$80 : STA VPU_CTRL    ; mode texte
-
-  LDA #$00 : STA SCORE_LO
-  LDA #$00 : STA SCORE_HI
-  LDA #$01 : STA MULT        ; commence à ×1
-
-  ; Calcule score = 1 + 2 + 4 + 8 + 16 + 32 (= 63)
-  LDX #6
-ACCUMULE:
-  CLC
-  LDA SCORE_LO : ADC MULT : STA SCORE_LO
-  LDA SCORE_HI : ADC #0   : STA SCORE_HI   ; propage le carry
-  ASL MULT                                   ; MULT *= 2
-  DEX : BNE ACCUMULE
-
-  ; Affiche le résultat
-  LDA #$00 : STA VPU_CURSOR_X
-  LDA #$00 : STA VPU_CURSOR_Y
-  LDA #$10 : JSR SYS_SET_COLOR   ; blanc sur noir
-
-  ; Affiche "SCORE: " en ASCII direct
-  LDA #'S':STA VPU_CHAR_OUT : LDA #'C':STA VPU_CHAR_OUT
-  LDA #'O':STA VPU_CHAR_OUT : LDA #'R':STA VPU_CHAR_OUT
-  LDA #'E':STA VPU_CHAR_OUT : LDA #':':STA VPU_CHAR_OUT
-  LDA #' ':STA VPU_CHAR_OUT
-
-  ; Affiche le score en décimal
-  LDA SCORE_LO : JSR SYS_PRINT_NUM
-
-  ; Nouvelle ligne
-  LDA #10 : STA VPU_CHAR_OUT
-
-  ; Affiche le score en hex pour vérification
-  LDA #'$':STA VPU_CHAR_OUT
-  LDA SCORE_HI : JSR SYS_PRINT_HEX
-  LDA SCORE_LO : JSR SYS_PRINT_HEX
-
-  BRK
-```
-
-Résultat affiché : `SCORE: 63` puis `$003F`.
-
-Remarque comment la propagation du Carry entre `SCORE_LO` et `SCORE_HI` permet l'arithmétique 16-bit avec des instructions 8-bit seulement.
-
-## 2.6 Résumé du chapitre 2
-
-- Les 56 mnémoniques 6502 couvrent : chargement/stockage, transferts, arithmétique, comparaison, branchement, sauts, logique, décalages, pile
-- Le Carry est essentiel : `CLC` avant `ADC`, `SEC` avant `SBC`, toujours
-- Les 13 modes d'adressage permettent d'accéder à la mémoire de façons très différentes — le mode `($zp),Y` est le plus puissant
-- Les structures de contrôle (if, while, for) se construisent avec CMP et les branches
-- La Zero Page est précieuse : utilise-la pour toutes tes variables importantes
-
-**Exercices :**
-
-1. Écris une boucle qui calcule la somme de 1 à 10 et l'affiche
-2. Implémente une fonction `CLAMP` qui force une valeur dans [0, 100] : si A < 0, force à 0 ; si A > 100, force à 100 ; sinon laisse inchangé
-3. Utilise `($F0),Y` pour écrire 16 pixels jaunes à la ligne 5 du framebuffer (adresse = $4000 + 5×64 = $4140)
+**Défi bonus :** Gère le cas où la soustraction donne un résultat négatif (si `$10` < `$11`). Dans ce cas, affiche `'?'` à la place du résultat.
 
 ---
 
 # CHAPITRE 3 — LE SYSTÈME
 
-## 3.1 La vidéo Chuck-8
+## 3.1 La vidéo — deux modes, une réalité
 
-Le VPU (Video Processing Unit) du Chuck-8 gère deux modes d'affichage, sélectionnables à volonté.
+Le VPU (Video Processing Unit) du Chuck-8 supporte deux modes qu'on peut alterner à tout moment.
 
-### Mode texte (mode 0)
+### Mode texte
 
-32 colonnes × 32 lignes = 1024 caractères. Chaque caractère est affiché en 4×4 pixels, ce qui donne 128×128 pixels au total.
+32 colonnes × 32 lignes = 1024 caractères. Chaque char fait 4×4 pixels → 128×128 au total.
 
-La mémoire texte est à **$4800–$4BFF** (1 octet par case = code ASCII). Les attributs couleur sont à **$4C00–$4FFF** (1 octet par case = bits 7-4 : couleur fond, bits 3-0 : couleur texte).
+Deux zones mémoire :
+- **Texte** `$4800–$4BFF` : un octet par case = code ASCII du caractère
+- **Attributs** `$4C00–$4FFF` : un octet par case = `bits 7-4 = couleur fond`, `bits 3-0 = couleur texte`
 
-```asm
-; Écrire 'A' blanc sur fond bleu en position (5, 3)
-; Adresse texte  = $4800 + 3×32 + 5 = $4800 + $61 = $4861
-; Adresse attrib = $4C00 + 3×32 + 5 = $4C00 + $61 = $4C61
-
-LDA #'A'
-STA $4861    ; le caractère
-
-LDA #$61     ; bits 7-4 = $6 (bleu) = fond, bits 3-0 = $1 (blanc) = texte
-STA $4C61    ; l'attribut
+Calculer l'adresse d'une case `(col, ligne)` :
+```
+adresse_texte    = $4800 + ligne × 32 + col
+adresse_attribut = $4C00 + ligne × 32 + col
 ```
 
-La façon la plus simple d'utiliser le mode texte est via les registres VPU :
+La façon la plus simple d'écrire du texte : `VPU_CHAR_OUT` (`$D00F`).
 
 ```asm
-; Configurer couleurs et écrire un caractère
-LDA #$61     ; fond bleu (6), texte blanc (1)
-STA $D00E    ; VPU_PAPER = 6
-LDA #$01
-STA $D00D    ; VPU_INK = 1
+; Positionner le curseur et écrire
+  LDA #5 : STA $D00B    ; VPU_CURSOR_X = colonne 5
+  LDA #3 : STA $D00C    ; VPU_CURSOR_Y = ligne 3
 
-LDA #5 : STA $D00B    ; colonne 5
-LDA #3 : STA $D00C    ; ligne 3
-LDA #'A' : STA $D00F  ; VPU_CHAR_OUT — écrit et avance
+; Définir les couleurs avant d'écrire
+  LDA #$76              ; ink=7(jaune) sur paper=6(bleu)
+  JSR SYS_SET_COLOR     ; $F030
+
+; Écrire — le curseur avance automatiquement
+  LDA #'H' : STA $D00F
+  LDA #'e' : STA $D00F
+  LDA #'l' : STA $D00F
+  LDA #'l' : STA $D00F
+  LDA #'o' : STA $D00F
 ```
 
-### Mode graphique (mode 1)
+### Mode graphique
 
-128×128 pixels, 16 couleurs. Le framebuffer est à **$4000–$5FFF** (8192 octets).
+128×128 pixels, 16 couleurs. Framebuffer à `$4000–$5FFF` (8192 octets).
 
-**Format nibble-packed :** 2 pixels par octet. Le nibble haut (bits 7-4) contient le pixel de gauche, le nibble bas (bits 3-0) le pixel de droite.
+**Nibble-packing** : deux pixels par octet. Le nibble haut (bits 7-4) = pixel gauche (coord paire). Le nibble bas (bits 3-0) = pixel droit (coord impaire).
 
 ```
 Octet à l'adresse $4000 :
-  Bits 7-4 = couleur du pixel (0, 0)
-  Bits 3-0 = couleur du pixel (1, 0)
-
-Octet à l'adresse $4001 :
-  Bits 7-4 = couleur du pixel (2, 0)
-  Bits 3-0 = couleur du pixel (3, 0)
-
-...et ainsi de suite sur 64 octets par ligne.
+┌─────────────┬─────────────┐
+│ bits 7-4    │ bits 3-0    │
+│ pixel (0,0) │ pixel (1,0) │
+└─────────────┴─────────────┘
 ```
 
-**Calcul d'adresse :**
+Calculer l'adresse d'un pixel `(px, py)` :
 ```
 adresse = $4000 + py × 64 + px ÷ 2
 ```
 
-En code :
-```asm
-; Pixel (px=10, py=5)
-; adresse = $4000 + 5×64 + 5 = $4000 + $140 = $4145
+Pourquoi 64 ? Parce que 128 pixels par ligne, 2 pixels par octet = 64 octets par ligne.
 
-LDA #5       ; py
-ASL : ASL : ASL : ASL : ASL : ASL   ; × 64
-CLC : ADC #5 ; + px/2 = 10/2 = 5
-STA $F0
-LDA #$40
-STA $F1      ; pointeur vers $4145
-
-LDY #$00
-LDA ($F0),Y  ; lit l'octet actuel
-AND #$0F     ; efface le nibble haut (px pair)
-ORA #$70     ; jaune (7) dans le nibble haut
-STA ($F0),Y
-```
-
-L'API `SYS_DRAW_PIXEL` fait tout ça automatiquement :
-
+Via l'API (recommandé) :
 ```asm
 SYS_DRAW_PIXEL = $F003
-LDA #7    ; couleur jaune
-LDX #10   ; px
-LDY #5    ; py
-JSR SYS_DRAW_PIXEL
+; A=couleur, X=px (0-127), Y=py (0-127)
+
+  LDA #7    ; jaune
+  LDX #64   ; px = 64 (centre)
+  LDY #32   ; py = 32
+  JSR SYS_DRAW_PIXEL
 ```
-
-### La palette Chuck-8
-
-16 couleurs fixes, numérotées 0 à 15 :
-
-```
-0  Noir       #000000    8  Orange     #CC8800
-1  Blanc      #FFFFFF    9  Brun       #884400
-2  Rouge      #CC0000   10  Rose       #FF8888
-3  Cyan       #00CCCC   11  Gris foncé #444444
-4  Violet     #CC00CC   12  Gris moyen #888888
-5  Vert       #00CC00   13  Vert clair #88FF88
-6  Bleu       #0000CC   14  Bleu clair #8888FF
-7  Jaune      #CCCC00   15  Gris clair #CCCCCC
-```
-
-Ces couleurs sont fixes. Il n'y a pas de palette custom en v1.0 — c'est une contrainte volontaire, comme les 16 couleurs du C64 (qui étaient aussi fixes).
 
 ### Basculer entre les modes
 
 ```asm
 SYS_SET_MODE = $F01B
-; A=0 → mode texte, A=1 → mode graphique
+; A=0 → mode texte   A=1 → mode graphique
 
-LDA #1 : JSR SYS_SET_MODE   ; passer en graphique
-; ... dessiner ...
-LDA #0 : JSR SYS_SET_MODE   ; revenir en texte
-; ... écrire du texte ...
-LDA #1 : JSR SYS_SET_MODE   ; retour en graphique
+  LDA #1 : JSR SYS_SET_MODE   ; passe en gfx
+  ; ... dessine ...
+  LDA #0 : JSR SYS_SET_MODE   ; passe en texte
+  ; ... écrit du texte ...
+  LDA #1 : JSR SYS_SET_MODE   ; retour en gfx
 ```
 
-Le contenu de la VRAM est **préservé** lors du switch. Le framebuffer graphique et la mémoire texte coexistent — seul l'affichage change.
+Le contenu de la VRAM est **préservé** lors du switch. Tu peux afficher du texte par-dessus un fond graphique.
 
-### Double buffering
+> ✏️ **Exercice 3.1** — Affiche les 16 couleurs en mode graphique sous forme d'une grille 4×4. Chaque case fait 30×30 pixels. Couleur 0 en haut à gauche, couleur 15 en bas à droite. Utilise `SYS_FILL_RECT` (`$F00C`, A=couleur, `$80`=x, `$81`=y, `$82`=w, `$83`=h) et deux boucles imbriquées (une pour les colonnes, une pour les lignes).
 
-Pour les animations sans scintillement :
+
+## 3.2 La palette — 16 couleurs fixes
+
+Les 16 couleurs du Chuck-8 sont fixes. Pas de palette custom — c'est une contrainte volontaire, comme les 16 couleurs fixes du Commodore 64. Apprendre à faire du beau avec 16 couleurs : c'est un art à part entière.
+
+```
+  0  Noir        #000000      8  Orange       #CC8800
+  1  Blanc       #FFFFFF      9  Brun         #884400
+  2  Rouge       #CC0000     10  Rose         #FF8888
+  3  Cyan        #00CCCC     11  Gris foncé   #444444
+  4  Violet      #CC00CC     12  Gris moyen   #888888
+  5  Vert        #00CC00     13  Vert clair   #88FF88
+  6  Bleu        #0000CC     14  Bleu clair   #8888FF
+  7  Jaune       #CCCC00     15  Gris clair   #CCCCCC
+```
+
+> **Anecdote** — Les couleurs du Commodore 64 n'ont pas été choisies au hasard. Elles correspondent aux limites physiques du chip vidéo (VIC-II) et du signal composite NTSC de l'époque. Les bleus et verts étaient plus brillants parce que le phosphore du tube cathodique les rendait mieux. Sur le Chuck-8, on garde cet esprit.
+
+
+## 3.3 L'API vidéo complète
+
+Toutes les routines d'affichage sont dans la ROM à partir de `$F000` :
 
 ```asm
-; Activer le mode double buffer
-LDA #$83    ; bit7=enable, bit1=flip mode, bit0=gfx
-STA $D000   ; VPU_CTRL
-
-; ... dessiner dans le backbuffer ($6000–$7FFF) ...
-
-; Swapper les buffers au prochain VBlank
-JSR SYS_FLIP   ; $F018
+SYS_CLEAR       = $F000  ; A=couleur → efface tout l'écran
+SYS_DRAW_PIXEL  = $F003  ; A=couleur, X=px, Y=py → dessine 1 pixel
+SYS_DRAW_LINE   = $F006  ; A=couleur, $80/$81=x0/y0, $82/$83=x1/y1
+SYS_DRAW_RECT   = $F009  ; A=couleur, $80=x $81=y $82=w $83=h (contour)
+SYS_FILL_RECT   = $F00C  ; A=couleur, mêmes params (rempli)
+SYS_SET_MODE    = $F01B  ; A=0(texte) A=1(gfx)
+SYS_PRINT_CHAR  = $F01E  ; A=char ASCII → affiche au curseur
+SYS_PRINT_STR   = $F021  ; $80/$81=adresse chaîne null-terminated
+SYS_PRINT_NUM   = $F024  ; A=entier 8-bit → décimal au curseur
+SYS_PRINT_HEX   = $F027  ; A=valeur → "$XX" au curseur
+SYS_SET_CURSOR  = $F02A  ; X=colonne, Y=ligne
+SYS_SET_COLOR   = $F030  ; A=(ink<<4)|paper
+SYS_RAND        = $F05A  ; → A=octet aléatoire
+SYS_FRAME_NUM   = $F069  ; → A=lo, X=hi (compteur frames)
 ```
 
-Sans double buffering, tu dessines directement dans ce qui est affiché — visible octet par octet. Avec, tu dessines dans l'ombre et montres tout d'un coup.
-
-## 3.2 L'API vidéo complète
+**Paramètres larges via la zone $80–$83** :
 
 ```asm
-SYS_CLEAR      = $F000  ; A=couleur → efface tout l'écran
-SYS_DRAW_PIXEL = $F003  ; A=couleur, X=px, Y=py
-SYS_DRAW_LINE  = $F006  ; A=couleur, $80/$81=x0/y0, $82/$83=x1/y1
-SYS_DRAW_RECT  = $F009  ; A=couleur, $80=x $81=y $82=w $83=h (contour)
-SYS_FILL_RECT  = $F00C  ; A=couleur, mêmes params (rempli)
-SYS_FLIP       = $F018  ; swap framebuffers A↔B au prochain VBlank
-SYS_SET_MODE   = $F01B  ; A=0(texte) ou A=1(gfx)
-SYS_PRINT_CHAR = $F01E  ; A=char ASCII → affiche au curseur
-SYS_PRINT_STR  = $F021  ; $80/$81=adresse chaîne null-terminated
-SYS_PRINT_NUM  = $F024  ; A=entier → décimal au curseur
-SYS_PRINT_HEX  = $F027  ; A=valeur → "$XX" au curseur
-SYS_SET_CURSOR = $F02A  ; X=colonne, Y=ligne
-SYS_SET_COLOR  = $F030  ; A=(ink<<4)|paper
+; Dessiner un rectangle rouge rempli (10, 20) 40×30
+  LDA #10 : STA $80   ; x
+  LDA #20 : STA $81   ; y
+  LDA #40 : STA $82   ; w
+  LDA #30 : STA $83   ; h
+  LDA #2              ; rouge
+  JSR SYS_FILL_RECT
 ```
 
-## 3.3 Le son Chuck-8
-
-Le SPU (Sound Processing Unit) a 3 voix et un canal sample. Chaque voix est contrôlée par 8 registres.
-
-### Voix 0 ($D100–$D107)
-
-```
-$D100  Fréquence lo    La fréquence en Hz = 1 000 000 / (valeur + 1)
-$D101  Fréquence hi
-$D102  Volume          bits 7-4 = canal gauche, bits 3-0 = canal droit (0–15)
-$D103  Attack          durée en frames (0–15)
-$D104  Decay           durée en frames
-$D105  Sustain         niveau (0–15)
-$D106  Release         durée en frames
-$D107  Contrôle        bit7=gate(1=note on) bits3-0=forme d'onde
-```
-
-**Formes d'onde :**
-- `$01` — Onde carrée 50%
-- `$02` — Onde carrée 25%
-- `$03` — Triangle
-- `$04` — Dent de scie
-
-### Jouer une note
-
+**Afficher une chaîne** :
 ```asm
-; La 440 Hz sur voix 0, onde carrée
-; Période = 1 000 000 / 440 = 2272 = $08E0
+MSG: .byte "Score : ", 0    ; null-terminated
 
-LDA #$E0 : STA $D100   ; freq lo
-LDA #$08 : STA $D101   ; freq hi
-LDA #$FF : STA $D102   ; volume max
-LDA #$02 : STA $D103   ; attack = 2 frames
-LDA #$04 : STA $D104   ; decay
-LDA #$0C : STA $D105   ; sustain
-LDA #$06 : STA $D106   ; release
-LDA #$81 : STA $D107   ; gate=1, onde carrée
-
-; Arrêter la note :
-LDA #$01 : STA $D107   ; gate=0, garde la forme d'onde
+  LDA #<MSG : STA $80       ; adresse lo
+  LDA #>MSG : STA $81       ; adresse hi
+  JSR SYS_PRINT_STR         ; affiche jusqu'au 0
 ```
 
-### API son (plus simple)
+> ✏️ **Exercice 3.3** — Dessine le drapeau français en mode graphique. L'écran fait 128×128 pixels. Le drapeau a 3 bandes verticales égales (42 px de large chacune) : bleu (couleur 6), blanc (couleur 1), rouge (couleur 2). Utilise `SYS_FILL_RECT` avec `$82=42` et `$83=128` pour chaque bande.
 
+
+## 3.4 Le son
+
+Le SPU (Sound Processing Unit) a 3 voix indépendantes. Chaque voix est contrôlée par 8 registres.
+
+**Voix 0 : `$D100–$D107`** (voix 1 à `$D108`, voix 2 à `$D110`) :
+
+| Registre | Nom | Description |
+|----------|-----|-------------|
+| `$D100` | FREQ_LO | Fréquence lo — période = 1 000 000 ÷ (valeur+1) |
+| `$D101` | FREQ_HI | Fréquence hi |
+| `$D102` | VOL | Volume (bits 7-4 = gauche, bits 3-0 = droite) |
+| `$D103` | ATTACK | Durée d'attaque en frames |
+| `$D104` | DECAY | Durée de decay |
+| `$D105` | SUSTAIN | Niveau de sustain (0-15) |
+| `$D106` | RELEASE | Durée de release en frames |
+| `$D107` | CTRL | bit7=gate (1=note on), bits 3-0=forme d'onde |
+
+Via l'API (plus simple) :
 ```asm
-SYS_PLAY_NOTE  = $F036  ; A=note MIDI (21-108), X=voix, $80=durée en frames
-SYS_STOP_VOICE = $F039  ; X=voix → arrête cette voix
-SYS_STOP_ALL   = $F03C  ; arrête toutes les voix
-SYS_SET_VOL    = $F042  ; A=volume (0-15), X=voix
+SYS_PLAY_NOTE = $F036
+; A=note MIDI (21-108), X=voix (0-2), $80=durée en frames
 
-; Jouer La 4 (note MIDI 69) sur voix 0, pendant 30 frames
-LDA #69 : LDX #0 : LDA #30 : STA $80
-JSR SYS_PLAY_NOTE
+  LDA #69     ; La4 = MIDI 69 = 440 Hz
+  LDX #0      ; voix 0
+  LDA #60 : STA $80    ; durée = 60 frames = 1 seconde
+  JSR SYS_PLAY_NOTE
+
+  JSR SYS_STOP_ALL     ; $F03C — coupe toutes les voix
 ```
 
-## 3.4 Les entrées
+> **L'ADSR, c'est quoi ?** Attaque, Decay, Sustain, Release — les quatre phases d'une note. En musique synthétique, une note de piano a une attaque courte (le marteau frappe), un decay rapide, un sustain au niveau 0, et un release selon la pédale. Un orgue a une attaque longue et un sustain constant. Ces paramètres permettent de simuler des instruments. Le SID du Commodore 64 utilisait exactement ces mêmes paramètres — c'était révolutionnaire en 1982.
+
+> ✏️ **Exercice 3.4** — Joue la gamme de Do majeur : Do(60), Ré(62), Mi(64), Fa(65), Sol(67), La(69), Si(71), Do(72). Stocke les notes dans une table `.byte` et parcours-la avec une boucle. Chaque note dure 20 frames.
+> ```asm
+> GAMME: .byte 60, 62, 64, 65, 67, 69, 71, 72
+>
+>   LDX #0
+> JOUE:
+>   LDA GAMME,X
+>   ; ... joue la note ...
+>   INX
+>   CPX #8
+>   BNE JOUE
+> ```
+
+
+## 3.5 Les entrées
 
 ### Clavier
 
 ```asm
-KEY_ASCII  = $D200   ; code ASCII (0 si aucune touche)
-KEY_STATUS = $D201   ; bit7=1 si touche enfoncée
+KEY_ASCII  = $D200   ; code ASCII de la touche (0 si aucune)
+KEY_STATUS = $D201   ; bit7=1 si touche enfoncée ce frame
+KEY_MOD    = $D202   ; modificateurs : bit0=Shift bit1=Ctrl bit2=Alt
 
-; Lire une touche (bloquant)
-JSR SYS_WAIT_KEY   ; $F04E — attend et retourne ASCII dans A
+; Attendre une touche (bloquant)
+  JSR SYS_WAIT_KEY   ; $F04E → A = code ASCII
 
 ; Lire sans bloquer
-LDA KEY_STATUS
-AND #$80 : BEQ PERSONNE   ; Z=1 si aucune touche
-LDA KEY_ASCII              ; lit le code ASCII
-```
-
-**Codes spéciaux (KEY_RAW à $D203) :**
-
-```
-$80 = ↑    $81 = ↓    $82 = ←    $83 = →
-$84 = F1   $85 = F2   $86 = F3   $87 = F4
+  LDA $D201
+  AND #$80 : BEQ AUCUNE_TOUCHE
+  LDA $D200          ; lit le char ASCII
+  LDA #0 : STA $D201 ; acquitte (efface le flag)
+AUCUNE_TOUCHE:
 ```
 
 ### Manette
 
 ```asm
-PAD1_STATE = $D210   ; état manette 1 (bit=0 si enfoncé)
+PAD1_STATE = $D210   ; bits manette 1 (bit=0 si enfoncé)
 PAD2_STATE = $D211
 
-; Boutons (bits de PAD_STATE)
 PAD_A      = %10000000
 PAD_B      = %01000000
 PAD_SELECT = %00100000
@@ -1037,823 +1046,712 @@ PAD_DOWN   = %00000010
 PAD_UP     = %00000001
 ```
 
-**La logique inversée :** bit=0 signifie bouton **enfoncé**. C'est exactement la logique de la manette NES. Pour obtenir 1=enfoncé, utilise `EOR #$FF` :
+La logique inversée est piégeuse au début. Bit = 0 = bouton **enfoncé**. C'est la logique de la NES — un signal tiré à la masse par le bouton physique. Pour obtenir la logique normale (1 = enfoncé) :
 
 ```asm
-LDA PAD1_STATE    ; $FF si tout relâché
-EOR #$FF          ; maintenant 1=enfoncé
-AND #PAD_RIGHT    ; teste droite
-BEQ PAS_DROITE    ; 0 = pas enfoncé
-; ici : bouton droite enfoncé
+  LDA #0 : JSR SYS_READ_PAD   ; $F048 → A = état pad 1
+  EOR #$FF                     ; inverse — maintenant 1=enfoncé
+  AND #PAD_RIGHT               ; teste Droite
+  BEQ PAS_DROITE               ; 0 = pas enfoncé
+  ; ici : bouton Droite enfoncé
+PAS_DROITE:
 ```
+
+**Le `EOR #$FF` après `SYS_READ_PAD` — ne jamais l'oublier.** C'est une des erreurs les plus fréquentes.
 
 ### Souris
 
 ```asm
-MOUSE_X   = $D220    ; position x (0–127)
-MOUSE_Y   = $D221    ; position y (0–127)
-MOUSE_BTN = $D224    ; bit0=gauche bit1=droit (0=enfoncé)
+MOUSE_X    = $D220   ; position x (0-127 en mode gfx)
+MOUSE_Y    = $D221   ; position y (0-127)
+MOUSE_BTN  = $D224   ; bit0=gauche bit1=droit (0=enfoncé)
 
-LDA MOUSE_X    ; position courante X
-LDA MOUSE_Y    ; position courante Y
-LDA MOUSE_BTN
-AND #$01 : BEQ CLIC_GAUCHE   ; 0 = bouton gauche enfoncé
+  JSR SYS_READ_MOUSE   ; $F051 → X=mouseX, Y=mouseY, A=boutons
 ```
 
-## 3.5 Le timer et les frames
+> ✏️ **Exercice 3.5** — Dessine un pixel blanc qui se déplace avec la manette (haut/bas/gauche/droite). Le pixel repart de l'autre côté si il sort de l'écran (wrap-around). Structure recommandée :
+> ```asm
+> POS_X = $10 : POS_Y = $11
+>
+> INIT:
+>   LDA #1 : JSR SYS_SET_MODE
+>   LDA #64 : STA POS_X : STA POS_Y
+>
+> LOOP:
+>   ; Effacer ancien pixel (noir)
+>   ; Lire manette → déplacer POS_X / POS_Y
+>   ; Clamp ou wrap 0-127
+>   ; Dessiner nouveau pixel (blanc)
+>   JMP LOOP
+> ```
+
+
+## 3.6 Le timer et l'aléatoire
 
 ```asm
-SYS_FRAME_LO = $D304    ; compteur frames lo
-SYS_FRAME_HI = $D305    ; compteur frames hi
-SYS_RAND     = $D306    ; octet aléatoire (LFSR)
+SYS_FRAME_NUM = $F069  ; → A=lo, X=hi (compteur frames 16-bit)
+SYS_RAND      = $F05A  ; → A=octet pseudo-aléatoire
 
-; Utilisation typique pour animation
-JSR SYS_FRAME_NUM   ; $F069 — A=lo, X=hi
-AND #$3F            ; modulo 64 (0–63)
-; utiliser comme phase d'animation
+; Animation : clignoter toutes les 16 frames (~0.27s)
+  JSR SYS_FRAME_NUM
+  AND #$10             ; bit 4 alterne toutes les 16 frames
+  BEQ ETEINT
+  ; allumé...
+ETEINT:
 
-; Aléatoire
-LDA SYS_RAND        ; nouvel octet à chaque lecture
-AND #$0F            ; force dans 0–15 (palette)
+; Position aléatoire dans l'écran
+  JSR SYS_RAND
+  AND #$7F             ; 0-127
+  TAX                  ; → px
+
+  JSR SYS_RAND
+  AND #$7F
+  TAY                  ; → py
 ```
 
-## 3.6 Exemple complet : jeu de réflexe
+> **Le PRNG du Chuck-8** utilise un LFSR (*Linear Feedback Shift Register*) 16-bit. C'est l'algorithme standard des jeux 8-bit : rapide, petit, pas besoin de tables. Le même principe est utilisé dans les implémentations légères modernes — Xorshift, par exemple — pour générer des nombres pseudo-aléatoires sans avoir besoin de Mersenne Twister.
+
+
+## 3.7 Exemple complet — Pixels aléatoires animés
 
 ```asm
 ; ══════════════════════════════════════════
-;  JEU DE RÉFLEXE — appuie sur A au bon moment
+;  CONSTELLATION — pixels colorés aléatoires
+;  Fonctionne en boucle infinie
 ; ══════════════════════════════════════════
 
-SYS_SET_MODE    = $F01B
-SYS_CLEAR       = $F000
-SYS_FILL_RECT   = $F00C
-SYS_WAIT_VBLANK = $F057
-SYS_FRAME_NUM   = $F069
-SYS_RAND        = $F05A
-SYS_PRINT_STR   = $F021
-
-PAD_A = %10000000
-
-CIBLE_X = $10    ; position de la cible
-SCORE   = $11    ; score
+SYS_CLEAR      = $F000
+SYS_DRAW_PIXEL = $F003
+SYS_RAND       = $F05A
 
   .org $E000
 
-  LDA #1 : JSR SYS_SET_MODE
-  LDA #0 : JSR SYS_CLEAR
-  LDA #0 : STA SCORE
+INIT:
+  LDA #$81 : STA $D000    ; mode graphique
+  LDA #0 : JSR SYS_CLEAR  ; écran noir
 
-  ; Position aléatoire initiale
-  JSR SYS_RAND : AND #$60 : STA CIBLE_X
+LOOP:
+COULEUR:
+  JSR SYS_RAND
+  AND #$0F
+  BEQ COULEUR             ; 0 = noir, recommence
 
-MAIN:
-  JSR SYS_WAIT_VBLANK
-  LDA #0 : JSR SYS_CLEAR
+  PHA                     ; sauvegarde couleur
 
-  ; Déplacer la cible (suit une sinusoïde approximée via frame counter)
-  JSR SYS_FRAME_NUM
-  AND #$3F             ; 0–63
-  CLC : ADC #32        ; 32–95
-  STA CIBLE_X
+  JSR SYS_RAND
+  AND #$7F
+  TAX
 
-  ; Dessiner la cible rouge
-  LDA CIBLE_X : STA $80
-  LDA #54      : STA $81
-  LDA #16      : STA $82
-  LDA #16      : STA $83
-  LDA #2       : JSR SYS_FILL_RECT
+  JSR SYS_RAND
+  AND #$7F
+  TAY
 
-  ; Dessiner la zone de visée au centre
-  LDA #55 : STA $80
-  LDA #54 : STA $81
-  LDA #18 : STA $82
-  LDA #18 : STA $83
-  LDA #1  : JSR SYS_DRAW_RECT   ; $F009
+  PLA                     ; restaure couleur
+  JSR SYS_DRAW_PIXEL
 
-  ; Lire manette
-  LDA #0 : JSR $F048   ; SYS_READ_PAD
-  EOR #$FF
-  AND #PAD_A
-  BEQ PAS_A
-
-  ; Bouton A : tester si cible dans la zone (55–73)
-  LDA CIBLE_X
-  CMP #55 : BCC RATE    ; trop à gauche
-  CMP #73 : BCS RATE    ; trop à droite
-
-  ; Touché !
-  INC SCORE
-  JSR SYS_RAND : AND #$60 : STA CIBLE_X
-
-RATE:
-PAS_A:
-  ; Afficher score en mode texte
-  LDA #0 : JSR SYS_SET_MODE    ; texte
-  LDA #$10 : JSR $F030         ; blanc sur noir
-  LDA #0 : STA $D00B
-  LDA #0 : STA $D00C
-  LDA #'S':STA $D00F:LDA #'C':STA $D00F
-  LDA #'O':STA $D00F:LDA #'R':STA $D00F
-  LDA #'E':STA $D00F:LDA #':':STA $D00F
-  LDA SCORE : JSR SYS_PRINT_NUM
-  LDA #1 : JSR SYS_SET_MODE    ; retour gfx
-
-  JMP MAIN
+  JMP LOOP
 ```
 
-## 3.7 Résumé du chapitre 3
+---
 
-- Le VPU supporte deux modes : texte (32×32 chars) et graphique (128×128 px, 16 couleurs)
-- Le framebuffer graphique utilise le nibble-packing : 2 pixels par octet
-- L'API ROM ($F000+) fournit toutes les primitives vidéo, son, et I/O
-- La manette utilise la logique NES inversée (bit=0 si enfoncé) — toujours `EOR #$FF` avant les tests
-- Le double buffering avec `SYS_FLIP` élimine le scintillement
+## ✏️ Atelier chapitre 3 — "BARRE DE VIE ANIMÉE"
+
+Tu sais maintenant afficher des graphiques, lire des entrées et utiliser le timer. Construis une interface de jeu.
+
+**Objectif :** afficher une barre de vie qui se remplit et se vide automatiquement.
+
+**Éléments :**
+- Un fond noir en mode graphique
+- Le texte "VIE :" en mode texte superposé (colonne 1, ligne 0) en blanc
+- Une barre verte (`SYS_FILL_RECT`) qui représente la vie (0 à 100%)
+- La vie diminue de 1 point par frame, repart à 100 quand elle atteint 0
+- La couleur change selon le niveau : vert (>50%), jaune (25–50%), rouge (<25%)
+
+**Variables Zero Page :**
+```asm
+VIE = $10   ; 0 à 100
+```
+
+**Formule pour la largeur de la barre :**
+`largeur = VIE` (si VIE=100 → barre de 100px, VIE=50 → 50px, etc.)
+
+**Bonus :** Ajoute un son d'alarme (note aiguë courte) quand la vie passe sous 25%.
 
 ---
 
 # CHAPITRE 4 — LES PATTERNS
 
-## 4.1 La convention d'appel ABI
+## 4.1 La convention d'appel
 
-Le Chuck-8 définit une **convention d'appel** stricte. Respecter cette convention permet de combiner des routines de différentes sources sans conflits.
+Quand tu écris plusieurs sous-routines, tu dois décider comment elles se "parlent" — comment elles se passent des paramètres et comment elles retournent des résultats. C'est ce qu'on appelle une *calling convention*.
 
-**Les 5 règles :**
+**La convention Chuck-8 ABI en cinq règles** :
 
-```
-Règle 1  A = registre de retour. La valeur dans A après JSR est le résultat.
-Règle 2  X et Y sont libres. L'appelé peut les modifier. L'appelant doit les sauvegarder s'il en a besoin.
-Règle 3  $0080–$00EF = zone paramètres. Pour passer plus de 3 paramètres.
-Règle 4  $00F0–$00FF = pointeurs temporaires (P0–P7). Appartiennent à l'appelé.
-Règle 5  La pile est sacrée. SP identique à l'entrée et à la sortie.
-```
-
-**Exemples :**
+| Règle | Ce qu'elle dit | Pourquoi |
+|-------|----------------|----------|
+| 1 | A = valeur de retour | L'appelant sait toujours où chercher le résultat |
+| 2 | X et Y = libres pour l'appelé | L'appelant doit les sauvegarder lui-même s'il en a besoin |
+| 3 | `$80–$EF` = zone paramètres | Pour passer plus de 3 paramètres ou des valeurs larges |
+| 4 | `$F0–$FF` = pointeurs temporaires | L'appelé peut les écraser — l'appelant ne doit pas en dépendre |
+| 5 | La pile est sacrée | SP identique à l'entrée et à la sortie — chaque PHA a son PLA |
 
 ```asm
-; Appel avec 1 paramètre → via A
-LDA #7             ; couleur
-JSR MON_CLEAR
+; Convention à 1 paramètre → via A
+  LDA #7               ; couleur = jaune
+  JSR EFFACER_ECRAN
 
-; Appel avec 3 paramètres → A, X, Y
-LDA #7 : LDX #10 : LDY #20
-JSR DRAW_PIXEL_AXY
+; Convention à 3 paramètres → A, X, Y
+  LDA #5               ; couleur
+  LDX #40              ; x
+  LDY #20              ; y
+  JSR DRAW_POINT
 
-; Appel avec paramètres larges → Zone paramètres
-LDA #$00 : STA $80   ; x lo
-LDA #$01 : STA $81   ; x hi
-LDA #$00 : STA $82   ; y lo
-LDA #$00 : STA $83   ; y hi
-LDA #$80 : STA $84   ; w
-LDA #$40 : STA $85   ; h
-LDA #5               ; couleur (dans A comme d'habitude)
-JSR DRAW_RECT_LARGE
+; Convention avec params larges → Zone $80+
+  LDA #$00 : STA $80   ; x
+  LDA #$40 : STA $81   ; y
+  LDA #$50 : STA $82   ; w
+  LDA #$30 : STA $83   ; h
+  LDA #2               ; couleur dans A
+  JSR DRAW_ZONE_LARGE
 ```
 
-## 4.2 Écrire une bibliothèque réutilisable
-
-Une bonne routine de dessin sauvegarde et restaure ce qu'elle modifie :
-
+**Exemple de routine bien écrite** :
 ```asm
-; ── DRAW_HBAR ────────────────────────────────────────────
-; Dessine une barre horizontale pleine
-; Entrée : A=couleur, X=x_start, Y=y, $80=longueur
-; Modifie : A, $F0/$F1 (pointeurs temporaires — autorisé)
-; Préserve : X, Y (l'appelant peut en avoir besoin)
-; ─────────────────────────────────────────────────────────
+; DRAW_HBAR — dessine une ligne horizontale remplie
+; Entrée  : A=couleur, X=x_start, Y=y, $80=longueur
+; Retour  : A=couleur (inchangée)
+; Modifie : $F0/$F1 (pointeurs temporaires — règle 4)
+; Préserve: X, Y (bonne pratique)
+
 DRAW_HBAR:
-  STX $10          ; sauvegarde x
-  STY $11          ; sauvegarde y
-  PHA              ; sauvegarde couleur
-
-  ; Calcul adresse : $4000 + y*64 + x/2
-  LDA $11          ; y
-  ASL:ASL:ASL:ASL:ASL:ASL   ; ×64
-  STA $F0
-  LDA #$40 : STA $F1
-
-  ; Ajouter x/2
-  LDA $10 : LSR    ; x/2
-  CLC : ADC $F0 : STA $F0
-  LDA $F1 : ADC #0 : STA $F1
-
-  ; Préparer couleur nibble-packed
-  PLA              ; récupère couleur
-  PHA              ; resauvegarde
-  AND #$0F
-  STA $12          ; sauvegarde couleur propre
-  ASL:ASL:ASL:ASL
-  ORA $12          ; color | (color<<4)
-  STA $13          ; nibble-packed
-
-  ; Boucle
-  LDA $80          ; longueur en octets (= pixels/2)
-  STA $14
-
-  LDA $13          ; valeur à écrire
-  LDY #0
-HBAR_LOOP:
-  STA ($F0),Y
-  INY
-  CPY $14
-  BNE HBAR_LOOP
-
-  PLA              ; restaure couleur dans A (valeur de retour)
-  LDX $10          ; restaure X
-  LDY $11          ; restaure Y
+  STX $10         ; sauvegarde x_start
+  STY $11         ; sauvegarde y
+  PHA             ; sauvegarde couleur
+  ; ... calculs ...
+  PLA             ; restaure couleur (= valeur de retour A)
+  LDX $10         ; restaure X
+  LDY $11         ; restaure Y
   RTS
 ```
 
-## 4.3 Données statiques et tables de correspondance
+> ✏️ **Exercice 4.1** — Écris une sous-routine `CLAMP` qui force une valeur dans A dans l'intervalle [0, 100] : si A > 100, retourne 100 ; si A ≤ 100, retourne A inchangé. Teste avec les valeurs 50 (→ 50), 150 (→ 100), 0 (→ 0).
 
-Les données statiques sont des tables définis dans le code avec `.byte` ou `.word`. Elles permettent de remplacer des calculs coûteux par des lookups.
 
-**Table de correspondance note MIDI → fréquence :**
+## 4.2 Les tables de données
 
+Le 6502 n'a pas de multiplication. Mais il a l'adressage indexé. La solution : calculer les résultats à l'avance et les stocker dans des tables `.byte`.
+
+**Table de couleurs pour une animation** :
 ```asm
-; Fréquences pour les notes MIDI 60 (Do4) à 71 (Si4)
-; freq = 1 000 000 / (période + 1), pré-calculé
-FREQS_LO: .byte $BE,$49,$E0,$82,$2C,$E0,$9C,$60,$2B,$FC,$D2,$AD
-FREQS_HI: .byte $09,$09,$08,$08,$08,$07,$07,$07,$07,$06,$06,$06
+SEQUENCE_COULEURS:
+  .byte 2, 7, 5, 3, 7, 2, 0, 0
+  .byte 14, 13, 5, 1
 
-; Jouer la note N (0=Do, 1=Ré, ... 11=Si)
-; Entrée : X = index note
-PLAY_NOTE_SCALE:
-  LDA FREQS_LO,X : STA $D100    ; freq lo voix 0
-  LDA FREQS_HI,X : STA $D101    ; freq hi
-  LDA #$FF : STA $D102           ; volume max
-  LDA #$81 : STA $D107           ; gate=1, onde carrée
-  RTS
+  LDX #0
+PROCHAIN:
+  LDA SEQUENCE_COULEURS,X
+  INX : CPX #12 : BNE PROCHAIN
 ```
 
-**Table de sprites (données d'image) :**
-
+**Table de dispatch — switch/case efficace** :
 ```asm
-; Sprite smiley 8×4 pixels (4 octets par ligne, nibble-packed)
-; Couleur 7=jaune, 0=transparent (fond)
-SMILEY:
-  .byte $07,$77,$77,$70    ; ..JJJJJJ..  (ligne 0)
-  .byte $79,$11,$11,$97    ; .J.BB.BB.J. (yeux)
-  .byte $79,$10,$01,$97    ; .J.B..B..J. (sourire)
-  .byte $07,$77,$77,$70    ; ..JJJJJJ..  (ligne 3)
+HANDLERS:
+  .word HANDLER_TITRE
+  .word HANDLER_JEU
+  .word HANDLER_PAUSE
+
+DISPATCHER:
+  LDA ETAT_JEU
+  ASL              ; × 2
+  TAX
+  LDA HANDLERS,X   : STA $F0
+  LDA HANDLERS+1,X : STA $F1
+  JMP ($F0)
 ```
 
-**Table de positions pour une séquence d'animation :**
-
+**Table de sinus pré-calculée** :
 ```asm
-; 8 frames d'animation pour un personnage qui marche
-; Chaque frame = (offset_x, offset_y) pour le sprite
-WALK_ANIM_X: .byte 0, 1, 2, 1, 0, $FF, $FE, $FF   ; $FF = -1
-WALK_ANIM_Y: .byte 0, 1, 0, $FF, 0, 1, 0, $FF
+; 32 valeurs : sin(i × 360/32) × 40 + 64
+SINUS:
+  .byte 64, 72, 80, 87, 93, 98, 101, 103
+  .byte 104, 103, 101, 98, 93, 87, 80, 72
+  .byte 64, 55, 47, 40, 34, 29, 26, 24
+  .byte 23, 24, 26, 29, 34, 40, 47, 55
+
+PHASE = $10
+
+  LDX PHASE
+  LDA SINUS,X : TAY    ; py = sin(phase)
+  LDA PHASE : CLC : ADC #8 : AND #$1F : TAX
+  LDA SINUS,X : TAX    ; px = cos(phase)
 ```
 
-## 4.4 Gestion d'état avec une machine à états
+> **Anecdote** — Les tables de sinus étaient universelles dans les jeux 8-bit et les démos Amiga. Sur les microcontrôleurs embarqués modernes (Arduino, ESP32), on les utilise encore pour les mêmes raisons.
 
-Pour les jeux, une machine à états simplifie la logique :
+> ✏️ **Exercice 4.2** — Crée une table de 8 positions x/y qui forment un carré (coins + milieux des côtés). Puis dessine ces 8 points sur l'écran avec une boucle, en parcourant la table. Chaque point est un pixel blanc sur fond noir.
+> ```asm
+> POINTS_X: .byte 20, 64, 108, 108, 108, 64, 20, 20
+> POINTS_Y: .byte 20, 20,  20,  64, 108, 108, 108, 64
+> ```
+
+
+## 4.3 La machine à états
+
+Un jeu a plusieurs modes : titre, jeu, pause, game over. Gérer ces transitions proprement, c'est écrire une *machine à états*.
 
 ```asm
-; États du jeu
 STATE_TITLE    = 0
 STATE_PLAYING  = 1
 STATE_PAUSED   = 2
 STATE_GAMEOVER = 3
 
-GAME_STATE = $20    ; état courant en ZP
+GAME_STATE = $20
 
-; Dans UPDATE
-LDA GAME_STATE
-BEQ UPDATE_TITLE
-CMP #1 : BEQ UPDATE_PLAYING
-CMP #2 : BEQ UPDATE_PAUSED
-CMP #3 : BEQ UPDATE_GAMEOVER
-RTS
+  LDA #STATE_TITLE : STA GAME_STATE
 
-UPDATE_TITLE:
-  ; ... logique menu titre ...
+UPDATE:
+  LDA GAME_STATE
+  BEQ DO_TITLE
+  CMP #STATE_PLAYING : BEQ DO_PLAYING
+  CMP #STATE_PAUSED  : BEQ DO_PAUSED
+  JMP DO_GAMEOVER
+
+DO_TITLE:
+  LDA #0 : JSR SYS_READ_PAD : EOR #$FF
+  AND #PAD_START : BEQ SKIP_T
+  LDA #STATE_PLAYING : STA GAME_STATE
+SKIP_T:
   RTS
 
-UPDATE_PLAYING:
-  ; ... logique jeu ...
+DO_PLAYING:
+  ; ... si vies = 0 : LDA #STATE_GAMEOVER : STA GAME_STATE
   RTS
 ```
 
-## 4.5 Optimisation 6502
+> ✏️ **Exercice 4.3** — Prends la structure ci-dessus et implémente les 4 états visuellement :
+> - **TITLE** : affiche "PRESS START" en texte, attend Start
+> - **PLAYING** : affiche un pixel qui bouge tout seul, attend Start pour pauser
+> - **PAUSED** : affiche "PAUSE" par-dessus, attend Start pour reprendre
+> - **GAMEOVER** : affiche "GAME OVER", attend Start pour revenir au titre
 
-Sur une machine à 1 MHz, chaque cycle compte. Voici les optimisations les plus importantes.
 
-**Préférer la Zero Page :**
+## 4.4 Physique : vélocité et gravité
 
-```asm
-; Lent : 4 cycles, 3 octets
-LDA $1000
+La physique 8-bit utilise des entiers 8-bit signés (complément à deux).
 
-; Rapide : 3 cycles, 2 octets (si la variable est en ZP)
-LDA $10
-```
-
-**Utiliser DEX/BNE pour les boucles :**
+**Complément à deux** : en 8 bits, `$FF` = -1, `$FE` = -2, `$80` = -128, `$7F` = +127.
 
 ```asm
-; Moins efficace
-  LDX #0
-LOOP:
-  ; ...
-  INX : CPX #64 : BNE LOOP    ; 5 instructions
+POS_X  = $10 : POS_Y  = $11
+VEL_X  = $12 : VEL_Y  = $13
 
-; Plus efficace
-  LDX #64
-LOOP:
-  ; ...
-  DEX : BNE LOOP              ; 2 instructions
-```
-
-**Eviter JSR/RTS pour les routines critiques :**
-
-`JSR` coûte 6 cycles, `RTS` 6 cycles = 12 cycles d'overhead. Pour une routine appelée 1000 fois par frame, c'est 12 000 cycles perdus sur 16 667 disponibles (72%!). Inliner le code quand c'est possible.
-
-**Comparer avec 0 implicitement :**
-
-```asm
-; Lourd
-  LDA COMPTEUR : CMP #0 : BEQ ZERO
-
-; Efficace : LDA positionne Z automatiquement
-  LDA COMPTEUR : BEQ ZERO
-```
-
-**Utiliser X et Y pour les sauts de table :**
-
-```asm
-; Table de jump pour un menu de 4 options
-  ASL          ; index × 2 (adresses 16-bit)
-  TAX
-  LDA JUMP_TABLE+1,X   ; hi
-  PHA
-  LDA JUMP_TABLE,X     ; lo
-  PHA
-  RTS    ; équivalent à JMP (addr) avec la pile
-
-JUMP_TABLE:
-  .word OPTION_1 - 1   ; -1 car RTS incrémente PC
-  .word OPTION_2 - 1
-  .word OPTION_3 - 1
-  .word OPTION_4 - 1
-```
-
-## 4.6 Techniques d'animation
-
-**Effacement et redessin :**
-
-Pour déplacer un sprite, la technique minimale :
-1. Effacer l'ancienne position (écrire la couleur de fond)
-2. Mettre à jour la position
-3. Dessiner la nouvelle position
-
-```asm
-; Effacer ancien sprite
-LDA POS_X : STA $80
-LDA POS_Y : STA $81
-LDA #8    : STA $82 : STA $83
-LDA #0    : JSR SYS_FILL_RECT    ; noir = fond
-
-; Mettre à jour
-LDA POS_X : CLC : ADC VITESSE : STA POS_X
-
-; Dessiner nouveau sprite
-LDA POS_X : STA $80
-; ... (même params sauf x)
-LDA #7    : JSR SYS_FILL_RECT    ; jaune
-```
-
-**Physique simple — vélocité et gravité :**
-
-```asm
-; Variables
-VEL_Y = $12     ; vitesse verticale (-128 à +127, signée)
-POS_Y = $11     ; position y
+  LDA #64 : STA POS_X : STA POS_Y
+  LDA #2  : STA VEL_X    ; +2 px/frame
+  LDA #1  : STA VEL_Y    ; +1 px/frame
 
 ; Chaque frame
-  LDA VEL_Y : CLC : ADC #1 : STA VEL_Y   ; gravité : +1 par frame
-  LDA POS_Y : CLC : ADC VEL_Y : STA POS_Y ; position += vitesse
+  LDA POS_X : CLC : ADC VEL_X : STA POS_X
+  LDA POS_Y : CLC : ADC VEL_Y : STA POS_Y
 
-; Sol à y=100
-  LDA POS_Y : CMP #100 : BCC PAS_SOL
-  LDA #100  : STA POS_Y
-  LDA #$F0  : STA VEL_Y    ; rebond : vitesse = -16
+; Rebond gauche/droite
+  LDA POS_X : BEQ REBOND_G
+  CMP #126 : BCC PAS_REBOND_D
+REBOND_G:
+  LDA #0 : SEC : SBC VEL_X : STA VEL_X
+PAS_REBOND_D:
+
+; Gravité
+  LDA VEL_Y : CLC : ADC #1 : STA VEL_Y
+
+; Sol
+  LDA POS_Y : CMP #110 : BCC PAS_SOL
+  LDA #110 : STA POS_Y
+  LDA #$FC : STA VEL_Y   ; rebond amorti
 PAS_SOL:
 ```
 
-$F0 en signé = -16 (complément à 2 : $F0 = 256 - 16 = -16).
+> ✏️ **Exercice 4.4** — Implémente une balle qui rebondit sur les 4 bords de l'écran sans gravité. La balle part du centre (64, 64) avec VEL_X=2 et VEL_Y=1. Elle doit rebondir proprement sur les bords gauche (x=0), droit (x=127), haut (y=0) et bas (y=127). Dessine la balle comme un pixel blanc, efface l'ancienne position avant de dessiner la nouvelle.
 
-**Clignotement avec frame counter :**
 
+## 4.5 Optimisation 6502 — chaque cycle compte
+
+Sur 16 667 cycles disponibles par frame (à 60 Hz), chaque cycle gaspillé est une opportunité manquée.
+
+**Règle 1 — Zero Page d'abord**
 ```asm
-JSR SYS_FRAME_NUM   ; A = lo frame
-AND #$10            ; bit 4 : alterne toutes les 16 frames ≈ 0.27s
-BEQ AFFICHE_BLANC
-; éteint
-JMP SUITE
-AFFICHE_BLANC:
-; allumé
-SUITE:
+LDA $1000   ; 4 cycles, 3 octets
+LDA $10     ; 3 cycles, 2 octets ← préférable
 ```
 
-## 4.7 Résumé du chapitre 4
+**Règle 2 — DEX/BNE pour les boucles**
+```asm
+; Lent : 9 cycles/tour
+  INX : CPX #64 : BNE BOUCLE
+; Rapide : 5 cycles/tour
+  DEX : BNE BOUCLE
+```
 
-- La convention ABI Chuck-8 : A=retour, X/Y=libres, $80–$EF=params, $F0–$FF=pointeurs
-- Les tables `.byte`/`.word` remplacent les calculs coûteux
-- La machine à états structure les transitions entre modes de jeu
-- Les optimisations principales : Zero Page, DEX/BNE, éviter JSR sur les chemins chauds, comparer avec 0 implicitement
-- Les animations : effacer + redessiner, vélocité en ZP, gravité = +1 par frame
+**Règle 3 — LDA positionne Z automatiquement**
+```asm
+; Inutile
+  LDA COMPTEUR : CMP #0 : BEQ ZERO
+; Correct
+  LDA COMPTEUR : BEQ ZERO
+```
+
+**Règle 4 — Inliner les routines critiques**
+
+`JSR` + `RTS` = 12 cycles d'overhead. Une routine dans une boucle de 100 itérations = 1 200 cycles perdus.
+
+**Règle 5 — ASL/LSR pour ×2 et ÷2**
+```asm
+; Multiplier par 5 : × 4 + × 1
+  ASL : STA $10 : ASL : CLC : ADC $10
+```
+
+> **Perspective moderne** — Ces optimisations t'apprennent à penser en coût. Un développeur qui a programé en assembleur comprend instinctivement pourquoi le cache L1 est 100× plus rapide que la RAM, pourquoi le *branch prediction* du CPU moderne est si important. Le 6502 te force à penser à ce niveau.
+
+> ✏️ **Exercice 4.5** — Mesure l'optimisation. Écris deux versions d'une boucle qui compte de 64 à 0 :
+> - **Version A** : `LDX #0 : INX : CPX #64 : BNE boucle` (compte de 0 à 64)
+> - **Version B** : `LDX #64 : DEX : BNE boucle` (compte de 64 à 0)
+> Dans chaque boucle, fais `STA $0200,X` pour écrire en mémoire. Regarde le compteur de cycles dans le panneau Registres. Quelle version est la plus rapide ?
+
+---
+
+## ✏️ Atelier chapitre 4 — "MINI-JEU : ATTRAPE L'ÉTOILE"
+
+Tu maîtrises les sous-routines, les tables, les états et la physique. Construis un mini-jeu complet.
+
+**Règles :** Une étoile (pixel jaune) apparaît à un endroit aléatoire. Le joueur contrôle un carré (3×3 px blanc) avec la manette. Quand le carré touche l'étoile, le score augmente et une nouvelle étoile apparaît.
+
+**Architecture recommandée :**
+
+```asm
+; Variables ZP
+PLAYER_X = $10 : PLAYER_Y = $11   ; position joueur
+STAR_X   = $12 : STAR_Y   = $13   ; position étoile
+SCORE    = $14                     ; score
+
+; États : PLAYING seulement pour simplifier
+
+INIT:
+  ; mode gfx, écran noir, joueur au centre, étoile aléatoire
+
+MAIN_LOOP:
+  JSR CLEAR_SPRITES    ; efface joueur et étoile
+  JSR READ_INPUT       ; déplace joueur avec manette
+  JSR CHECK_COLLISION  ; si collision → score++ et nouvelle étoile
+  JSR DRAW_SPRITES     ; dessine joueur et étoile
+  JSR DRAW_SCORE       ; affiche score en mode texte
+  JMP MAIN_LOOP
+```
+
+**Collision simple :** si `|PLAYER_X - STAR_X| < 5` ET `|PLAYER_Y - STAR_Y| < 5`, c'est une collision. Pour calculer la valeur absolue d'une différence en 6502 :
+```asm
+  LDA PLAYER_X : SEC : SBC STAR_X
+  BPL POSITIF       ; si résultat >= 0, déjà positif
+  EOR #$FF : ADC #1 ; sinon, complément à 2 (= valeur absolue)
+POSITIF:
+  CMP #5 : BCS PAS_COLLISION
+```
 
 ---
 
 # CHAPITRE 5 — LES PROJETS
 
-## 5.1 Projet 1 — Demo graphique
+## 5.1 Projet : pluie d'étoiles
 
-Une démo est un programme qui affiche des effets visuels sans logique de jeu. Les démos 8-bit étaient (et sont encore) un art à part entière.
-
-**Effet : tunnel en cercles concentriques**
+Un programme simple mais graphiquement satisfaisant. Des étoiles descendent depuis le haut de l'écran à des vitesses différentes, et repartent en haut quand elles sortent par le bas.
 
 ```asm
 ; ══════════════════════════════════════════
-;  DEMO : TUNNEL
-;  Cercles concentriques animés
+;  PLUIE D'ÉTOILES
+;  4 étoiles qui descendent à des vitesses différentes
+;
+;  Variables (Zero Page) :
+;  $10-$13 : positions x des étoiles
+;  $14-$17 : positions y
+;  $18-$1B : vitesses (1 à 4 pixels/frame)
 ; ══════════════════════════════════════════
 
-SYS_SET_MODE    = $F01B
-SYS_DRAW_PIXEL  = $F003
-SYS_WAIT_VBLANK = $F057
-SYS_FRAME_NUM   = $F069
-SYS_RAND        = $F05A
+SYS_DRAW_PIXEL = $F003
+SYS_RAND       = $F05A
 
   .org $E000
 
-  LDA #1 : JSR SYS_SET_MODE
+INIT:
+  LDA #$81 : STA $D000
 
-FRAME:
-  JSR SYS_WAIT_VBLANK
-  JSR SYS_FRAME_NUM   ; A = frame lo
-  STA $20              ; phase d'animation
+  LDA #$00 : STA $80 : LDA #$40 : STA $81
+  LDA #$00 : STA $82 : LDA #$20 : STA $83
+  LDA #$66 : JSR $F063    ; fond bleu nuit
 
-  ; Dessine 64 pixels aléatoires colorés
-  LDX #64
-PIXEL:
-  STX $10
-  JSR SYS_RAND : AND #$7F : TAX    ; x aléatoire 0-127
-  JSR SYS_RAND : AND #$7F : TAY    ; y aléatoire 0-127
-  ; Couleur = distance au centre modifiée par la phase
-  ; Approximation : |x-64| + |y-64| → couleur
-  TXA : SEC : SBC #64 : BPL PX : EOR #$FF : ADC #1
-PX:
-  STA $11
-  TYA : SEC : SBC #64 : BPL PY : EOR #$FF : ADC #1
-PY:
-  CLC : ADC $11   ; distance manhattan
-  CLC : ADC $20   ; + phase
-  AND #$0F        ; palette
-  BEQ COLOR_FIX   ; évite le noir
-  JMP DRAW_IT
-COLOR_FIX:
-  LDA #1
-DRAW_IT:
-  JSR SYS_DRAW_PIXEL
-  LDX $10 : DEX : BNE PIXEL
+  JSR SYS_RAND : AND #$7F : STA $10
+  JSR SYS_RAND : AND #$7F : STA $11
+  JSR SYS_RAND : AND #$7F : STA $12
+  JSR SYS_RAND : AND #$7F : STA $13
 
-  JMP FRAME
+  LDA #0  : STA $14 : LDA #30 : STA $15
+  LDA #60 : STA $16 : LDA #90 : STA $17
+
+  LDA #1 : STA $18 : LDA #2 : STA $19
+  LDA #2 : STA $1A : LDA #3 : STA $1B
+
+LOOP:
+  LDX #3
+ETOILE:
+  STX $20
+
+  LDA $10,X : STA $21
+  LDA $14,X : STA $22
+  LDA $18,X : STA $23
+
+  LDA $21 : TAX : LDA $22 : TAY
+  LDA #6 : JSR SYS_DRAW_PIXEL    ; efface (bleu)
+
+  LDX $20
+  LDA $14,X : CLC : ADC $23 : STA $14,X
+
+  CMP #128 : BCC DESSINE
+  LDA #0 : STA $14,X
+  JSR SYS_RAND : AND #$7F : STA $10,X
+
+DESSINE:
+  LDA $10,X : TAX : LDA $14,X : TAY
+  LDA #1 : JSR SYS_DRAW_PIXEL    ; dessine (blanc)
+
+  LDX $20 : DEX
+  BPL ETOILE
+
+  JMP LOOP
 ```
 
-## 5.2 Projet 2 — Pong complet
+Le bug "X sert à deux choses" (index de boucle ET coordonnée) est endémique en 6502. La solution : `STX $20` sauvegarde l'index avant de l'utiliser comme coordonnée.
+
+
+## 5.2 Projet : Pong
+
+Pong (1972) était le premier jeu commercial à succès. Deux raquettes, une balle, pas de score limite. Sur le Chuck-8, il tient en moins de 200 lignes. C'est le projet parfait pour tout appliquer.
 
 ```asm
 ; ══════════════════════════════════════════
-;  PONG — Raquettes + balle + score
+;  PONG — Chuck-8
+;  Joueur 1 : manette (haut/bas)
+;  Joueur 2 : IA simple (suit la balle)
 ; ══════════════════════════════════════════
 
-SYS_SET_MODE    = $F01B
-SYS_CLEAR       = $F000
-SYS_FILL_RECT   = $F00C
-SYS_WAIT_VBLANK = $F057
-SYS_PLAY_NOTE   = $F036
-SYS_STOP_ALL    = $F03C
+SYS_CLEAR      = $F000
+SYS_FILL_RECT  = $F00C
+SYS_READ_PAD   = $F048
+SYS_PLAY_NOTE  = $F036
+SYS_SET_MODE   = $F01B
+SYS_SET_CURSOR = $F02A
+SYS_SET_COLOR  = $F030
+SYS_PRINT_NUM  = $F024
 
 PAD_UP   = %00000001
 PAD_DOWN = %00000010
 
-; Variables
-BALL_X = $10  : BALL_Y = $11
+BALL_X  = $10 : BALL_Y  = $11
 BALL_DX = $12 : BALL_DY = $13
-PAD1_Y = $14  : PAD2_Y = $15
-SCORE1 = $16  : SCORE2 = $17
+PAD1_Y  = $14 : PAD2_Y  = $15
+SCORE1  = $16 : SCORE2  = $17
 
   .org $E000
 
   LDA #1 : JSR SYS_SET_MODE
   LDA #0 : JSR SYS_CLEAR
-
-  ; Init
   LDA #64 : STA BALL_X : STA BALL_Y
-  LDA #1  : STA BALL_DX : STA BALL_DY
+  LDA #$01 : STA BALL_DX : STA BALL_DY
   LDA #56 : STA PAD1_Y : STA PAD2_Y
-  LDA #0  : STA SCORE1  : STA SCORE2
+  LDA #0 : STA SCORE1 : STA SCORE2
 
 MAIN:
-  JSR SYS_WAIT_VBLANK
   LDA #0 : JSR SYS_CLEAR
 
-  ; ── MOUVEMENT BALLE ───────────────────
   LDA BALL_X : CLC : ADC BALL_DX : STA BALL_X
   LDA BALL_Y : CLC : ADC BALL_DY : STA BALL_Y
 
-  ; Rebond haut/bas
-  LDA BALL_Y : BEQ FLIP_DY
-  CMP #127   : BNE NO_FLIP_Y
-FLIP_DY:
+  LDA BALL_Y : BNE CHECK_BAS
   LDA #0 : SEC : SBC BALL_DY : STA BALL_DY
-  LDA #69 : LDX #1 : LDA #4 : STA $80 : JSR SYS_PLAY_NOTE  ; bip
-NO_FLIP_Y:
+  JMP CHECK_PAD1
+CHECK_BAS:
+  CMP #127 : BNE CHECK_PAD1
+  LDA #0 : SEC : SBC BALL_DY : STA BALL_DY
 
-  ; Collision raquette gauche (x=4, y=PAD1_Y à PAD1_Y+16)
-  LDA BALL_X : CMP #5 : BNE NO_PAD1
-  LDA BALL_Y : CMP PAD1_Y : BCC NO_PAD1
-  LDA BALL_Y : LDX PAD1_Y : TXA : CLC : ADC #16 : CMP BALL_Y : BCC NO_PAD1
-  LDA #1 : STA BALL_DX
-  LDA #72 : LDX #0 : LDA #3 : STA $80 : JSR SYS_PLAY_NOTE
-NO_PAD1:
+CHECK_PAD1:
+  LDA BALL_X : CMP #5 : BCC SCORE_J2
+  CMP #9 : BCS CHECK_PAD2
+  LDA BALL_Y : CMP PAD1_Y : BCC CHECK_PAD2
+  LDA PAD1_Y : CLC : ADC #16 : CMP BALL_Y : BCC CHECK_PAD2
+  LDA #$01 : STA BALL_DX
+  LDA #69 : LDX #0 : LDA #5 : STA $80 : JSR SYS_PLAY_NOTE
+  JMP CHECK_PAD2
 
-  ; Collision raquette droite (x=122)
-  LDA BALL_X : CMP #122 : BNE NO_PAD2
-  LDA BALL_Y : CMP PAD2_Y : BCC NO_PAD2
-  LDA BALL_Y : LDX PAD2_Y : TXA : CLC : ADC #16 : CMP BALL_Y : BCC NO_PAD2
-  LDA #$FF : STA BALL_DX   ; $FF = -1
-  LDA #72 : LDX #0 : LDA #3 : STA $80 : JSR SYS_PLAY_NOTE
-NO_PAD2:
+SCORE_J2:
+  INC SCORE2
+  LDA #64 : STA BALL_X : STA BALL_Y
+  LDA #$01 : STA BALL_DX
+  JMP MOVE_PADS
 
-  ; Point : balle sort à gauche → score2++
-  LDA BALL_X : CMP #1 : BCS NO_SCORE2
-  INC SCORE2 : LDA #64 : STA BALL_X : STA BALL_Y
-NO_SCORE2:
+CHECK_PAD2:
+  LDA BALL_X : CMP #119 : BCC CHECK_SCORE_J1
+  CMP #123 : BCS CHECK_SCORE_J1
+  LDA BALL_Y : CMP PAD2_Y : BCC CHECK_SCORE_J1
+  LDA PAD2_Y : CLC : ADC #16 : CMP BALL_Y : BCC CHECK_SCORE_J1
+  LDA #$FF : STA BALL_DX
+  LDA #69 : LDX #0 : LDA #5 : STA $80 : JSR SYS_PLAY_NOTE
+  JMP MOVE_PADS
 
-  ; Point : balle sort à droite → score1++
-  LDA BALL_X : CMP #126 : BCC NO_SCORE1
-  INC SCORE1 : LDA #64 : STA BALL_X : STA BALL_Y
-NO_SCORE1:
+CHECK_SCORE_J1:
+  LDA BALL_X : CMP #123 : BCC MOVE_PADS
+  INC SCORE1
+  LDA #64 : STA BALL_X : STA BALL_Y
+  LDA #$FF : STA BALL_DX
 
-  ; ── MOUVEMENT RAQUETTES ───────────────
-  LDA #0 : JSR $F048 : EOR #$FF
-  AND #PAD_UP   : BEQ NO_P1_UP   : LDA PAD1_Y : BEQ NO_P1_UP   : DEC PAD1_Y
-NO_P1_UP:
-  LDA #0 : JSR $F048 : EOR #$FF
-  AND #PAD_DOWN : BEQ NO_P1_DOWN : LDA PAD1_Y : CMP #112 : BCS NO_P1_DOWN : INC PAD1_Y
-NO_P1_DOWN:
+MOVE_PADS:
+  LDA #0 : JSR SYS_READ_PAD : EOR #$FF : PHA
+  AND #PAD_UP : BEQ NO_UP
+  LDA PAD1_Y : BEQ NO_UP : DEC PAD1_Y
+NO_UP:
+  PLA : AND #PAD_DOWN : BEQ NO_DOWN
+  LDA PAD1_Y : CMP #112 : BCS NO_DOWN : INC PAD1_Y
+NO_DOWN:
 
-  ; Raquette 2 : IA simple (suit la balle)
-  LDA PAD2_Y : CLC : ADC #8 : CMP BALL_Y
-  BEQ NO_AI : BCS AI_UP : BCC AI_DOWN
-AI_UP:   LDA PAD2_Y : BEQ NO_AI   : DEC PAD2_Y : JMP NO_AI
-AI_DOWN: LDA PAD2_Y : CMP #112    : BCS NO_AI  : INC PAD2_Y
-NO_AI:
+  LDA PAD2_Y : CLC : ADC #8 : CMP BALL_Y : BEQ DRAW
+  BCS IA_UP
+  LDA PAD2_Y : CMP #112 : BCS DRAW : INC PAD2_Y : JMP DRAW
+IA_UP:
+  LDA PAD2_Y : BEQ DRAW : DEC PAD2_Y
 
-  ; ── DESSIN ────────────────────────────
-  ; Raquette 1
-  LDA #4  : STA $80 : LDA PAD1_Y : STA $81
-  LDA #4  : STA $82 : LDA #16    : STA $83
-  LDA #1  : JSR SYS_FILL_RECT
+DRAW:
+  LDA #5  : STA $80 : LDA PAD1_Y : STA $81 : LDA #4 : STA $82 : LDA #16 : STA $83 : LDA #1 : JSR SYS_FILL_RECT
+  LDA #119 : STA $80 : LDA PAD2_Y : STA $81 : LDA #4 : STA $82 : LDA #16 : STA $83 : LDA #1 : JSR SYS_FILL_RECT
+  LDA BALL_X : STA $80 : LDA BALL_Y : STA $81 : LDA #3 : STA $82 : STA $83 : LDA #7 : JSR SYS_FILL_RECT
 
-  ; Raquette 2
-  LDA #120 : STA $80 : LDA PAD2_Y : STA $81
-  LDA #4   : STA $82 : LDA #16    : STA $83
-  LDA #1   : JSR SYS_FILL_RECT
-
-  ; Balle
-  LDA BALL_X : STA $80 : LDA BALL_Y : STA $81
-  LDA #2 : STA $82 : STA $83
-  LDA #7 : JSR SYS_FILL_RECT
-
-  ; Ligne centrale (pointillés)
-  LDA #63 : STA $80
-  LDX #16
-DOTLINE:
-  LDA #1 : STA $81
-  LDA #2 : STA $82 : STA $83
-  LDA #12 : JSR SYS_FILL_RECT
-  LDA $81 : CLC : ADC #8 : STA $81
-  DEX : BNE DOTLINE
-
-  ; Score en mode texte superposé
   LDA #0 : JSR SYS_SET_MODE
-  LDA #$10 : JSR $F030
-  LDA #14 : STA $D00B : LDA #0 : STA $D00C
-  LDA SCORE1 : JSR $F024
-  LDA #17 : STA $D00B
-  LDA SCORE2 : JSR $F024
+  LDA #$10 : JSR SYS_SET_COLOR
+  LDA #13 : TAX : LDA #0 : TAY : JSR SYS_SET_CURSOR : LDA SCORE1 : JSR SYS_PRINT_NUM
+  LDA #16 : TAX : LDA #0 : TAY : JSR SYS_SET_CURSOR : LDA SCORE2 : JSR SYS_PRINT_NUM
   LDA #1 : JSR SYS_SET_MODE
 
-  ; Fin du jeu à 9 points
-  LDA SCORE1 : CMP #9 : BEQ WINNER1
-  LDA SCORE2 : CMP #9 : BEQ WINNER2
+  LDA SCORE1 : CMP #9 : BEQ FIN
+  LDA SCORE2 : CMP #9 : BNE MAIN
 
-  JMP MAIN
-
-WINNER1:
-WINNER2:
-  JSR SYS_STOP_ALL
+FIN:
   LDA #0 : JSR SYS_SET_MODE
-  LDA #$10 : JSR $F030
-  LDA #10 : STA $D00B : LDA #15 : STA $D00C
-  LDA #'G':STA $D00F:LDA #'A':STA $D00F:LDA #'M':STA $D00F
-  LDA #'E':STA $D00F:LDA #' ':STA $D00F:LDA #'O':STA $D00F
-  LDA #'V':STA $D00F:LDA #'E':STA $D00F:LDA #'R':STA $D00F
-  BRK
-```
-
-## 5.3 Projet 3 — Outil : éditeur hexadécimal minimal
-
-```asm
-; ══════════════════════════════════════════
-;  HEXEDIT — Navigue et modifie la RAM
-; ══════════════════════════════════════════
-; Manette : gauche/droite = adresse -1/+1
-;           haut/bas = valeur +1/-1
-;           Start = save (BRK)
-
-ADDR_LO = $10 : ADDR_HI = $11   ; adresse courante
-VALUE   = $12                     ; valeur à cette adresse
-
-SYS_SET_MODE   = $F01B
-SYS_SET_CURSOR = $F02A
-SYS_SET_COLOR  = $F030
-SYS_PRINT_HEX  = $F027
-VPU_CHAR_OUT   = $D00F
-
-PAD_UP=$01:PAD_DOWN=$02:PAD_LEFT=$04:PAD_RIGHT=$08:PAD_START=$10
-
-  .org $E000
-
-  LDA #0 : JSR SYS_SET_MODE
-  LDA #$10 : STA $D00D   ; VPU_INK blanc
-  LDA #$00 : STA $D00E   ; VPU_PAPER noir
-
-  LDA #$00 : STA ADDR_LO
-  LDA #$40 : STA ADDR_HI  ; démarre à $4000
-
-MAIN:
-  ; Lire valeur à l'adresse courante
-  LDA ADDR_HI : STA $F1
-  LDA ADDR_LO : STA $F0
-  LDY #0 : LDA ($F0),Y : STA VALUE
-
-  ; Afficher adresse et valeur
-  LDA #0 : JSR SYS_SET_CURSOR
-  LDA #$70 : JSR SYS_SET_COLOR   ; jaune sur noir = mode normal
-
-  LDA #'$':STA VPU_CHAR_OUT
-  LDA ADDR_HI : JSR SYS_PRINT_HEX
-  LDA ADDR_LO : JSR SYS_PRINT_HEX
-  LDA #':':STA VPU_CHAR_OUT
-  LDA #' ':STA VPU_CHAR_OUT
-
-  LDA #$20 : JSR SYS_SET_COLOR   ; rouge sur noir = valeur éditable
-  LDA VALUE : JSR SYS_PRINT_HEX
-
-  LDA #10 : STA VPU_CHAR_OUT    ; newline
   LDA #$10 : JSR SYS_SET_COLOR
-  LDA #'[':STA VPU_CHAR_OUT
-  LDA #'<':STA VPU_CHAR_OUT:LDA #'>':STA VPU_CHAR_OUT
-  LDA #'=':STA VPU_CHAR_OUT:LDA #'a':STA VPU_CHAR_OUT
-  LDA #'d':STA VPU_CHAR_OUT:LDA #'r':STA VPU_CHAR_OUT
-  LDA #' ':STA VPU_CHAR_OUT
-  LDA #'^':STA VPU_CHAR_OUT:LDA #'v':STA VPU_CHAR_OUT
-  LDA #'=':STA VPU_CHAR_OUT:LDA #'v':STA VPU_CHAR_OUT
-  LDA #'a':STA VPU_CHAR_OUT:LDA #'l':STA VPU_CHAR_OUT
-  LDA #']':STA VPU_CHAR_OUT
-
-  ; Lire pad
-  LDA #0 : JSR $F048 : EOR #$FF : STA $20
-
-  LDA $20 : AND #PAD_RIGHT : BEQ NR
-  INC ADDR_LO : BNE NR : INC ADDR_HI
-NR:
-  LDA $20 : AND #PAD_LEFT : BEQ NL
-  LDA ADDR_LO : BNE NL2 : DEC ADDR_HI
-NL2: DEC ADDR_LO
-NL:
-  LDA $20 : AND #PAD_UP : BEQ NU
-  INC VALUE
-  LDA VALUE : STA ($F0),Y
-NU:
-  LDA $20 : AND #PAD_DOWN : BEQ ND
-  DEC VALUE
-  LDA VALUE : STA ($F0),Y
-ND:
-  LDA $20 : AND #PAD_START : BNE DONE
-
-  ; Délai
-  LDX #$FF : DEX : BNE *-1
-
-  JMP MAIN
-
-DONE:
+  LDA #10 : TAX : LDA #14 : TAY : JSR SYS_SET_CURSOR
+  LDA #'G' : STA $D00F : LDA #'A' : STA $D00F : LDA #'M' : STA $D00F
+  LDA #'E' : STA $D00F : LDA #' ' : STA $D00F : LDA #'O' : STA $D00F
+  LDA #'V' : STA $D00F : LDA #'E' : STA $D00F : LDA #'R' : STA $D00F
   BRK
 ```
 
-## 5.4 Ce que tu as appris
+Ce programme contient presque tout ce que tu as appris : Zero Page, sous-routines, flags, arithmétique signée, I/O, son.
 
-Cinq chapitres, et tu maîtrises maintenant :
+---
 
-**L'architecture** : comment un processeur lit, décode et exécute des instructions ; comment la mémoire est organisée en zones avec des rôles précis ; pourquoi la Zero Page est précieuse.
+## ✏️ Atelier chapitre 5 — Modifie Pong
 
-**Le langage** : les 56 instructions du 6502 et leurs 13 modes d'adressage ; comment construire if/else/while/for avec des branches ; la différence entre l'adressage absolu, indexé, et indirect post-indexé.
+Tu as le code complet de Pong. Voici deux défis pour le modifier :
 
-**Le système** : comment le VPU affiche des pixels en nibble-packing ; comment l'API ROM simplifie le dessin, le son, les entrées ; la convention de timing VBlank.
+**Défi A — Accélération :** La balle commence lentement et accélère après chaque échange de raquette. Ajoute une variable `VITESSE` en ZP, initialisée à 1. Après chaque rebond sur une raquette, incrémente `VITESSE` jusqu'à un maximum de 3. Utilise `VITESSE` pour déplacer la balle de plusieurs pixels par frame.
 
-**Les patterns** : la convention d'appel ABI ; comment écrire des bibliothèques réutilisables ; les tables de données ; la machine à états ; l'optimisation cycle par cycle.
+**Défi B — Deux joueurs :** Remplace l'IA (joueur 2) par un vrai deuxième joueur contrôlé par les touches du clavier. `W` = haut, `S` = bas pour le joueur 2. Lis le clavier avec `LDA $D200` (KEY_ASCII) et compare avec `'W'` (= $57) et `'S'` (= $73).
 
-**Les projets** : un Pong complet, une démo graphique, un éditeur hexadécimal.
 
-## 5.5 La suite
+## 5.3 Ce que tu as vraiment appris
 
-Le Chuck-8 a encore des territoires inexplorés dans ce manuel :
+Tu as programmé sur une machine à 1 MHz avec 64 Ko de RAM. Voici ce que ça implique pour toi en 2026.
 
-- **Les interruptions NMI/IRQ** — le NMI se déclenche à chaque VBlank. En écrivant un handler à l'adresse pointée par `$FFFA/$FFFB`, tu peux exécuter du code automatiquement 60 fois par seconde, indépendamment de ta boucle principale.
+**La mémoire n'est pas magique.** Chaque variable a une adresse. Chaque adresse contient un octet. Quand tu déclares `let x = 42` en JavaScript, quelque chose d'exactement similaire se passe dans V8 — juste avec beaucoup plus de couches au-dessus. Tu sais maintenant ce qu'il y a en dessous.
 
-- **L'arithmétique avancée** — multiplication et division 16-bit, virgule fixe (un nombre en $xx.yy pour la physique), table de sinus pré-calculée pour des effets de rotation.
+**Le CPU exécute des instructions une par une.** Ton code JavaScript ne s'exécute pas "en parallèle" — il y a un fil d'exécution principal qui exécute une instruction à la fois. Le 6502 t'a forcé à y penser en permanence. Ce model mental t'aidera à déboguer des race conditions et à comprendre l'event loop de Node.js.
 
-- **Le son avancée** — enveloppes ADSR complètes, musique avec une table de séquences, effet de vibrato via la modulation de fréquence.
+**Les registres sont précieux.** Le 6502 n'a que A, X, Y. Le x86_64 en a 16. ARM en a 32. Mais la contrainte est la même : les registres sont rares, et une bonne gestion des registres fait la différence entre un code performant et un code lent. Les compilateurs C/C++ passent énormément de temps à optimiser l'allocation des registres — tu sais maintenant pourquoi.
 
-- **Les sprites hardware** — la zone $5000–$5FFF et les registres VPU_SPR_* permettent d'afficher jusqu'à 8 sprites de 8×8 pixels gérés par le VPU lui-même.
+**Les abstractions ont un coût.** `JSR` + `RTS` = 12 cycles. Une boucle Python = des millions de cycles. Ce n'est pas un jugement de valeur — les abstractions sont utiles — mais savoir leur coût te rend meilleur pour choisir quand les utiliser.
 
-- **Les formats de fichiers** — le format `.chuck` permet d'embarquer code, données, charset custom dans un seul fichier texte.
-
-Et si un jour on construit le hardware ? Le 6502 (W65C02S) est encore fabriqué aujourd'hui par Western Design Center. Un Chuck-8 physique, c'est possible.
+**La contrainte libère la créativité.** Les meilleurs jeux du Commodore 64 et de la NES ont été faits avec 64 Ko et 1 MHz. Quand tu n'as pas de bibliothèque pour tout faire, tu dois comprendre ton problème profondément pour trouver une solution élégante. Ce réflexe — aller au fond du problème — est ce qui distingue un bon développeur d'un utilisateur de frameworks.
 
 ---
 
 ## ANNEXE — Référence rapide
 
-### Instructions utilisées le plus souvent
+### Instructions fréquentes
 
-```
-LDA / STA  Charger / stocker A
-LDX / STX  Charger / stocker X
-LDY / STY  Charger / stocker Y
-TAX / TXA / TAY / TYA  Transferts
-PHA / PLA  Pile A
-CLC / ADC  Addition
-SEC / SBC  Soustraction
-INX / DEX / INY / DEY  ±1 sur les index
-INC / DEC  ±1 en mémoire
-CMP / CPX / CPY  Comparaison
-BEQ / BNE  Branchement égal/différent
-BCC / BCS  Branchement < / >=
-BMI / BPL  Branchement négatif / positif
-JMP / JSR / RTS  Saut / appel / retour
-AND / ORA / EOR  Logique
-ASL / LSR  Décalage × 2 / ÷ 2
-BRK  Arrêt
-NOP  Ne fait rien (2 cycles)
-```
+| Instruction | Action | Flags |
+|-------------|--------|-------|
+| `LDA #val` | A ← val | N, Z |
+| `STA addr` | mem[addr] ← A | — |
+| `LDX / LDY` | X/Y ← val | N, Z |
+| `STX / STY` | mem ← X/Y | — |
+| `TAX / TXA` | transferts A↔X | N, Z |
+| `PHA / PLA` | pile ← A / A ← pile | (PLA: N, Z) |
+| `CLC : ADC` | A = A + val + 0 | N, V, Z, C |
+| `SEC : SBC` | A = A - val - 0 | N, V, Z, C |
+| `INX / DEX` | X ± 1 | N, Z |
+| `INC / DEC` | mem ± 1 | N, Z |
+| `CMP #val` | flags selon A - val | N, Z, C |
+| `BEQ / BNE` | si Z=1 / Z=0 | — |
+| `BCC / BCS` | si C=0 / C=1 | — |
+| `BMI / BPL` | si N=1 / N=0 | — |
+| `JSR addr` | appel sous-routine | — |
+| `RTS` | retour sous-routine | — |
+| `JMP addr` | saut | — |
+| `AND / ORA / EOR` | logique bit à bit | N, Z |
+| `ASL / LSR` | décalage × 2 / ÷ 2 | N, Z, C |
+| `BRK` | arrêt | B |
+| `NOP` | ne fait rien (2 cycles) | — |
 
 ### Adresses clés Chuck-8
 
 ```
-$0010–$007F  Variables utilisateur (ZP)
-$0080–$00EF  Paramètres ABI (ZP)
-$00F0–$00FF  Pointeurs temporaires (ZP)
-$4000–$5FFF  Framebuffer A (graphique)
-$4800–$4BFF  Mémoire texte
+$0010–$007F  Variables libres (Zero Page)
+$0080–$00EF  Zone paramètres ABI
+$00F0–$00FF  Pointeurs temporaires ($F0/$F1, $F2/$F3...)
+$4000–$5FFF  Framebuffer A (mode graphique)
+$4800–$4BFF  Mémoire texte (mode texte)
 $4C00–$4FFF  Attributs couleur texte
 $D000        VPU_CTRL (bit7=enable, bit0=mode)
-$D00B/$D00C  VPU_CURSOR_X / Y
-$D00F        VPU_CHAR_OUT
+$D00B/$D00C  VPU_CURSOR_X / VPU_CURSOR_Y
+$D00F        VPU_CHAR_OUT (écriture = affiche un char)
 $D200        KEY_ASCII
-$D210        PAD1_STATE
-$D306        SYS_RAND (lecture)
-$E000        Point d'entrée
+$D201        KEY_STATUS (bit7=touche présente)
+$D210        PAD1_STATE (bit=0 si enfoncé)
+$D220/$D221  MOUSE_X / MOUSE_Y
+$D306        SYS_RAND (lecture = nouvel octet aléatoire)
+$E000        Point d'entrée programme (.org $E000)
 $F000        SYS_CLEAR
 $F003        SYS_DRAW_PIXEL
+$F009        SYS_DRAW_RECT
 $F00C        SYS_FILL_RECT
 $F01B        SYS_SET_MODE
 $F01E        SYS_PRINT_CHAR
+$F021        SYS_PRINT_STR
+$F024        SYS_PRINT_NUM
+$F027        SYS_PRINT_HEX
 $F02A        SYS_SET_CURSOR
 $F030        SYS_SET_COLOR
+$F036        SYS_PLAY_NOTE
 $F048        SYS_READ_PAD
-$F057        SYS_WAIT_VBLANK
 $F05A        SYS_RAND
+$F069        SYS_FRAME_NUM
 $FFFC/$FFFD  Vecteur RESET → $E000
 ```
 
 ### La palette
 
 ```
- 0 Noir      1 Blanc     2 Rouge     3 Cyan
- 4 Violet    5 Vert      6 Bleu      7 Jaune
- 8 Orange    9 Brun     10 Rose     11 Gris foncé
-12 Gris moy 13 Vert cl  14 Bleu cl  15 Gris clair
+0  Noir    #000  │  4  Violet  #C0C  │   8  Orange  #C80  │  12  Gris moy  #888
+1  Blanc   #FFF  │  5  Vert    #0C0  │   9  Brun    #840  │  13  Vert cl   #8F8
+2  Rouge   #C00  │  6  Bleu    #00C  │  10  Rose    #F88  │  14  Bleu cl   #88F
+3  Cyan    #0CC  │  7  Jaune   #CC0  │  11  Gris foncé #444  │  15  Gris cl #CCC
 ```
 
 ---
 
-*Chuck-8 Manuel de Programmation — v1.0*
-*Inspired by Rodnay Zaks, Programming the 6502 (1978)*
-*"The best way to learn is to understand every detail."*
+*Chuck-8 Manuel de Programmation — v3.0*
+*Inspiré de Rodnay Zaks, Programming the 6502 (1978)*
+*"The best programs are those that emerge from constraints." — Jeff Minter*
