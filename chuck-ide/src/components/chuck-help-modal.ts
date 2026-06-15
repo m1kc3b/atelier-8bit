@@ -111,7 +111,7 @@ const STYLES = /* css */`
     height: min(800px, 80vh);
     min-width: 340px;
     min-height: 240px;
-    background: var(--surface);
+    background: var(--surface-4);
     border: 1px solid var(--border);
     border-radius: 10px;
     box-shadow: 0 24px 64px rgba(0,0,0,.55);
@@ -197,21 +197,22 @@ const STYLES = /* css */`
     font-size: 13px; font-weight: 600; color: var(--text-dim);
     margin: 12px 0 4px;
   }
-  .content p { color: var(--text-dim); margin: 0 0 10px; }
+  .content p { color: var(--text); margin: 0 0 10px; }
   .content p:last-child { margin-bottom: 0; }
   .content strong { color: var(--text); font-weight: 600; }
   .content em     { color: var(--text-dim); font-style: italic; }
   .content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
   .content blockquote {
     margin: 10px 0; padding: 8px 14px;
-    border-left: 3px solid var(--accent);
-    background: var(--surface-2); border-radius: 0 5px 5px 0;
+    border-left: 3px solid var(--cyan-dim);
+    background: var(--surface-3); border-radius: 0 5px 5px 0;
     color: var(--text-dim); font-size: 13px; font-style: italic;
   }
   .content code {
     font-family: var(--font-mono); font-size: 13px;
-    background: var(--surface-3); color: var(--cyan);
+    background: var(--surface-3); color: var(--text);
     padding: 1px 5px; border-radius: 3px;
+    border: 2px solid var(--cyan-dim);
   }
 
   /* Bloc de code avec bouton Copier */
@@ -239,8 +240,8 @@ const STYLES = /* css */`
   .copy-btn.copied { color: var(--green); border-color: var(--green); background: var(--green-dim); }
 
   .content pre {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
+    background: var(--surface-3);
+    border: 2px solid var(--cyan-dim);
     border-radius: 6px;
     padding: 14px 16px;
     padding-right: 80px; /* espace pour le bouton */
