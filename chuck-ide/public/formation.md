@@ -126,17 +126,22 @@ Quand tu "accèdes à la mémoire" en assembleur, tu lis ou tu écris dans ce ta
 
 > **Lien avec le présent** — En C, quand tu fais `int* p = malloc(4)`, tu obtiens une adresse dans un tableau de mémoire. En JavaScript, quand V8 stocke un objet, il le place quelque part dans la RAM et garde son adresse. L'abstraction change selon le langage — le tableau d'octets reste.
 
-> ✏️ **Exercice 1.3** — Écris le programme suivant et clique Run. Puis ouvre le panneau **Mémoire** et cherche les adresses `$0010` et `$0011`. Que contiennent-elles ?
-> ```asm
->   .org $E000
->   LDA #42
->   STA $10
->   LDA #255
->   STA $11
->   BRK
-> ```
-> Change les valeurs 42 et 255 par d'autres nombres (entre 0 et 255). Vérifie que la mémoire reflète exactement ce que tu as écrit.
+---
 
+✏️ **Exercice 1.3** — Écris le programme suivant et clique Run. Puis ouvre le panneau **Mémoire** et cherche les adresses `$0010` et `$0011`. Que contiennent-elles ?
+
+ ```asm
+   .org $E000
+   LDA #42
+   STA $10
+   LDA #255
+   STA $11
+   BRK
+ ```
+
+Change les valeurs 42 et 255 par d'autres nombres (entre 0 et 255). Vérifie que la mémoire reflète exactement ce que tu as écrit.
+
+---
 
 ## 1.4 La memory map du Chuck-8
 
@@ -203,8 +208,9 @@ Une astuce : quand tu vois une adresse comme `$D210`, lis-la comme un code posta
 
 > **Pourquoi le $ ?** Convention de l'assembleur MOS de 1975. Dans d'autres assembleurs, tu verras `0xFF` (C/C++), `FFh` (x86/Intel), ou `&HFF` (BASIC). C'est la même chose, habillée différemment.
 
-> ✏️ **Exercice 1.5** — Sans calculatrice, convertis mentalement ces valeurs hex en décimal : `$10`, `$20`, `$40`, `$80`, `$FF`. Puis vérifie en écrivant `LDA #$10 : BRK` et en regardant le registre A dans le panneau Registres. Essaie aussi `$3F` (indice : `$3F` = `$40` - 1 = 64 - 1).
-
+---
+✏️ **Exercice 1.5** — Sans calculatrice, convertis mentalement ces valeurs hex en décimal : `$10`, `$20`, `$40`, `$80`, `$FF`. Puis vérifie en écrivant `LDA #$10 : BRK` et en regardant le registre A dans le panneau Registres. Essaie aussi `$3F` (indice : `$3F` = `$40` - 1 = 64 - 1).
+---
 
 ## 1.6 Les registres du 6502
 
@@ -249,16 +255,17 @@ Ces flags sont ta seule façon de prendre des décisions. Le 6502 n'a pas d'inst
 
 > **En 2026** — Ton CPU moderne a des dizaines de registres et des flags similaires. Les processeurs ARM et x86 ont leurs propres PSR (Program Status Register). Le principe est le même depuis 50 ans.
 
-> ✏️ **Exercice 1.6** — Exécute ce programme et observe le panneau Registres à chaque étape. Quel flag s'allume quand on charge 0 ? Quel flag s'allume quand on charge 200 (`$C8`) ?
-> ```asm
->   .org $E000
->   LDA #0     ; charge zéro
->   LDA #200   ; charge 200 ($C8 = 1100 1000 — bit 7 = 1)
->   LDA #127   ; charge 127 ($7F = 0111 1111 — bit 7 = 0)
->   BRK
-> ```
-> *Réponse attendue : Z=1 après LDA #0, N=1 après LDA #200, N=0 après LDA #127.*
-
+---
+✏️ **Exercice 1.6** — Exécute ce programme et observe le panneau Registres à chaque étape. Quel flag s'allume quand on charge 0 ? Quel flag s'allume quand on charge 200 (`$C8`) ?
+ ```asm
+   .org $E000
+   LDA #0     ; charge zéro
+   LDA #200   ; charge 200 ($C8 = 1100 1000 — bit 7 = 1)
+   LDA #127   ; charge 127 ($7F = 0111 1111 — bit 7 = 0)
+   BRK
+ ```
+ *Réponse attendue : Z=1 après LDA #0, N=1 après LDA #200, N=0 après LDA #127.*
+---
 
 ## 1.7 Premier programme : "BONJOUR"
 
@@ -309,11 +316,12 @@ Tape ce programme et clique **Run**. "BONJOUR" apparaît en haut à gauche.
 
 Rien d'autre. Pas de runtime, pas d'OS, pas de bibliothèque standard chargée en arrière-plan. Ton programme parle directement au matériel.
 
-> ✏️ **Exercice 1.7** — Modifie le programme pour :
-> 1. Afficher ton prénom à la place de "BONJOUR"
-> 2. Positionner le texte au centre de l'écran (colonne 13, ligne 15)
-> 3. Ajouter une deuxième ligne sous ton prénom avec le message "CHUCK-8" (astuce : `LDA #10 : STA VPU_CHAR_OUT` envoie un saut de ligne)
-
+---
+✏️ **Exercice 1.7** — Modifie le programme pour :
+ 1. Afficher ton prénom à la place de "BONJOUR"
+ 2. Positionner le texte au centre de l'écran (colonne 13, ligne 15)
+ 3. Ajouter une deuxième ligne sous ton prénom avec le message "CHUCK-8" (astuce : `LDA #10 : STA VPU_CHAR_OUT` envoie un saut de ligne)
+---
 
 ## 1.8 Structure canonique d'un programme
 
@@ -440,8 +448,9 @@ MSG: .byte "Chuck-8", 0     ; chaîne null-terminated
   JSR SYS_PRINT_STR         ; $F021 — affiche la chaîne
 ```
 
-> ✏️ **Exercice 2.1** — Déclare deux constantes `VITESSE = 3` et `LIMITE = 100`. Écris un programme qui charge VITESSE dans A, la stocke à l'adresse `$10`, puis charge LIMITE dans A et la stocke à `$11`. Vérifie en hexdump.
-
+---
+✏️ **Exercice 2.1** — Déclare deux constantes `VITESSE = 3` et `LIMITE = 100`. Écris un programme qui charge VITESSE dans A, la stocke à l'adresse `$10`, puis charge LIMITE dans A et la stocke à `$11`. Vérifie en hexdump.
+---
 
 ## 2.2 Les trois registres actifs — A, X, Y
 
@@ -482,7 +491,9 @@ TAY  ; A → Y       TYA  ; Y → A
 TXS  ; X → SP      TSX  ; SP → X
 ```
 
-> ✏️ **Exercice 2.2** — Remplis les 8 premières cases de la Zero Page ($10 à $17) avec la valeur 42 en utilisant `STX` avec un index. Tu auras besoin de `LDA #42`, `STA $10`, `STA $11`... mais essaie de faire ça avec `LDX` et `STA $10,X` dans une boucle. *Indice : `LDX #7` puis boucle avec `STA $10,X : DEX : BPL BOUCLE`.*
+---
+✏️ **Exercice 2.2** — Remplis les 8 premières cases de la Zero Page ($10 à $17) avec la valeur 42 en utilisant `STX` avec un index. Tu auras besoin de `LDA #42`, `STA $10`, `STA $11`... mais essaie de faire ça avec `LDX` et `STA $10,X` dans une boucle. *Indice : `LDX #7` puis boucle avec `STA $10,X : DEX : BPL BOUCLE`.*
+---
 
 
 ## 2.3 L'arithmétique et le Carry
@@ -536,17 +547,18 @@ DEC $10   ; mem[$10]-- (5 cycles)
 
 `INX` + `DEX` sont tes meilleurs amis pour les boucles. Bien plus rapides que `LDA $10 : CLC : ADC #1 : STA $10` (10 cycles vs 2).
 
-> ✏️ **Exercice 2.3** — Calcule 200 + 100 avec `CLC : ADC`. Que se passe-t-il ? (200 + 100 = 300 > 255 — le résultat déborde !) Regarde le flag C dans les registres : il vaut 1, ce qui signifie qu'il y a eu un débordement. La valeur dans A sera 44 (`300 - 256`). C'est le comportement normal en 8-bit.
-> ```asm
->   .org $E000
->   LDA #200
->   CLC
->   ADC #100    ; résultat = 44, Carry = 1
->   STA $10     ; vérifie en hexdump : $10 = $2C = 44
->   BRK
-> ```
-> Maintenant calcule `300` sur 16 bits : stocke 200 en `$10` et 0 en `$11`, stocke 100 en `$12` et 0 en `$13`. Additionne les deux paires. Le résultat `$012C` (= 300) doit apparaître en `$14`/`$15`.
-
+---
+✏️ **Exercice 2.3** — Calcule 200 + 100 avec `CLC : ADC`. Que se passe-t-il ? (200 + 100 = 300 > 255 — le résultat déborde !) Regarde le flag C dans les registres : il vaut 1, ce qui signifie qu'il y a eu un débordement. La valeur dans A sera 44 (`300 - 256`). C'est le comportement normal en 8-bit.
+ ```asm
+   .org $E000
+   LDA #200
+   CLC
+   ADC #100    ; résultat = 44, Carry = 1
+   STA $10     ; vérifie en hexdump : $10 = $2C = 44
+   BRK
+ ```
+ Maintenant calcule `300` sur 16 bits : stocke 200 en `$10` et 0 en `$11`, stocke 100 en `$12` et 0 en `$13`. Additionne les deux paires. Le résultat `$012C` (= 300) doit apparaître en `$14`/`$15`.
+---
 
 ## 2.4 Comparer et brancher
 
@@ -613,10 +625,11 @@ FILL:
 
 **Attention** : les branchements ne peuvent atteindre que ±127 octets depuis l'instruction suivante. Pour les sauts longs, utilise `JMP`.
 
-> ✏️ **Exercice 2.4a — Le if/else** — Écris un programme qui stocke une valeur en `$10`, puis affiche `'G'` si cette valeur est >= 50, et `'P'` sinon (G pour Grand, P pour Petit). Change la valeur entre 0 et 100 pour vérifier que les deux branches fonctionnent.
+---
+✏️ **Exercice 2.4a — Le if/else** — Écris un programme qui stocke une valeur en `$10`, puis affiche `'G'` si cette valeur est >= 50, et `'P'` sinon (G pour Grand, P pour Petit). Change la valeur entre 0 et 100 pour vérifier que les deux branches fonctionnent.
 
-> ✏️ **Exercice 2.4b — La boucle** — Écris une boucle qui calcule la somme de 1 à 10 et la stocke en `$20`. Utilise `LDX #10` et `TXA : CLC : ADC $20 : STA $20 : DEX : BNE`. Vérifie que `$20` contient 55 (`$37`) à la fin.
-
+✏️ **Exercice 2.4b — La boucle** — Écris une boucle qui calcule la somme de 1 à 10 et la stocke en `$20`. Utilise `LDX #10` et `TXA : CLC : ADC $20 : STA $20 : DEX : BNE`. Vérifie que `$20` contient 55 (`$37`) à la fin.
+---
 
 ## 2.5 Les modes d'adressage
 
@@ -671,8 +684,9 @@ Pense à `($F0),Y` comme `*(ptr + Y) = valeur` en C. C'est exactement ça.
 
 > **Anecdote** — Le mode `($zp),Y` a permis à des programmeurs comme Jordan Mechner (auteur de Prince of Persia sur Apple II) d'écrire des routines d'affichage impossibles sur d'autres chips de l'époque. En changeant simplement le pointeur en ZP, la même routine peut écrire n'importe où dans les 64 Ko.
 
-> ✏️ **Exercice 2.5** — Utilise le mode indexé `STA $10,X` pour remplir un tableau de 5 octets aux adresses `$10` à `$14` avec les valeurs 10, 20, 30, 40, 50. Puis relis-les avec `LDA $10,X` dans une deuxième boucle et stocke leur somme en `$20`.
-
+---
+✏️ **Exercice 2.5** — Utilise le mode indexé `STA $10,X` pour remplir un tableau de 5 octets aux adresses `$10` à `$14` avec les valeurs 10, 20, 30, 40, 50. Puis relis-les avec `LDA $10,X` dans une deuxième boucle et stocke leur somme en `$20`.
+---
 
 ## 2.6 La logique bit à bit
 
@@ -727,14 +741,15 @@ ASL   ; × 64
 
 Six `ASL` enchaînés. 6 cycles. Pas de multiplication. Pas de division. C'est du binaire pur.
 
-> ✏️ **Exercice 2.6** — Le générateur aléatoire du Chuck-8 est à l'adresse `$D306` (lecture seule). Écris une boucle qui :
-> 1. Lit `$D306` pour obtenir un octet aléatoire
-> 2. Applique `AND #$0F` pour le forcer dans 0–15
-> 3. Si le résultat est 0, recommence (pour éviter le noir)
-> 4. Stocke le résultat en `$10`
-> 5. Recommence la boucle 8 fois en stockant en `$10`, `$11`, ..., `$17`
-> Tu dois obtenir 8 couleurs aléatoires différentes (entre 1 et 15) en mémoire.
-
+---
+ ✏️ **Exercice 2.6** — Le générateur aléatoire du Chuck-8 est à l'adresse `$D306` (lecture seule). Écris une boucle qui :
+ 1. Lit `$D306` pour obtenir un octet aléatoire
+ 2. Applique `AND #$0F` pour le forcer dans 0–15
+ 3. Si le résultat est 0, recommence (pour éviter le noir)
+ 4. Stocke le résultat en `$10`
+ 5. Recommence la boucle 8 fois en stockant en `$10`, `$11`, ..., `$17`
+ Tu dois obtenir 8 couleurs aléatoires différentes (entre 1 et 15) en mémoire.
+---
 
 ## 2.7 La pile et les sous-routines
 
@@ -777,20 +792,21 @@ MA_ROUTINE:
   RTS        ; dépile correctement l'adresse de retour
 ```
 
-> ✏️ **Exercice 2.7** — Écris une sous-routine `DOUBLE` qui double la valeur dans A (A = A × 2) avec `ASL` et retourne le résultat dans A. Appelle-la 3 fois de suite depuis le programme principal sur la valeur 1. Tu dois obtenir 8. Vérifie en observant A dans le panneau Registres.
-> ```asm
->   .org $E000
->   LDA #1
->   JSR DOUBLE   ; A = 2
->   JSR DOUBLE   ; A = 4
->   JSR DOUBLE   ; A = 8
->   STA $10
->   BRK
->
-> DOUBLE:
->   ASL          ; A × 2
->   RTS
-> ```
+---
+ ✏️ **Exercice 2.7** — Écris une sous-routine `DOUBLE` qui double la valeur dans A (A = A × 2) avec `ASL` et retourne le résultat dans A. Appelle-la 3 fois de suite depuis le programme principal sur la valeur 1. Tu dois obtenir 8. Vérifie en observant A dans le panneau Registres.
+ ```asm
+   .org $E000
+   LDA #1
+   JSR DOUBLE   ; A = 2
+   JSR DOUBLE   ; A = 4
+   JSR DOUBLE   ; A = 8
+   STA $10
+   BRK
+
+ DOUBLE:
+   ASL          ; A × 2
+   RTS
+ ```
 
 ---
 
@@ -898,8 +914,9 @@ SYS_SET_MODE = $F01B
 
 Le contenu de la VRAM est **préservé** lors du switch. Tu peux afficher du texte par-dessus un fond graphique.
 
-> ✏️ **Exercice 3.1** — Affiche les 16 couleurs en mode graphique sous forme d'une grille 4×4. Chaque case fait 30×30 pixels. Couleur 0 en haut à gauche, couleur 15 en bas à droite. Utilise `SYS_FILL_RECT` (`$F00C`, A=couleur, `$80`=x, `$81`=y, `$82`=w, `$83`=h) et deux boucles imbriquées (une pour les colonnes, une pour les lignes).
-
+---
+✏️ **Exercice 3.1** — Affiche les 16 couleurs en mode graphique sous forme d'une grille 4×4. Chaque case fait 30×30 pixels. Couleur 0 en haut à gauche, couleur 15 en bas à droite. Utilise `SYS_FILL_RECT` (`$F00C`, A=couleur, `$80`=x, `$81`=y, `$82`=w, `$83`=h) et deux boucles imbriquées (une pour les colonnes, une pour les lignes).
+---
 
 ## 3.2 La palette — 16 couleurs fixes
 
@@ -961,8 +978,9 @@ MSG: .byte "Score : ", 0    ; null-terminated
   JSR SYS_PRINT_STR         ; affiche jusqu'au 0
 ```
 
-> ✏️ **Exercice 3.3** — Dessine le drapeau français en mode graphique. L'écran fait 128×128 pixels. Le drapeau a 3 bandes verticales égales (42 px de large chacune) : bleu (couleur 6), blanc (couleur 1), rouge (couleur 2). Utilise `SYS_FILL_RECT` avec `$82=42` et `$83=128` pour chaque bande.
-
+---
+✏️ **Exercice 3.3** — Dessine le drapeau français en mode graphique. L'écran fait 128×128 pixels. Le drapeau a 3 bandes verticales égales (42 px de large chacune) : bleu (couleur 6), blanc (couleur 1), rouge (couleur 2). Utilise `SYS_FILL_RECT` avec `$82=42` et `$83=128` pour chaque bande.
+---
 
 ## 3.4 Le son
 
@@ -996,19 +1014,20 @@ SYS_PLAY_NOTE = $F036
 
 > **L'ADSR, c'est quoi ?** Attaque, Decay, Sustain, Release — les quatre phases d'une note. En musique synthétique, une note de piano a une attaque courte (le marteau frappe), un decay rapide, un sustain au niveau 0, et un release selon la pédale. Un orgue a une attaque longue et un sustain constant. Ces paramètres permettent de simuler des instruments. Le SID du Commodore 64 utilisait exactement ces mêmes paramètres — c'était révolutionnaire en 1982.
 
-> ✏️ **Exercice 3.4** — Joue la gamme de Do majeur : Do(60), Ré(62), Mi(64), Fa(65), Sol(67), La(69), Si(71), Do(72). Stocke les notes dans une table `.byte` et parcours-la avec une boucle. Chaque note dure 20 frames.
-> ```asm
-> GAMME: .byte 60, 62, 64, 65, 67, 69, 71, 72
->
->   LDX #0
-> JOUE:
->   LDA GAMME,X
->   ; ... joue la note ...
->   INX
->   CPX #8
->   BNE JOUE
-> ```
+---
+✏️ **Exercice 3.4** — Joue la gamme de Do majeur : Do(60), Ré(62), Mi(64), Fa(65), Sol(67), La(69), Si(71), Do(72). Stocke les notes dans une table `.byte` et parcours-la avec une boucle. Chaque note dure 20 frames.
+ ```asm
+ GAMME: .byte 60, 62, 64, 65, 67, 69, 71, 72
 
+   LDX #0
+ JOUE:
+   LDA GAMME,X
+   ; ... joue la note ...
+   INX
+   CPX #8
+   BNE JOUE
+ ```
+---
 
 ## 3.5 Les entrées
 
@@ -1068,23 +1087,23 @@ MOUSE_BTN  = $D224   ; bit0=gauche bit1=droit (0=enfoncé)
 
   JSR SYS_READ_MOUSE   ; $F051 → X=mouseX, Y=mouseY, A=boutons
 ```
+---
+ ✏️ **Exercice 3.5** — Dessine un pixel blanc qui se déplace avec la manette (haut/bas/gauche/droite). Le pixel repart de l'autre côté si il sort de l'écran (wrap-around). Structure recommandée :
+ ```asm
+ POS_X = $10 : POS_Y = $11
 
-> ✏️ **Exercice 3.5** — Dessine un pixel blanc qui se déplace avec la manette (haut/bas/gauche/droite). Le pixel repart de l'autre côté si il sort de l'écran (wrap-around). Structure recommandée :
-> ```asm
-> POS_X = $10 : POS_Y = $11
->
-> INIT:
->   LDA #1 : JSR SYS_SET_MODE
->   LDA #64 : STA POS_X : STA POS_Y
->
-> LOOP:
->   ; Effacer ancien pixel (noir)
->   ; Lire manette → déplacer POS_X / POS_Y
->   ; Clamp ou wrap 0-127
->   ; Dessiner nouveau pixel (blanc)
->   JMP LOOP
-> ```
+ INIT:
+   LDA #1 : JSR SYS_SET_MODE
+   LDA #64 : STA POS_X : STA POS_Y
 
+ LOOP:
+   ; Effacer ancien pixel (noir)
+   ; Lire manette → déplacer POS_X / POS_Y
+   ; Clamp ou wrap 0-127
+   ; Dessiner nouveau pixel (blanc)
+   JMP LOOP
+ ```
+---
 
 ## 3.6 Le timer et l'aléatoire
 
@@ -1233,9 +1252,9 @@ DRAW_HBAR:
   LDY $11         ; restaure Y
   RTS
 ```
-
-> ✏️ **Exercice 4.1** — Écris une sous-routine `CLAMP` qui force une valeur dans A dans l'intervalle [0, 100] : si A > 100, retourne 100 ; si A ≤ 100, retourne A inchangé. Teste avec les valeurs 50 (→ 50), 150 (→ 100), 0 (→ 0).
-
+---
+✏️ **Exercice 4.1** — Écris une sous-routine `CLAMP` qui force une valeur dans A dans l'intervalle [0, 100] : si A > 100, retourne 100 ; si A ≤ 100, retourne A inchangé. Teste avec les valeurs 50 (→ 50), 150 (→ 100), 0 (→ 0).
+---
 
 ## 4.2 Les tables de données
 
@@ -1288,12 +1307,13 @@ PHASE = $10
 
 > **Anecdote** — Les tables de sinus étaient universelles dans les jeux 8-bit et les démos Amiga. Sur les microcontrôleurs embarqués modernes (Arduino, ESP32), on les utilise encore pour les mêmes raisons.
 
-> ✏️ **Exercice 4.2** — Crée une table de 8 positions x/y qui forment un carré (coins + milieux des côtés). Puis dessine ces 8 points sur l'écran avec une boucle, en parcourant la table. Chaque point est un pixel blanc sur fond noir.
-> ```asm
-> POINTS_X: .byte 20, 64, 108, 108, 108, 64, 20, 20
-> POINTS_Y: .byte 20, 20,  20,  64, 108, 108, 108, 64
-> ```
-
+---
+ ✏️ **Exercice 4.2** — Crée une table de 8 positions x/y qui forment un carré (coins + milieux des côtés). Puis dessine ces 8 points sur l'écran avec une boucle, en parcourant la table. Chaque point est un pixel blanc sur fond noir.
+ ```asm
+ POINTS_X: .byte 20, 64, 108, 108, 108, 64, 20, 20
+ POINTS_Y: .byte 20, 20,  20,  64, 108, 108, 108, 64
+ ```
+---
 
 ## 4.3 La machine à états
 
@@ -1327,13 +1347,13 @@ DO_PLAYING:
   ; ... si vies = 0 : LDA #STATE_GAMEOVER : STA GAME_STATE
   RTS
 ```
-
-> ✏️ **Exercice 4.3** — Prends la structure ci-dessus et implémente les 4 états visuellement :
-> - **TITLE** : affiche "PRESS START" en texte, attend Start
-> - **PLAYING** : affiche un pixel qui bouge tout seul, attend Start pour pauser
-> - **PAUSED** : affiche "PAUSE" par-dessus, attend Start pour reprendre
-> - **GAMEOVER** : affiche "GAME OVER", attend Start pour revenir au titre
-
+---
+✏️ **Exercice 4.3** — Prends la structure ci-dessus et implémente les 4 états visuellement :
+ - **TITLE** : affiche "PRESS START" en texte, attend Start
+ - **PLAYING** : affiche un pixel qui bouge tout seul, attend Start pour pauser
+ - **PAUSED** : affiche "PAUSE" par-dessus, attend Start pour reprendre
+ - **GAMEOVER** : affiche "GAME OVER", attend Start pour revenir au titre
+---
 
 ## 4.4 Physique : vélocité et gravité
 
@@ -1369,9 +1389,9 @@ PAS_REBOND_D:
   LDA #$FC : STA VEL_Y   ; rebond amorti
 PAS_SOL:
 ```
-
-> ✏️ **Exercice 4.4** — Implémente une balle qui rebondit sur les 4 bords de l'écran sans gravité. La balle part du centre (64, 64) avec VEL_X=2 et VEL_Y=1. Elle doit rebondir proprement sur les bords gauche (x=0), droit (x=127), haut (y=0) et bas (y=127). Dessine la balle comme un pixel blanc, efface l'ancienne position avant de dessiner la nouvelle.
-
+---
+✏️ **Exercice 4.4** — Implémente une balle qui rebondit sur les 4 bords de l'écran sans gravité. La balle part du centre (64, 64) avec VEL_X=2 et VEL_Y=1. Elle doit rebondir proprement sur les bords gauche (x=0), droit (x=127), haut (y=0) et bas (y=127). Dessine la balle comme un pixel blanc, efface l'ancienne position avant de dessiner la nouvelle.
+---
 
 ## 4.5 Optimisation 6502 — chaque cycle compte
 
@@ -1411,10 +1431,11 @@ LDA $10     ; 3 cycles, 2 octets ← préférable
 
 > **Perspective moderne** — Ces optimisations t'apprennent à penser en coût. Un développeur qui a programé en assembleur comprend instinctivement pourquoi le cache L1 est 100× plus rapide que la RAM, pourquoi le *branch prediction* du CPU moderne est si important. Le 6502 te force à penser à ce niveau.
 
-> ✏️ **Exercice 4.5** — Mesure l'optimisation. Écris deux versions d'une boucle qui compte de 64 à 0 :
-> - **Version A** : `LDX #0 : INX : CPX #64 : BNE boucle` (compte de 0 à 64)
-> - **Version B** : `LDX #64 : DEX : BNE boucle` (compte de 64 à 0)
-> Dans chaque boucle, fais `STA $0200,X` pour écrire en mémoire. Regarde le compteur de cycles dans le panneau Registres. Quelle version est la plus rapide ?
+---
+✏️ **Exercice 4.5** — Mesure l'optimisation. Écris deux versions d'une boucle qui compte de 64 à 0 :
+ - **Version A** : `LDX #0 : INX : CPX #64 : BNE boucle` (compte de 0 à 64)
+ - **Version B** : `LDX #64 : DEX : BNE boucle` (compte de 64 à 0)
+ Dans chaque boucle, fais `STA $0200,X` pour écrire en mémoire. Regarde le compteur de cycles dans le panneau Registres. Quelle version est la plus rapide ?
 
 ---
 
@@ -1752,6 +1773,6 @@ $FFFC/$FFFD  Vecteur RESET → $E000
 
 ---
 
-*Chuck-8 Manuel de Programmation — v3.0*
+*Chuck-8 Manuel de Programmation — v3.0 (2026)*
 *Inspiré de Rodnay Zaks, Programming the 6502 (1978)*
 *"The best programs are those that emerge from constraints." — Jeff Minter*
