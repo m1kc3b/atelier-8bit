@@ -13,6 +13,7 @@ import './components/chuck-display.js';
 import './components/chuck-registers.js';
 import './components/chuck-memory-dump.js';
 import './components/chuck-challenge-panel.js';
+import './components/chuck-help-modal.js';
 
 import { bus }              from './core/bus.js';
 import { Emulator }         from './core/emulator.js';
@@ -36,6 +37,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     ?.addEventListener('click', () => registersEl?.toggle());
   document.getElementById('btn-show-memory')
     ?.addEventListener('click', () => memoryEl?.toggle());
+  document.getElementById('btn-show-help')
+    ?.addEventListener('click', () => {
+      const help = document.getElementById('modal-help') as
+        (HTMLElement & { toggle(): void }) | null;
+      help?.toggle();
+    });
 
   function openChallengeAside(): void { challengeAside?.classList.add('panel-open'); }
   function closeChallengeAside(): void { challengeAside?.classList.remove('panel-open'); }
@@ -76,12 +83,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   bus.on('chuck:assembled',    () => { sbState.textContent = 'Assemblé';     sbState.className = 'sb-state'; });
   bus.on('chuck:assemble-err', () => { sbState.textContent = 'Erreur';       sbState.className = 'sb-state error'; });
-  bus.on('chuck:run',          () => { sbState.textContent = 'En cours…';    sbState.className = 'sb-state running'; });
   bus.on('chuck:stop',         () => { sbState.textContent = 'Arrêté';       sbState.className = 'sb-state'; });
   bus.on('chuck:cpu-reset',    () => { sbState.textContent = 'Réinitialisé'; sbState.className = 'sb-state'; });
   bus.on('chuck:cpu-halted',   () => { sbState.textContent = 'Terminé';      sbState.className = 'sb-state'; });
   bus.on('chuck:cpu-error',    () => { sbState.textContent = 'Erreur CPU';   sbState.className = 'sb-state error'; });
   bus.on('chuck:code-changed', () => { sbState.textContent = 'Prêt';         sbState.className = 'sb-state'; });
+
+  // ── Au Run : ouvrir les modales et gérer les z-index ─────
+  // La modale aide reste en dessous (z-index 500)
+  // Les modales runtime (écran, registres, mémoire) passent devant (z-index 1000)
+  const helpEl = document.getElementById('modal-help') as HTMLElement | null;
+  if (helpEl) helpEl.style.zIndex = '500';
+
+  type Openable = HTMLElement & { open?(): void; classList: DOMTokenList };
+
+  function ensureOpen(el: Openable | null): void {
+    if (!el) return;
+    // Les modales flottantes utilisent soit .open() soit classList 'open'
+    if (!el.classList.contains('open')) {
+      if (el.open) el.open();
+      else el.classList.add('open');
+    }
+    el.style.zIndex = '1000';
+  }
+
+  bus.on('chuck:run', () => {
+    sbState.textContent = 'En cours…';
+    sbState.className   = 'sb-state running';
+    ensureOpen(displayEl   as Openable);
+    ensureOpen(registersEl as Openable);
+    ensureOpen(memoryEl    as Openable);
+  });
 
   bus.on('chuck:cpu-updated', ({ PC }) => {
     sbPc.textContent = `$${addr2hex(PC)}`;

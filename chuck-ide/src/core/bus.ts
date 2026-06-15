@@ -62,7 +62,8 @@ export interface ChuckEventMap {
   /** Réponse avec les données (émis par Emulator) */
   'chuck:memory-data':   { address: number; bytes: Uint8Array };
 
-  // ── Défis (ChallengeManager) ─────────────────────────────
+ // ── Aide / Formation ────────────────────────────────────
+  'chuck:open-help':    { lessonId?: number };  // ouvre la modale aide
   'chuck:challenge-loaded':  { challenge: import('../types/challenge.js').Challenge; code: string; fromStorage: boolean };
   'chuck:challenge-success': { result:    import('../types/challenge.js').ValidationResult };
   'chuck:challenge-failed':  { result:    import('../types/challenge.js').ValidationResult };

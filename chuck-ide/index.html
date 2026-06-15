@@ -43,6 +43,14 @@
           </svg>
           Mémoire
         </button>
+        <button class="titlebar-pill" id="btn-show-help" title="Formation / Aide">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Aide
+        </button>
       </div>
     </header>
 
@@ -88,6 +96,7 @@
     style="top:66px; right:440px;"></chuck-registers>
   <chuck-display     id="modal-display"
     style="top:66px; right:770px;"></chuck-display>
+  <chuck-help-modal  id="modal-help"></chuck-help-modal>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

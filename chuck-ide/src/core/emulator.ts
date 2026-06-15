@@ -76,7 +76,6 @@ export class Emulator {
   private _rafId:   number | null = null;
   private _running: boolean = false;
   private _lastOrg: number = 0xE000;
-  private _compiledCache: { org: number; bytes: Uint8Array } | null = null;
 
   // ── Initialisation ───────────────────────────────────────────
 
