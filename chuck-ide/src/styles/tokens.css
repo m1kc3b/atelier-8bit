@@ -32,8 +32,8 @@
   --cyan-dim:    rgba(56, 189, 248, 0.12);
 
   /* ── Typographie ──────────────────────────────────────── */
-  --font-ui:     -apple-system, 'Inter', 'Segoe UI', sans-serif;
-  --font-mono:   'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --font-ui:     'Inter', 'Segoe UI', sans-serif;
+  --font-mono:   'Cascadia Mono', 'Consolas', monospace;
 
   /* ── Dimensions layout ────────────────────────────────── */
   --titlebar-h:  36px;
