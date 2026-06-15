@@ -143,7 +143,7 @@ const asm6502Language = StreamLanguage.define(asm6502Parser);
 
 // Mapping tokens → highlight style
 const chuckHighlight = HighlightStyle.define([
-  { tag: t.comment, color: "#6a9955", fontStyle: "italic" },
+  { tag: t.comment, color: "#3dd68c", fontStyle: "italic" },
   { tag: t.keyword, color: "#569cd6", fontWeight: "600" }, // opcodes
   { tag: t.number, color: "#b5cea8" }, // hex/dec/bin
   { tag: t.string, color: "#ce9178" },
