@@ -175,7 +175,18 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, AssembleError> {
             }
 
             // Ponctuation
-            ':' => { chars.next(); tokens.push(Token::new(TokenKind::Colon,     line)); }
+            // ':' — deux usages :
+            // 1. Label :   LOOP:    → dernier token = Ident → Colon
+            // 2. Séparateur d'instructions :   LDA #$80 : STA $D000 → Newline
+            ':' => {
+                chars.next();
+                let is_label_colon = matches!(tokens.last(), Some(t) if matches!(t.kind, TokenKind::Ident(_)));
+                if is_label_colon {
+                    tokens.push(Token::new(TokenKind::Colon, line));
+                } else {
+                    tokens.push(Token::new(TokenKind::Newline, line));
+                }
+            }
             ',' => { chars.next(); tokens.push(Token::new(TokenKind::Comma,     line)); }
             '#' => { chars.next(); tokens.push(Token::new(TokenKind::Hash,      line)); }
             '(' => { chars.next(); tokens.push(Token::new(TokenKind::LParen,    line)); }
