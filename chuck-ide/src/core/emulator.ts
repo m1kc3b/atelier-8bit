@@ -40,6 +40,7 @@ interface ChuckCoreInstance {
   get_state(): WasmCpuState;
   vblank_tick(): void;
   memory_view(): Uint8Array;
+  memory_snapshot(): Uint8Array;
   mem_peek(addr: number): number;
   mem_poke(addr: number, val: number): void;
   take_dirty_pixels(): [number, number] | null;
@@ -360,23 +361,23 @@ export class Emulator {
     memView: Uint8Array;
     cycles: number; halted: boolean;
   } {
-    // Sauvegarde RAM programme
-    const mem    = this.core.memory_view();
-    const saved  = new Uint8Array(mem);
+    // Sauvegarde RAM — DOIT être une copie indépendante.
+    // memory_view() retourne une vue zero-copy sur le buffer Rust.
+    // new Uint8Array(view) crée une vue, pas une copie.
+    // slice() ou from() crée une vraie copie indépendante.
+    const saved = this.core.memory_view().slice();
 
     const asmR = this.core.assemble(source);
     if (!asmR.ok) {
-      // Restaure
       for (let i = 0; i < saved.length; i++) this.core.mem_poke(i, saved[i]!);
       return { ok: false, errMsg: asmR.error_msg, errLine: asmR.error_line,
                state: toBusState(this.core.get_state()), memView: saved, cycles: 0, halted: false };
     }
 
-    this.core.reset();
-    const runR  = this.core.run(maxCycles);
-    const snap  = new Uint8Array(this.core.memory_view());
+    const runR = this.core.run(maxCycles);
+    const snap = new Uint8Array(this.core.memory_snapshot());
 
-    // Restaure
+    // Restaure la RAM au contenu d'avant la validation
     for (let i = 0; i < saved.length; i++) this.core.mem_poke(i, saved[i]!);
 
     return { ok: true, errMsg: '', errLine: -1,

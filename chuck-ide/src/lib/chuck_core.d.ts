@@ -6,7 +6,7 @@ export class ChuckCore {
     [Symbol.dispose](): void;
     /**
      * Assemble `source` et charge en mémoire à partir de `.org`.
-     * Remet le CPU à l'état initial avec PC pointant sur l'org.
+     * Remet le CPU et l'IoState à l'état initial.
      */
     assemble(source: string): any;
     /**
@@ -38,8 +38,15 @@ export class ChuckCore {
      */
     mem_poke(addr: number, val: number): void;
     /**
+     * Snapshot 64 Ko avec l'état I/O synchronisé dans la zone $D000–$DFFF.
+     * Utiliser pour la validation — plus lent que memory_view() mais correct.
+     */
+    memory_snapshot(): Uint8Array;
+    /**
      * Vue zero-copy sur les 64 Ko de RAM.
      * ⚠️ Invalide si Rust réalloue — ne jamais stocker.
+     * Note : la zone I/O $D000–$DFFF reflète self.mem.ram[], pas IoState.
+     * Utiliser mem_peek() pour lire un registre I/O précis.
      */
     memory_view(): Uint8Array;
     constructor();
@@ -99,6 +106,7 @@ export interface InitOutput {
     readonly chuckcore_get_vpu_state: (a: number) => any;
     readonly chuckcore_mem_peek: (a: number, b: number) => number;
     readonly chuckcore_mem_poke: (a: number, b: number, c: number) => void;
+    readonly chuckcore_memory_snapshot: (a: number) => any;
     readonly chuckcore_memory_view: (a: number) => any;
     readonly chuckcore_new: () => number;
     readonly chuckcore_reset: (a: number) => void;

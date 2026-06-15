@@ -448,6 +448,53 @@ const STYLES = /* css */`
   ::-webkit-scrollbar       { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
+
+  /* ---------- Animations pour la validation réussie ---------- */
+
+@keyframes pulse-success {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Animation du bouton "Suivant" */
+.next-btn.success {
+  animation: pulse-success 0.5s ease-out;
+  color: var(--green) !important;
+}
+
+/* Conteneur pour les confettis */
+.feedback.success::after {
+  content: "";
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  width: 0;
+  height: 0;
+}
+
+/* Confettis (créés via JavaScript) */
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 100;
+  animation: confetti-fall 1s linear forwards;
+}
 `;
 
 // ── Composant ─────────────────────────────────────────────────
@@ -737,7 +784,11 @@ export class ChuckChallengePanel extends ChuckComponent {
       if (next && this._item && this._item.id < this._totalCount) {
         next.disabled = false;
         next.classList.add('success');
+        // Réinitialise l'animation après 0.5s pour permettre une réutilisation
+        setTimeout(() => next.classList.remove('success'), 500);
       }
+      // Création des confettis
+      this._createConfetti(el);
     } else {
       const details = result.timeout
         ? 'Programme non terminé (timeout).'
@@ -751,6 +802,37 @@ export class ChuckChallengePanel extends ChuckComponent {
 
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
+
+  private _createConfetti(parent: HTMLElement): void {
+  const rect = parent.getBoundingClientRect();
+  const container = this.shadow.querySelector('.body') as HTMLElement;
+
+  for (let i = 0; i < 15; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = `${rect.left + rect.width / 2 + (Math.random() * 40 - 20)}px`;
+    confetti.style.top = `${rect.top}px`;
+    confetti.style.background = [
+      'var(--green)',
+      'var(--cyan)',
+      'var(--amber)',
+      '#fff'
+    ][Math.floor(Math.random() * 4)];
+
+    // Taille aléatoire entre 6px et 10px
+    confetti.style.width = `${6 + Math.random() * 4}px`;
+    confetti.style.height = confetti.style.width;
+
+    // Animation aléatoire
+    confetti.style.animationDuration = `${0.8 + Math.random() * 0.4}s`;
+    confetti.style.animationDelay = `${Math.random() * 0.2}s`;
+
+    container.appendChild(confetti);
+
+    // Supprime le confetti après l'animation
+    setTimeout(() => confetti.remove(), 1000);
+  }
+}
 
   private _resetFeedback(): void {
     const el   = this.shadow.getElementById('feedback');

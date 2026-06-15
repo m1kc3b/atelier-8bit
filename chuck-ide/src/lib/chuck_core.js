@@ -13,7 +13,7 @@ export class ChuckCore {
     }
     /**
      * Assemble `source` et charge en mémoire à partir de `.org`.
-     * Remet le CPU à l'état initial avec PC pointant sur l'org.
+     * Remet le CPU et l'IoState à l'état initial.
      * @param {string} source
      * @returns {any}
      */
@@ -79,8 +79,19 @@ export class ChuckCore {
         wasm.chuckcore_mem_poke(this.__wbg_ptr, addr, val);
     }
     /**
+     * Snapshot 64 Ko avec l'état I/O synchronisé dans la zone $D000–$DFFF.
+     * Utiliser pour la validation — plus lent que memory_view() mais correct.
+     * @returns {Uint8Array}
+     */
+    memory_snapshot() {
+        const ret = wasm.chuckcore_memory_snapshot(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Vue zero-copy sur les 64 Ko de RAM.
      * ⚠️ Invalide si Rust réalloue — ne jamais stocker.
+     * Note : la zone I/O $D000–$DFFF reflète self.mem.ram[], pas IoState.
+     * Utiliser mem_peek() pour lire un registre I/O précis.
      * @returns {Uint8Array}
      */
     memory_view() {
@@ -210,6 +221,10 @@ function __wbg_get_imports() {
         },
         __wbg_new_36e147a8ced3c6e0: function() {
             const ret = new Array();
+            return ret;
+        },
+        __wbg_new_from_slice_543b875b27789a8f: function(arg0, arg1) {
+            const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
             return ret;
         },
         __wbg_push_f724b5db8acf89d2: function(arg0, arg1) {

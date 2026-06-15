@@ -108,10 +108,14 @@ impl ChuckCore {
     // ── Assemblage ────────────────────────────────────────────────────────────
 
     /// Assemble `source` et charge en mémoire à partir de `.org`.
-    /// Remet le CPU à l'état initial avec PC pointant sur l'org.
+    /// Remet le CPU et l'IoState à l'état initial.
     pub fn assemble(&mut self, source: &str) -> JsValue {
         // Réinitialise la RAM programme (garde la ROM et la VRAM)
         self.mem.ram[0xE000..0xF000].fill(0);
+
+        // Réinitialise l'IoState pour partir d'un état propre
+        // (évite que pending_nmi d'un Run précédent perturbe la validation)
+        self.mem.io = crate::io::IoState::new();
 
         let result = Assembler::assemble(source, &mut self.mem);
 
@@ -176,8 +180,21 @@ impl ChuckCore {
 
     /// Vue zero-copy sur les 64 Ko de RAM.
     /// ⚠️ Invalide si Rust réalloue — ne jamais stocker.
+    /// Note : la zone I/O $D000–$DFFF reflète self.mem.ram[], pas IoState.
+    /// Utiliser mem_peek() pour lire un registre I/O précis.
     pub fn memory_view(&self) -> js_sys::Uint8Array {
         unsafe { js_sys::Uint8Array::view(&self.mem.ram) }
+    }
+
+    /// Snapshot 64 Ko avec l'état I/O synchronisé dans la zone $D000–$DFFF.
+    /// Utiliser pour la validation — plus lent que memory_view() mais correct.
+    pub fn memory_snapshot(&self) -> js_sys::Uint8Array {
+        let mut snap = self.mem.ram;
+        // Synchronise les registres I/O courants dans le snapshot
+        for addr in 0xD000u16..=0xD3FFu16 {
+            snap[addr as usize] = self.mem.io.peek_register(addr);
+        }
+        js_sys::Uint8Array::from(&snap[..])
     }
 
     /// Lit un octet sans effet de bord.
