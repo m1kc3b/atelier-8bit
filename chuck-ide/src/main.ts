@@ -95,24 +95,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const helpEl = document.getElementById('modal-help') as HTMLElement | null;
   if (helpEl) helpEl.style.zIndex = '500';
 
-  type Openable = HTMLElement & { open?(): void; classList: DOMTokenList };
-
-  function ensureOpen(el: Openable | null): void {
+  function ensureOpen(el: (HTMLElement & { show?(): void }) | null): void {
     if (!el) return;
-    // Les modales flottantes utilisent soit .open() soit classList 'open'
-    if (!el.classList.contains('open')) {
-      if (el.open) el.open();
-      else el.classList.add('open');
-    }
+    const isOpen = el.classList.contains('visible') || el.classList.contains('open');
+    if (isOpen) return;
+    if (el.show) el.show();
+    else el.classList.add('visible');
     el.style.zIndex = '1000';
   }
 
   bus.on('chuck:run', () => {
     sbState.textContent = 'En cours…';
     sbState.className   = 'sb-state running';
-    ensureOpen(displayEl   as Openable);
-    ensureOpen(registersEl as Openable);
-    ensureOpen(memoryEl    as Openable);
+    ensureOpen(displayEl   as any);
+    ensureOpen(registersEl as any);
+    ensureOpen(memoryEl    as any);
   });
 
   bus.on('chuck:cpu-updated', ({ PC }) => {
