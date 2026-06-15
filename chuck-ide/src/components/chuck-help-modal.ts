@@ -176,7 +176,7 @@ const STYLES = /* css */`
   .content {
     flex: 1; overflow-y: auto;
     padding: 24px 32px; min-height: 0;
-    font-size: 14px; line-height: 1.75;
+    font-size: 15px; line-height: 1.75;
   }
   .content h1 {
     font-size: 22px; font-weight: 800; color: var(--text);
@@ -209,7 +209,7 @@ const STYLES = /* css */`
     color: var(--text-dim); font-size: 13px; font-style: italic;
   }
   .content code {
-    font-family: var(--font-mono); font-size: 11.5px;
+    font-family: var(--font-mono); font-size: 13px;
     background: var(--surface-3); color: var(--cyan);
     padding: 1px 5px; border-radius: 3px;
   }
@@ -247,7 +247,7 @@ const STYLES = /* css */`
     overflow-x: auto;
     margin: 0;
     font-family: var(--font-mono);
-    font-size: 12px; line-height: 1.65;
+    font-size: 14px; line-height: 1.65;
     color: var(--cyan); /* couleur uniforme pour tout le code */
     white-space: pre;
   }
