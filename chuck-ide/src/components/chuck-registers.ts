@@ -397,9 +397,9 @@ export class ChuckRegisters extends ChuckComponent {
   }
 
   /** Demande une lecture mémoire à Emulator via le Bus */
-  private updateMonitor(): void {
-    this.emit('chuck:memory-read', { address: this._monitorAddr, length: 16 });
-  }
+  // private updateMonitor(): void {
+  //   this.emit('chuck:memory-read', { address: this._monitorAddr, length: 16 });
+  // }
 
   /** Rendu du tableau à partir du cache _monitorBytes */
   private _renderMonitor(): void {
