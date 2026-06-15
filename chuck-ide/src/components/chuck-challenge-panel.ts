@@ -153,7 +153,8 @@ export class ChuckChallengePanel extends ChuckComponent {
     const next = this.shadow.getElementById('next-btn') as HTMLButtonElement;
     if (!this._item) return;
     prev.disabled = this._item.id <= 1;
-    next.disabled = this._item.id >= this._totalCount;
+    // next toujours désactivé — activé uniquement après validation réussie
+    next.disabled = true;
     next.classList.remove('success');
   }
 
@@ -314,6 +315,24 @@ export class ChuckChallengePanel extends ChuckComponent {
       el.innerHTML = `
         <div class="fb-title">✓ Défi réussi !</div>
         <div class="fb-cycles">${result.cycles} cycle(s) CPU</div>`;
+
+      // Cacher le bouton valider
+      const btn = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
+      if (btn) btn.style.display = 'none';
+
+      // Badge "✓ Validé" dans le header à côté du titre
+      const titleEl = this.shadow.getElementById('panel-title')!;
+      if (!this.shadow.getElementById('validated-badge')) {
+        const badge = document.createElement('span');
+        badge.id = 'validated-badge';
+        badge.textContent = '✓';
+        badge.style.cssText =
+          'font-size:13px;font-weight:700;color:var(--green);' +
+          'flex-shrink:0;margin-left:2px;';
+        titleEl.insertAdjacentElement('afterend', badge);
+      }
+
+      // Activer next uniquement si pas dernier défi
       if (next && this._item && this._item.id < this._totalCount) {
         next.disabled = false;
         next.classList.add('success');
@@ -426,8 +445,12 @@ export class ChuckChallengePanel extends ChuckComponent {
   private _resetFeedback(): void {
     const el   = this.shadow.getElementById('feedback');
     const next = this.shadow.getElementById('next-btn') as HTMLButtonElement | null;
-    if (el)   el.className = 'feedback';
-    if (next) { next.classList.remove('success'); this._updateNav(); }
+    const btn  = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
+    const badge = this.shadow.getElementById('validated-badge');
+    if (el)    el.className = 'feedback';
+    if (btn)   btn.style.display = '';
+    if (badge) badge.remove();
+    if (next)  { next.classList.remove('success'); this._updateNav(); }
   }
 
   // ── Markdown ──────────────────────────────────────────────────
