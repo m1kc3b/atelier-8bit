@@ -230,6 +230,9 @@ export class ChuckRegisters extends ChuckComponent {
   private _monitorAddr = 0x0000;
   // Cache des derniers octets lus
   private _monitorBytes = new Uint8Array(16) as Uint8Array;
+  // buffer local complet de 64 Ko (RAM Chuck-8)
+  private _localRam = new Uint8Array(65536);
+  private _fullRam = new Uint8Array(65536);
 
   protected render(): void {
     this.shadow.innerHTML = `<style>${STYLES}</style>
@@ -294,20 +297,38 @@ export class ChuckRegisters extends ChuckComponent {
     this.shadow.getElementById('close')!
       .addEventListener('click', () => this.hide());
 
+    // Gestionnaire du bouton "Go" - VERSION BLINDÉE
+    // Gestionnaire du bouton "Go" - VERSION NETTOYÉE ET AUTONOME
     this.shadow.getElementById('goto-btn')!
       .addEventListener('click', () => {
-        const raw = (this.shadow.getElementById('goto-input') as HTMLInputElement).value.trim();
-        let addr: number | null = null;
-        if (/^\$[0-9a-fA-F]+$/.test(raw))   addr = parseInt(raw.slice(1), 16);
-        else if (/^[0-9a-fA-F]+$/.test(raw)) addr = parseInt(raw, 16);
-        else if (/^\d+$/.test(raw))           addr = parseInt(raw, 10);
-        if (addr !== null) {
-          this._monitorAddr = addr & 0xffff;
-          // Naviguer le PC du CPU
-          this.emit('chuck:goto', { address: this._monitorAddr });
-          // Rafraîchir le moniteur à la nouvelle adresse
-          this.updateMonitor();
+        const inputEl = this.shadow.getElementById('goto-input') as HTMLInputElement;
+        const raw = inputEl.value.trim().toUpperCase();
+        
+        let addr = 0;
+
+        if (raw.startsWith('$')) {
+          addr = parseInt(raw.substring(1), 16);
+        } else if (raw.startsWith('0X')) {
+          addr = parseInt(raw.substring(2), 16);
+        } else if (/^[0-9A-F]+$/.test(raw) && raw.length >= 3) {
+          addr = parseInt(raw, 16);
+        } else {
+          addr = parseInt(raw, 10);
         }
+
+        if (isNaN(addr)) {
+          console.warn(`[CHUCK] Parsing échoué pour "${raw}", repli sur $E000`);
+          addr = 0xE000;
+        }
+
+        // 1. On met à jour l'adresse cible du moniteur localement
+        this._monitorAddr = addr & 0xffff;
+        
+        // 2. PLUS D'EMIT DE MERDE VERS L'ÉMULATEUR ! 
+        // On ne demande rien à Rust, donc la RAM ne sera JAMAIS réinitialisée.
+        
+        // 3. On force immédiatement le rendu de la page de 256 octets correspondante
+        this._renderMonitor();
       });
 
     this.sub('chuck:cpu-updated', (s) => this.updateRegs(s));
@@ -316,14 +337,24 @@ export class ChuckRegisters extends ChuckComponent {
 
     // Recevoir les données mémoire depuis Emulator
     this.sub('chuck:memory-data', ({ address, bytes }) => {
-      if (address === this._monitorAddr) {
-        this._monitorBytes = new Uint8Array(bytes);
-        this._renderMonitor();
-      }
+      const incoming = new Uint8Array(bytes);
+
+      // On injecte les données au bon endroit (si c'est le dump de 65536, ça remplace tout)
+      this._fullRam.set(incoming, address & 0xffff);
+
+      // On relance ton affichage par page de 256 octets
+      this._renderMonitor();
     });
 
     makeDraggable(this, this.shadow.getElementById('bar')!);
     makeResizable(this, this.shadow.getElementById('resize')!);
+  }
+
+  /** Helper pour extraire les 16 octets du moniteur depuis le cache local */
+  private _sliceMonitorBytes(): void {
+    for (let i = 0; i < 16; i++) {
+      this._monitorBytes[i] = this._localRam[(this._monitorAddr + i) & 0xffff]!;
+    }
   }
 
   private updateRegs(state: CpuState): void {
@@ -346,7 +377,8 @@ export class ChuckRegisters extends ChuckComponent {
       this.shadow.getElementById(id)!.classList.toggle('set', (state.P & mask) !== 0);
     }
 
-    this.updateMonitor();
+    this._sliceMonitorBytes();
+    this._renderMonitor();
     this._prev = { ...state };
 
     // Status bar PC
@@ -373,10 +405,17 @@ export class ChuckRegisters extends ChuckComponent {
   private _renderMonitor(): void {
     const tbody = this.shadow.getElementById('monitor-body');
     if (!tbody) return;
+
     const rows: string[] = [];
-    for (let i = 0; i < this._monitorBytes.length; i++) {
-      const addr = (this._monitorAddr + i) & 0xffff;
-      const v    = this._monitorBytes[i]!;
+    const pageSize = 256;
+    
+    // Aligne l'affichage sur le début de la page de 256 octets courante (ex: 0x0000)
+    const baseAddr = this._monitorAddr & 0xff00; 
+
+    for (let i = 0; i < pageSize; i++) {
+      const addr = (baseAddr + i) & 0xffff;
+      const v    = this._fullRam[addr]!; 
+      
       rows.push(`<tr>
         <td>$${addr2hex(addr)}</td>
         <td>${v}</td>
@@ -384,6 +423,7 @@ export class ChuckRegisters extends ChuckComponent {
         <td>${num2bin(v)}</td>
       </tr>`);
     }
+    
     tbody.innerHTML = rows.join('');
   }
 
