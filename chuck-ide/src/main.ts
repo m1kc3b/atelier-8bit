@@ -81,12 +81,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const addr2hex = (n: number) => n.toString(16).padStart(4, '0').toUpperCase();
 
-  bus.on('chuck:assembled',    () => { sbState.textContent = 'Assemblé';     sbState.className = 'sb-state'; });
+  bus.on('chuck:assembled',    () => { sbState.textContent = 'Assemblé';     sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
   bus.on('chuck:assemble-err', () => { sbState.textContent = 'Erreur';       sbState.className = 'sb-state error'; });
-  bus.on('chuck:stop',         () => { sbState.textContent = 'Arrêté';       sbState.className = 'sb-state'; });
-  bus.on('chuck:cpu-reset',    () => { sbState.textContent = 'Réinitialisé'; sbState.className = 'sb-state'; });
-  bus.on('chuck:cpu-halted',   () => { sbState.textContent = 'Terminé';      sbState.className = 'sb-state'; });
-  bus.on('chuck:cpu-error',    () => { sbState.textContent = 'Erreur CPU';   sbState.className = 'sb-state error'; });
+  bus.on('chuck:stop',         () => { sbState.textContent = 'Arrêté';       sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
+  bus.on('chuck:cpu-reset',    () => { sbState.textContent = 'Réinitialisé'; sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
+  bus.on('chuck:cpu-halted',   () => { sbState.textContent = 'Terminé';      sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
+  bus.on('chuck:cpu-error',    () => { sbState.textContent = 'Erreur CPU';   sbState.className = 'sb-state error';   bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
   bus.on('chuck:code-changed', () => { sbState.textContent = 'Prêt';         sbState.className = 'sb-state'; });
 
   // ── Au Run : ouvrir les modales et gérer les z-index ─────
