@@ -284,6 +284,9 @@ export class Emulator {
     // Rendu initial — force même si rien de dirty (VRAM peut être propre)
     this._flushDisplay(true);
     this._emitVpuState();
+    // Force un Hexdump automatique dans la console de logs de l'IDE dès 
+    // que l'assemblage réussit pour valider visuellement le contenu de la RAM.
+    this._hexdump();
   }
 
   private _run(): void {
