@@ -204,7 +204,7 @@ const STYLES = /* css */`
   .content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
   .content blockquote {
     margin: 10px 0; padding: 8px 14px;
-    border-left: 3px solid var(--cyan-dim);
+    border-left: 3px solid var(--accent-dim);
     background: var(--surface-3); border-radius: 0 5px 5px 0;
     color: var(--text-dim); font-size: 13px; font-style: italic;
   }
@@ -212,7 +212,7 @@ const STYLES = /* css */`
     font-family: var(--font-mono); font-size: 13px;
     background: var(--surface-3); color: var(--text);
     padding: 1px 5px; border-radius: 3px;
-    border: 2px solid var(--cyan-dim);
+    border: 2px solid var(--accent-dim);
   }
 
   /* Bloc de code avec bouton Copier */
@@ -241,7 +241,7 @@ const STYLES = /* css */`
 
   .content pre {
     background: var(--surface-3);
-    border: 2px solid var(--cyan-dim);
+    border: 2px solid var(--accent-dim);
     border-radius: 6px;
     padding: 14px 16px;
     padding-right: 80px; /* espace pour le bouton */
@@ -249,7 +249,7 @@ const STYLES = /* css */`
     margin: 0;
     font-family: var(--font-mono);
     font-size: 14px; line-height: 1.65;
-    color: var(--cyan); /* couleur uniforme pour tout le code */
+    color: var(--text); /* couleur uniforme pour tout le code */
     white-space: pre;
   }
 
@@ -274,6 +274,18 @@ const STYLES = /* css */`
   .content::-webkit-scrollbar       { width: 5px; }
   .content::-webkit-scrollbar-track { background: transparent; }
   .content::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
+
+  .content .exercice {
+    margin: 10px 0;
+    padding: 8px 14px;
+    border-left: 3px solid var(--accent-dim);
+    background: var(--surface-3);
+    border-radius: 0 5px 5px 0;
+    color: var(--text); /* Police normale, pas italique */
+    font-size: 13px;
+    font-style: normal; /* Annule l'italique */
+    font-family: var(--font-ui); /* Police standard */
+  }
 `;
 
 const CHAPTERS = [

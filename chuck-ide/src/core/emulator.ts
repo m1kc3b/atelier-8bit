@@ -35,6 +35,7 @@ interface WasmSpuState { voices: WasmSpuVoice[]; master_vol: number; }
 interface ChuckCoreInstance {
   assemble(src: string): { ok: boolean; error_msg: string; error_line: number; bytes_written: number; org: number };
   reset(): void;
+  soft_reset(): void;
   run(maxCycles: number): { cycles: number; halted: boolean; state: WasmCpuState };
   step(): { cycles: number; halted: boolean; disasm: string; state: WasmCpuState };
   get_state(): WasmCpuState;
@@ -255,28 +256,31 @@ export class Emulator {
 
   // ── Commandes ─────────────────────────────────────────────────
 
- private _assemble(source: string): void {
+  private _assemble(source: string): void {
     this._stopLoop();
     const result = this.core.assemble(source);
 
     if (!result.ok) {
       bus.emit('chuck:assemble-err', { line: result.error_line, err: result.error_msg });
+      bus.emit('chuck:log', {
+        text:  `✗ Erreur L${result.error_line} : ${result.error_msg}`,
+        level: 'err',
+      });
       return;
     }
 
     this._lastOrg = result.org;
 
-    // FIX ICI : Au lieu de memory_view(), on appelle memory_snapshot()
-    // pour forcer Rust à injecter les registres I/O ($D000) dans le tableau exporté.
-    const ramSnapshot = this.core.memory_snapshot(); 
-
-    // Notifier l'UI
-    const compiledBytes = ramSnapshot.subarray(result.org, result.org + result.bytes_written);
-    bus.emit('chuck:assembled', { ok: true, bytes: result.bytes_written, buf: Array.from(compiledBytes) });
+    bus.emit('chuck:assembled', { ok: true, bytes: result.bytes_written, buf: [] });
     bus.emit('chuck:cpu-updated', toBusState(this.core.get_state()));
+    bus.emit('chuck:log', {
+      text:  `✓ ${result.bytes_written} octets → $${hex4(result.org)}–$${hex4(result.org + result.bytes_written - 1)}`,
+      level: 'ok',
+    });
 
-    // On envoie le snapshot complet de 64 Ko avec la zone $D000 peuplée !
-    bus.emit('chuck:memory-data', { address: 0, bytes: ramSnapshot });
+    // Rendu initial — force même si rien de dirty (VRAM peut être propre)
+    this._flushDisplay(true);
+    this._emitVpuState();
   }
 
   private _run(): void {
@@ -294,10 +298,11 @@ export class Emulator {
 
   private _reset(): void {
     this._stopLoop();
-    this.core.reset();
-    this._flushDisplay();
+    this.core.soft_reset();           // préserve $E000–$EFFF
+    this._flushDisplay(true);         // écran noir
     bus.emit('chuck:cpu-reset', toBusState(this.core.get_state()));
-    bus.emit('chuck:log', { text: '↺ RESET → $E000', level: 'info' });
+    bus.emit('chuck:toolbar-state', { state: 'assembled' }); // reste assemblé
+    bus.emit('chuck:log', { text: '↺ Reset — PC=$E000, mémoire programme préservée', level: 'info' });
     this._emitVpuState();
   }
 
@@ -314,31 +319,12 @@ export class Emulator {
   }
 
   private _goto(address: number): void {
-    if (!this.core) return;
-
-    // 1. On écrit l'adresse cible dans les vecteurs de reset matériels $FFFC/$FFFD
+    // Place $E000 dans le vecteur RESET et déclenche un soft reset
     this.core.mem_poke(0xFFFC, address & 0xFF);
     this.core.mem_poke(0xFFFD, (address >> 8) & 0xFF);
-    
-    // 2. RE-INJECTION DU CODE SOURCE : Au lieu de appeler this.core.reset() qui efface TOUT,
-    // on demande à l'assembleur Rust de recompile/ré-écrire le code actuel dans la RAM.
-    // Cela remet les octets à leur place ($E000, $D000) et cale le PC sur result.org sans purger la RAM.
-    const editorElement = document.querySelector('monaco-editor') as any; 
-    const currentSource = editorElement?.value || window.localStorage.getItem('chuck_current_code') || "";
-    
-    if (currentSource) {
-      this.core.assemble(currentSource);
-    } else {
-      // Si vraiment aucun code source n'est trouvé, on fait le reset par défaut
-      this.core.reset(); 
-    }
-
-    // 3. On reprend le snapshot avec les registres I/O synchronisés
-    const ramSnapshot = this.core.memory_snapshot();
-
-    // 4. On balance la RAM saine au composant pour qu'il garde l'affichage à jour
-    bus.emit('chuck:memory-data', { address: 0, bytes: ramSnapshot });
+    this.core.reset();
     bus.emit('chuck:cpu-updated', toBusState(this.core.get_state()));
+    bus.emit('chuck:log', { text: `⤷ PC → $${hex4(address)}`, level: 'info' });
   }
 
   private _hexdump(): void {
@@ -354,9 +340,8 @@ export class Emulator {
   }
 
   private _memRead(address: number, length: number): void {
-    if (!this.core) return;
-    const mem = this.core.memory_view();
-    const bytes = new Uint8Array(mem.subarray(address, address + length)).slice();
+    const mem   = this.core.memory_view();
+    const bytes = new Uint8Array(mem.subarray(address, address + length));
     bus.emit('chuck:memory-data', { address, bytes });
   }
 
@@ -378,10 +363,12 @@ export class Emulator {
     memView: Uint8Array;
     cycles: number; halted: boolean;
   } {
-    // 1. Sauvegarde RAM avant la validation
+    // Sauvegarde RAM — DOIT être une copie indépendante.
+    // memory_view() retourne une vue zero-copy sur le buffer Rust.
+    // new Uint8Array(view) crée une vue, pas une copie.
+    // slice() ou from() crée une vraie copie indépendante.
     const saved = this.core.memory_view().slice();
 
-    // 2. Assemblage de test
     const asmR = this.core.assemble(source);
     if (!asmR.ok) {
       for (let i = 0; i < saved.length; i++) this.core.mem_poke(i, saved[i]!);
@@ -389,35 +376,16 @@ export class Emulator {
                state: toBusState(this.core.get_state()), memView: saved, cycles: 0, halted: false };
     }
 
-    // 3. Exécution headless
     const runR = this.core.run(maxCycles);
     const snap = new Uint8Array(this.core.memory_snapshot());
 
-    // 4. Restaure la RAM au contenu d'avant la validation (ce qui remet des zéros partout)
+    // Restaure la RAM au contenu d'avant la validation
     for (let i = 0; i < saved.length; i++) this.core.mem_poke(i, saved[i]!);
-
-    // 5. FIX HISTORIQUE : On ré-injecte de force le vrai code assemblé 
-    // qui vient d'être effacé par la boucle de restauration ci-dessus !
-    const fullMem = this.core.memory_view();
-    const compiledBytes = fullMem.subarray(asmR.org, asmR.org + asmR.bytes_written);
-    
-    // Si la RAM restaurée a effacé le code (premier octet à 0), on ré-injecte le binaire
-    if (this.core.mem_peek(asmR.org) === 0 && asmR.bytes_written > 0) {
-      // On reprend les octets depuis le code source ré-assemblé pour être sûr
-      const tempCore = new (this.core.constructor as any)(); 
-      const tempRes = tempCore.assemble(source);
-      if (tempRes.ok) {
-        const freshBytes = tempCore.memory_view().subarray(tempRes.org, tempRes.org + tempRes.bytes_written);
-        for (let i = 0; i < freshBytes.length; i++) {
-          this.core.mem_poke((tempRes.org + i) & 0xffff, freshBytes[i]!);
-        }
-      }
-    }
 
     return { ok: true, errMsg: '', errLine: -1,
              state: toBusState(runR.state), memView: snap,
              cycles: runR.cycles, halted: runR.halted };
-    }
+  }
 
   // ── Helpers display ───────────────────────────────────────────
 

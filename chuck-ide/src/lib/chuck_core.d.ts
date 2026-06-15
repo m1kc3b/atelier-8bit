@@ -75,6 +75,11 @@ export class ChuckCore {
      */
     set_pad(pad: number, state: number): void;
     /**
+     * Soft reset : préserve le code programme, remet CPU + RAM basse + IoState à zéro.
+     * C'est ce que fait le bouton Reset de l'IDE.
+     */
+    soft_reset(): void;
+    /**
      * Exécute une seule instruction (mode debug pas-à-pas).
      */
     step(): any;
@@ -114,6 +119,7 @@ export interface InitOutput {
     readonly chuckcore_set_key: (a: number, b: number, c: number, d: number) => void;
     readonly chuckcore_set_mouse: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly chuckcore_set_pad: (a: number, b: number, c: number) => void;
+    readonly chuckcore_soft_reset: (a: number) => void;
     readonly chuckcore_step: (a: number) => any;
     readonly chuckcore_take_dirty_pixels: (a: number) => any;
     readonly chuckcore_vblank_tick: (a: number) => void;

@@ -216,18 +216,13 @@ export class ChuckToolbar extends ChuckComponent {
     this.sub('chuck:toolbar-state', ({ state }) => this.applyState(state));
     this.sub('chuck:assembled',     () => this.applyState('assembled'));
     this.sub('chuck:assemble-err',  () => this.applyState('idle'));
-    this.sub('chuck:cpu-reset',     () => this.applyState('idle'));
-    this.sub('chuck:cpu-halted',    () => {
-      const debugOn = this.shadow.getElementById('btn-debug')?.classList.contains('active') ?? false;
-      this.applyState(debugOn ? 'debugging' : 'assembled');
-    });
+    this.sub('chuck:cpu-halted',    () => this.applyState('assembled'));
     this.sub('chuck:code-changed',  () => this.applyState('idle'));
   }
 
   private dispatchAction(action: string): void {
     switch (action) {
       case 'assemble': {
-        // Récupérer le source depuis l'éditeur via un événement DOM natif
         const editorEl = document.getElementById('editor') as (HTMLElement & { getSource?: () => string }) | null;
         const source   = editorEl?.getSource?.() ?? '';
         this.emit('chuck:assemble', { source });
@@ -236,44 +231,62 @@ export class ChuckToolbar extends ChuckComponent {
       case 'run': {
         if (this._state === 'running') {
           this.emit('chuck:stop', undefined);
-        } else {
+          this.applyState('paused');
+        } else if (this._state === 'paused' || this._state === 'assembled') {
+          this.emit('chuck:run', undefined);
+          this.applyState('running');
+        } else if (this._state === 'debugging') {
+          this.emit('chuck:debug', { enabled: false });
           this.emit('chuck:run', undefined);
           this.applyState('running');
         }
         break;
       }
-      case 'step':        this.emit('chuck:step',        undefined); break;
-      case 'reset':       this.emit('chuck:reset',       undefined); break;
-      case 'hexdump':     this.emit('chuck:hexdump',     undefined); break;
-      case 'disassemble': this.emit('chuck:disassemble', undefined); break;
-      case 'debug': {
-        // Toggle debug : ne s'active que si on est assemblé ou déjà en debug
-        if (!['assembled', 'debugging'].includes(this._state)) break;
-        const nowDebugging = this._state !== 'debugging';
-        // Mettre à jour visuellement le bouton
-        const dbgBtn = this.shadow.getElementById('btn-debug');
-        dbgBtn?.classList.toggle('active', nowDebugging);
-        this.emit('chuck:debug', { enabled: nowDebugging });
-        this.applyState(nowDebugging ? 'debugging' : 'assembled');
+      case 'step': {
+        if (this._state === 'paused') {
+          this.emit('chuck:debug', { enabled: true });
+          this.applyState('debugging');
+        }
+        this.emit('chuck:step', undefined);
         break;
       }
+      case 'reset': {
+        this.emit('chuck:reset', undefined);
+        break;
+      }
+      case 'debug': {
+        if (this._state === 'assembled' || this._state === 'paused') {
+          this.emit('chuck:debug', { enabled: true });
+          this.applyState('debugging');
+        } else if (this._state === 'debugging') {
+          this.emit('chuck:debug', { enabled: false });
+          this.applyState('assembled');
+        }
+        break;
+      }
+      case 'hexdump':     this.emit('chuck:hexdump',     undefined); break;
+      case 'disassemble': this.emit('chuck:disassemble', undefined); break;
     }
   }
 
   private applyState(state: ToolbarState): void {
     this._state = state;
 
-    const assembled  = ['assembled', 'running', 'debugging'].includes(state);
-    const running    = state === 'running';
-    const debugging  = state === 'debugging';
+    const idle      = state === 'idle';
+    const running   = state === 'running';
+    const paused    = state === 'paused';
+    const debugging = state === 'debugging';
 
-    this.setDisabled('assemble',    assembled);
-    this.setDisabled('run',         !assembled || debugging);  // Run désactivé en debug
-    this.setDisabled('step',        !debugging);
-    this.setDisabled('reset',       !assembled);
-    this.setDisabled('hexdump',     !assembled);
-    this.setDisabled('disassemble', !assembled);
+    // Tableau des permissions par état (voir commentaire dans bus.ts)
+    this.setDisabled('assemble',    !idle && state !== 'assembled');
+    this.setDisabled('run',         idle || debugging);
+    this.setDisabled('step',        idle || state === 'assembled' || running);
+    this.setDisabled('reset',       idle);
+    this.setDisabled('debug',       idle || running);
+    this.setDisabled('hexdump',     idle || running);
+    this.setDisabled('disassemble', idle || running);
 
+    // Bouton Run ↔ Stop ↔ Reprendre
     const runBtn  = this.shadow.querySelector<HTMLButtonElement>('[data-action="run"]')!;
     const runSvg  = runBtn?.querySelector('svg')!;
     const runSpan = runBtn?.querySelector('span')!;
@@ -285,10 +298,18 @@ export class ChuckToolbar extends ChuckComponent {
         <rect x="14" y="4" width="4" height="16" fill="currentColor"/>`;
     } else {
       runBtn.classList.remove('running');
-      runSpan.textContent = 'Run';
+      runSpan.textContent = paused ? 'Reprendre' : 'Run';
       runSvg.innerHTML = `<polygon points="5,3 19,12 5,21" fill="currentColor"/>`;
     }
 
+    // Bouton Debug : actif (allumé) quand on est en mode debug, label change
+    const dbgBtn  = this.shadow.getElementById('btn-debug');
+    const dbgSpan = dbgBtn?.querySelector('span');
+    if (dbgBtn) {
+      dbgBtn.classList.toggle('active', debugging);
+      dbgBtn.title = debugging ? 'Quitter le mode debug' : 'Mode debug pas à pas';
+      if (dbgSpan) dbgSpan.textContent = debugging ? 'Quitter' : 'Debug';
+    }
   }
 
   private setDisabled(action: string, disabled: boolean): void {

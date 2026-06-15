@@ -57,12 +57,10 @@ export interface ChuckEventMap {
   'chuck:toolbar-state': { state: ToolbarState };
 
   // ── Mémoire — lecture à la demande ──────────────────────
-  /** Demander la lecture d'un bloc mémoire (émis par l'UI) */
   'chuck:memory-read':   { address: number; length: number };
-  /** Réponse avec les données (émis par Emulator) */
   'chuck:memory-data':   { address: number; bytes: Uint8Array };
 
- // ── Aide / Formation ────────────────────────────────────
+  // ── Aide / Formation ────────────────────────────────────
   'chuck:open-help':    { lessonId?: number };  // ouvre la modale aide
   'chuck:challenge-loaded':  { challenge: import('../types/challenge.js').Challenge; code: string; fromStorage: boolean };
   'chuck:challenge-success': { result:    import('../types/challenge.js').ValidationResult };
@@ -73,7 +71,7 @@ export interface ChuckEventMap {
 }
 
 export type ChuckEventName = keyof ChuckEventMap;
-export type ToolbarState   = 'idle' | 'assembled' | 'running' | 'debugging';
+export type ToolbarState   = 'idle' | 'assembled' | 'running' | 'paused' | 'debugging';
 
 /* ── Bus singleton ───────────────────────────────────────────── */
 export class EventBus {

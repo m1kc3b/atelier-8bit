@@ -151,6 +151,13 @@ export class ChuckCore {
         wasm.chuckcore_set_pad(this.__wbg_ptr, pad, state);
     }
     /**
+     * Soft reset : préserve le code programme, remet CPU + RAM basse + IoState à zéro.
+     * C'est ce que fait le bouton Reset de l'IDE.
+     */
+    soft_reset() {
+        wasm.chuckcore_soft_reset(this.__wbg_ptr);
+    }
+    /**
      * Exécute une seule instruction (mode debug pas-à-pas).
      * @returns {any}
      */

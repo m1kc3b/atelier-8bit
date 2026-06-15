@@ -108,6 +108,25 @@ impl Memory {
         self.dirty_max = 0x0000;
     }
 
+    /// Reset "soft" : remet à zéro la RAM, la VRAM et l'IoState
+    /// mais PRÉSERVE le code programme à $E000–$EFFF.
+    /// Utilisé par le bouton Reset de l'IDE — le code reste en mémoire,
+    /// le CPU repart depuis $E000 avec un état propre.
+    pub fn soft_reset(&mut self) {
+        self.ram[0x0000..0xE000].fill(0);  // RAM basse + VRAM (efface l'écran)
+        // $E000–$EFFF : on préserve le code programme — pas de fill()
+        self.ram[0xF000..=0xFFFF].copy_from_slice(&self.rom);
+        if let Some(ref cart) = self.cart {
+            self.ram[0x8000..0xC000].copy_from_slice(cart.as_ref());
+        }
+        self.io        = IoState::new();
+        self.dirty_min = 0xFFFF;
+        self.dirty_max = 0x0000;
+        // Marque la VRAM comme dirty pour forcer un re-rendu (écran noir)
+        self.dirty_min = 0x4000;
+        self.dirty_max = 0x7FFF;
+    }
+
     // ── Lecture CPU (avec effets de bord) ─────────────────────────────────────
 
     #[inline]
@@ -502,22 +521,22 @@ mod tests {
         assert_eq!(m.peek(0xD210), 0xFF, "peek($D210) = PAD1_STATE par défaut");
     }
 
-    // #[test]
-    // fn io_write_readable_via_peek() {
-    //     let mut m = Memory::new();
-    //     // VPU_INK
-    //     m.write(0xD00D, 7);
-    //     assert_eq!(m.peek(0xD00D), 7);
-    //     // VPU_PAPER
-    //     m.write(0xD00E, 6);
-    //     assert_eq!(m.peek(0xD00E), 6);
-    // }
-    //     let mut m = Memory::new();
-    //     // Écrire VPU_CTRL
-    //     m.write(0xD000, 0x81); // enable + mode gfx
-    //     assert_eq!(m.io.vpu.ctrl, 0x81);
-    //     assert_eq!(m.read(0xD000), 0x81);
-    // }
+    #[test]
+    fn io_write_readable_via_peek() {
+        let mut m = Memory::new();
+        // VPU_INK
+        m.write(0xD00D, 7);
+        assert_eq!(m.peek(0xD00D), 7);
+        // VPU_PAPER
+        m.write(0xD00E, 6);
+        assert_eq!(m.peek(0xD00E), 6);
+        
+        let mut m = Memory::new();
+        // Écrire VPU_CTRL
+        m.write(0xD000, 0x81); // enable + mode gfx
+        assert_eq!(m.io.vpu.ctrl, 0x81);
+        assert_eq!(m.read(0xD000), 0x81);
+    }
 
     #[test]
     fn ram_read_write() {

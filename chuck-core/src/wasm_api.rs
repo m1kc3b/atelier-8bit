@@ -142,6 +142,13 @@ impl ChuckCore {
         self.cpu.reset(&mut self.mem);
     }
 
+    /// Soft reset : préserve le code programme, remet CPU + RAM basse + IoState à zéro.
+    /// C'est ce que fait le bouton Reset de l'IDE.
+    pub fn soft_reset(&mut self) {
+        self.mem.soft_reset();
+        self.cpu.reset(&mut self.mem);  // relit $FFFC/$FFFD → PC = $E000
+    }
+
     /// Exécute jusqu'à `max_cycles` cycles ou BRK.
     pub fn run(&mut self, max_cycles: f64) -> JsValue {
         let result = self.cpu.run(&mut self.mem, max_cycles as u64);
