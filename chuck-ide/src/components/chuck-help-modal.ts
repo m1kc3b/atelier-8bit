@@ -327,7 +327,15 @@ export class ChuckHelpModal extends ChuckComponent {
         const btn = (e.target as HTMLElement).closest('.copy-btn') as HTMLElement | null;
         if (!btn) return;
         const b64  = btn.dataset['code'] ?? '';
-        const text = decodeURIComponent(escape(atob(b64)));
+        let text = decodeURIComponent(escape(atob(b64)));
+
+        // Vérification et ajout de ".org $E000" au début si absent
+        const comment = `; ══════════════════════════════════════════════════\n;  CHUCK-8 COMPUTER\n;  Ce code copié/coller depuis Formation\n; ══════════════════════════════════════════════════\n\n`;
+        const directive = '.org $E000\n\n\n';
+        if (!text.includes('.org $E000')) {
+          text = comment + directive + text;
+        }
+
         // Copier dans le presse-papier ET dans l'éditeur
         navigator.clipboard.writeText(text).catch(() => {});
         // Tenter d'injecter dans l'éditeur Chuck-IDE
