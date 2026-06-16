@@ -14,13 +14,18 @@ import {
 import type { ContentItem, ContentFile, ChallengeItem, ContentBlock } from '../types/content.js';
 
 const STORAGE_PREFIX     = 'chuck_day_';
+const COMPLETED_KEY      = 'chuck8_completed';  // {[id]: {medal: '🥇'|'🥈'|'🥉', hintsUsed: number}}
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE      = 'chuck:ide-free' as const;
+const FREE_CHALLENGES    = 3;  // défis 1-3 accessibles sans restriction
 
 const FLAGS: Record<string, number> = {
   N: 0b1000_0000, V: 0b0100_0000, B: 0b0001_0000,
   D: 0b0000_1000, I: 0b0000_0100, Z: 0b0000_0010, C: 0b0000_0001,
 };
+
+type MedalData = { medal: '🥇' | '🥈' | '🥉'; hintsUsed: number };
+type CompletedMap = Record<number, MedalData>;
 
 export class ChallengeManager {
   private _challenges:  Map<number, Challenge>    = new Map();
@@ -94,15 +99,25 @@ export class ChallengeManager {
   }
 
   private _loadById(id: number): void {
-    // Chercher d'abord dans les défis, puis dans le contenu
     const challenge = this._challenges.get(id);
     if (challenge) {
+      // Vérifie l'accessibilité — redirige vers le dernier accessible si besoin
+      if (!this.isAccessible(id)) {
+        const last = this.lastAccessible();
+        bus.emit('chuck:log', {
+          text: `🔒 Défi ${id} verrouillé — valide d'abord le défi ${id - 1}.`,
+          level: 'err',
+        });
+        this._loadChallenge(last);
+        const url = new URL(window.location.href);
+        url.searchParams.set('challenge', String(last));
+        window.history.replaceState({}, '', url.toString());
+        return;
+      }
       this._loadChallenge(id); return;
     }
     const item = this._contentItems.get(id);
-    if (item) {
-      this._loadContentItem(item); return;
-    }
+    if (item) { this._loadContentItem(item); return; }
     bus.emit('chuck:log', { text: `Item #${id} introuvable.`, level: 'err' });
   }
 
@@ -110,15 +125,15 @@ export class ChallengeManager {
     const challenge = this._challenges.get(id);
     if (!challenge) return;
     this._current = challenge;
-
-    // Convertit en ContentItem pour le panneau générique
-    const item = challengeToContentItem(challenge);
+    const item  = challengeToContentItem(challenge);
     this._currentItem = item;
     const saved = this._loadFromStorage(id);
+    const medal = this.getMedal(id);
     bus.emit('chuck:challenge-loaded', {
       challenge,
       code:        saved ?? challenge.template,
       fromStorage: saved !== null,
+      medal:       medal?.medal,
     });
   }
 
@@ -140,9 +155,52 @@ export class ChallengeManager {
     try { localStorage.setItem(this._storageKey(id), code); } catch {}
   }
 
+  // ── Progression ───────────────────────────────────────────
+
+  private _loadCompleted(): CompletedMap {
+    try {
+      const raw = localStorage.getItem(COMPLETED_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  }
+
+  private _saveCompleted(map: CompletedMap): void {
+    try { localStorage.setItem(COMPLETED_KEY, JSON.stringify(map)); } catch {}
+  }
+
+  getCompleted(): CompletedMap { return this._loadCompleted(); }
+
+  getMedal(id: number): MedalData | null {
+    return this._loadCompleted()[id] ?? null;
+  }
+
+  /** Défi accessible si : libre (≤ FREE_CHALLENGES) OU précédent validé */
+  isAccessible(id: number): boolean {
+    if (id <= FREE_CHALLENGES) return true;
+    const completed = this._loadCompleted();
+    return !!(completed[id - 1]);
+  }
+
+  /** Dernier défi accessible */
+  lastAccessible(): number {
+    const completed = this._loadCompleted();
+    let last = FREE_CHALLENGES;
+    while (completed[last] && last < 30) last++;
+    return last;
+  }
+
+  saveCompleted(id: number, hintsUsed: number): void {
+    const map    = this._loadCompleted();
+    const medal: '🥇' | '🥈' | '🥉' =
+      hintsUsed === 0 ? '🥇' : hintsUsed === 1 ? '🥈' : '🥉';
+    map[id] = { medal, hintsUsed };
+    this._saveCompleted(map);
+    bus.emit('chuck:challenge-completed' as any, { id, medal, hintsUsed });
+  }
+
   // ── Validation ────────────────────────────────────────────
 
-  validate(source: string): void {
+  validate(source: string, hintsUsed = 0): void {
     if (!this._current || !this._emulator) return;
     const challenge  = this._current;
     const maxCycles  = challenge.maxCycles ?? DEFAULT_MAX_CYCLES;
@@ -171,7 +229,8 @@ export class ChallengeManager {
     const result: ValidationResult = { success, failures, cycles: run.cycles, timeout };
 
     if (success) {
-      bus.emit('chuck:challenge-success', { result });
+      this.saveCompleted(challenge.id, hintsUsed);
+      bus.emit('chuck:challenge-success', { result, medal: this.getMedal(challenge.id)?.medal });
       bus.emit('chuck:log', { text: `✓ Défi réussi en ${run.cycles} cycle(s) !`, level: 'ok' });
     } else {
       bus.emit('chuck:challenge-failed', { result });
@@ -223,7 +282,7 @@ export class ChallengeManager {
   private _bindBus(): void {
     this._unsubs.push(
       bus.on('chuck:autosave',      ({ id, code }) => this.saveToStorage(id, code)),
-      bus.on('chuck:validate',      ({ source })   => this.validate(source)),
+      bus.on('chuck:validate', ({ source, hintsUsed }) => this.validate(source, hintsUsed ?? 0)),
       bus.on('chuck:goto-challenge', ({ id }) => {
         this._loadById(id);
         const url = new URL(window.location.href);

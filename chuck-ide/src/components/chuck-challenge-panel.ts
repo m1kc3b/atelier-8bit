@@ -35,7 +35,7 @@ const STYLES = /* css */`
   .block-theory h3 { font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin:0 0 6px; }
   .block-theory strong { color:var(--text);font-weight:600; }
   .block-theory em { color:var(--text-dim);font-style:italic; }
-  .block-theory code { font-family:var(--font-mono);font-size:12px;background:var(--surface-3);color:var(--cyan);padding:1px 5px;border-radius:3px; }
+  .block-theory code { font-family:var(--font-mono);font-size:11px;background:var(--surface-3);color:var(--cyan);padding:1px 5px;border-radius:3px; }
   .block-theory h2 { font-size:16px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px; }
   .block-theory ul { padding-left:16px;display:flex;flex-direction:column;gap:2px;margin:4px 0; }
   .block-theory p { margin:0 0 6px; }
@@ -92,6 +92,11 @@ const STYLES = /* css */`
   .validate-btn:active  { transform:scale(.98); }
   .validate-btn:disabled { opacity:.3;cursor:not-allowed;transform:none; }
   .validate-btn svg { width:16px;height:16px;flex-shrink:0; }
+  .validate-btn.next-challenge {
+    background: var(--green);
+    color: #0a1a0a;
+    font-size: 14px;
+  }
   ::-webkit-scrollbar       { width:5px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:var(--surface-4);border-radius:3px; }
@@ -129,7 +134,8 @@ export class ChuckChallengePanel extends ChuckComponent {
       });
 
     this.sub('chuck:challenge-loaded', ({ challenge }) => {
-      this._loadItem(challengeToContentItem(challenge as any));
+      const item = challengeToContentItem(challenge as any);
+      this._loadItem(item);
     });
     this.sub('chuck:content-loaded' as any, ({ item }: { item: ContentItem }) => {
       this._loadItem(item);
@@ -287,7 +293,8 @@ export class ChuckChallengePanel extends ChuckComponent {
 
   // ── Validation ────────────────────────────────────────────────
   private _validate(): void {
-    const editor = document.getElementById('editor') as (HTMLElement & { getSource?(): string }) | null;
+    const editor = document.getElementById('editor') as
+      (HTMLElement & { getSource?(): string }) | null;
     const source = editor?.getSource?.() ?? '';
     if (!source.trim()) return;
 
@@ -295,8 +302,11 @@ export class ChuckChallengePanel extends ChuckComponent {
     btn.disabled    = true;
     btn.textContent = 'Validation…';
 
+    // Compter les hints révélés
+    const hintsUsed = Object.values(this._hintStates).filter(Boolean).length;
+
     requestAnimationFrame(() => {
-      this.emit('chuck:validate', { source });
+      this.emit('chuck:validate', { source, hintsUsed });
       btn.disabled  = false;
       btn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -305,34 +315,53 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 
   // ── Feedback ──────────────────────────────────────────────────
-  private _showFeedback(result: ValidationResult, success: boolean): void {
+  private _showFeedback(result: ValidationResult & { medal?: string }, success: boolean): void {
     const el   = this.shadow.getElementById('feedback');
     const next = this.shadow.getElementById('next-btn') as HTMLButtonElement | null;
     if (!el) return;
 
     if (success) {
+      const medal = (result as any).medal ?? '🥇';
+
       el.className = 'feedback success';
       el.innerHTML = `
-        <div class="fb-title">✓ Défi réussi !</div>
+        <div class="fb-title">${medal} Défi réussi !</div>
         <div class="fb-cycles">${result.cycles} cycle(s) CPU</div>`;
 
-      // Cacher le bouton valider
+      // Cacher le bouton valider, remplacer par "Défi suivant"
       const btn = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
       if (btn) btn.style.display = 'none';
 
-      // Badge "✓ Validé" dans le header à côté du titre
-      const titleEl = this.shadow.getElementById('panel-title')!;
-      if (!this.shadow.getElementById('validated-badge')) {
-        const badge = document.createElement('span');
-        badge.id = 'validated-badge';
-        badge.textContent = '✓';
-        badge.style.cssText =
-          'font-size:13px;font-weight:700;color:var(--green);' +
-          'flex-shrink:0;margin-left:2px;';
-        titleEl.insertAdjacentElement('afterend', badge);
+      // Bouton "Défi suivant" si pas dernier
+      if (this._item && this._item.id < this._totalCount) {
+        const nextBtn = document.createElement('button');
+        nextBtn.id        = 'next-challenge-btn';
+        nextBtn.className = 'validate-btn next-challenge';
+        nextBtn.innerHTML = `Défi suivant →`;
+        nextBtn.style.cssText = 'background: var(--green); margin-top: 4px;';
+        nextBtn.addEventListener('click', () => {
+          this.emit('chuck:goto-challenge', { id: this._item!.id + 1 });
+        });
+        el.insertAdjacentElement('afterend', nextBtn);
       }
 
-      // Activer next uniquement si pas dernier défi
+      // Badge médaille dans le header
+      const itemHeader = this.shadow.querySelector('.item-header');
+    if (itemHeader && !this.shadow.getElementById('validated-badge')) {
+      const badge = document.createElement('span');
+      badge.id = 'validated-badge';
+      badge.textContent = medal;
+      badge.style.cssText = 'font-size:16px;flex-shrink:0;margin-left:8px;';
+      // Ajouter le badge après le type-badge dans item-header
+      const typeBadge = itemHeader.querySelector('.type-badge');
+      if (typeBadge) {
+        typeBadge.insertAdjacentElement('afterend', badge);
+      } else {
+        itemHeader.insertAdjacentElement('afterbegin', badge);
+      }
+    }
+
+      // next-btn : activer mais garder discret (backup navigation)
       if (next && this._item && this._item.id < this._totalCount) {
         next.disabled = false;
         next.classList.add('success');
@@ -443,14 +472,16 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 
   private _resetFeedback(): void {
-    const el   = this.shadow.getElementById('feedback');
-    const next = this.shadow.getElementById('next-btn') as HTMLButtonElement | null;
-    const btn  = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
-    const badge = this.shadow.getElementById('validated-badge');
-    if (el)    el.className = 'feedback';
-    if (btn)   btn.style.display = '';
-    if (badge) badge.remove();
-    if (next)  { next.classList.remove('success'); this._updateNav(); }
+    const el      = this.shadow.getElementById('feedback');
+    const next    = this.shadow.getElementById('next-btn') as HTMLButtonElement | null;
+    const btn     = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
+    const badge   = this.shadow.getElementById('validated-badge');
+    const nextChallenge = this.shadow.getElementById('next-challenge-btn');
+    if (el)           el.className = 'feedback';
+    if (btn)          btn.style.display = '';
+    if (badge)        badge.remove();
+    if (nextChallenge) nextChallenge.remove();
+    if (next)         { next.classList.remove('success'); this._updateNav(); }
   }
 
   // ── Markdown ──────────────────────────────────────────────────

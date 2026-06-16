@@ -62,10 +62,10 @@ export interface ChuckEventMap {
 
   // ── Aide / Formation ────────────────────────────────────
   'chuck:open-help':    { lessonId?: number };  // ouvre la modale aide
-  'chuck:challenge-loaded':  { challenge: import('../types/challenge.js').Challenge; code: string; fromStorage: boolean };
-  'chuck:challenge-success': { result:    import('../types/challenge.js').ValidationResult };
-  'chuck:challenge-failed':  { result:    import('../types/challenge.js').ValidationResult };
-  'chuck:validate':          { source: string };
+  'chuck:challenge-loaded':  { challenge: import('../types/challenge.js').Challenge; code: string; fromStorage: boolean; medal?: string };
+  'chuck:challenge-success': { result: import('../types/challenge.js').ValidationResult; medal?: string };
+  'chuck:challenge-failed':  { result: import('../types/challenge.js').ValidationResult };
+  'chuck:validate':          { source: string; hintsUsed?: number };
   'chuck:goto-challenge':    { id: number };
   'chuck:autosave':          { id: number; code: string };
 }
