@@ -2,15 +2,16 @@
    Chuck IDE — components/chuck-challenge-panel.ts
    ───────────────────────────────────────────────────────────── */
 
-import { ChuckComponent }    from '../core/base-component.js';
-import type { ValidationResult } from '../types/challenge.js';
+import { ChuckComponent } from "../core/base-component.js";
+import type { ValidationResult } from "../types/challenge.js";
 import type {
-  ContentItem, ContentBlock,
+  ContentItem,
+  ContentBlock,
   ChallengeItem,
-} from '../types/content.js';
-import { isChallenge } from '../types/content.js';
+} from "../types/content.js";
+import { isChallenge } from "../types/content.js";
 
-const STYLES = /* css */`
+const STYLES = /* css */ `
   @import '/src/styles/tokens.css';
   :host { display:flex;flex-direction:column;background:var(--surface);overflow:hidden;height:100%; }
   .panel-header { height:34px;display:flex;align-items:center;padding:0 8px;gap:4px;background:var(--surface-2);border-bottom:1px solid var(--border);flex-shrink:0;user-select:none; }
@@ -25,7 +26,38 @@ const STYLES = /* css */`
   .type-badge.tip       { background:var(--amber-dim);color:var(--amber); }
   .type-badge.reference { background:var(--surface-3);color:var(--text-dim); }
   .body { flex:1;overflow-y:auto;padding:0;display:flex;flex-direction:column;min-height:0; }
-  .item-header { padding:14px 16px 10px;border-bottom:1px solid var(--border); }
+  .item-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .item-header-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .item-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  #validated-badge {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  #validated-badge,
+  .medal-badge {
+    font-size: 28px; /* Ajuste cette valeur selon tes besoins */
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
   .item-title { font-size:18px;font-weight:700;color:var(--text);line-height:1.3; }
   .item-subtitle { font-size:12px;color:var(--text-muted);margin-top:3px; }
   .item-meta { display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;color:var(--text-muted);font-family:var(--font-mono); }
@@ -105,9 +137,9 @@ const STYLES = /* css */`
 `;
 
 export class ChuckChallengePanel extends ChuckComponent {
-  private _item:       ContentItem | null = null;
-  private _totalCount  = 30;
-  private _hintStates: boolean[]          = [];
+  private _item: ContentItem | null = null;
+  private _totalCount = 30;
+  private _hintStates: boolean[] = [];
 
   protected render(): void {
     this.shadow.innerHTML = `<style>${STYLES}</style>
@@ -122,101 +154,155 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 
   protected setup(): void {
-    this.shadow.getElementById('prev-btn')!
-      .addEventListener('click', () => {
-        if (!this._item) return;
-        this.emit('chuck:goto-challenge', { id: this._item.id - 1 });
-      });
-    this.shadow.getElementById('next-btn')!
-      .addEventListener('click', () => {
-        if (!this._item) return;
-        this.emit('chuck:goto-challenge', { id: this._item.id + 1 });
-      });
+    this.shadow.getElementById("prev-btn")!.addEventListener("click", () => {
+      if (!this._item) return;
+      this.emit("chuck:goto-challenge", { id: this._item.id - 1 });
+    });
+    this.shadow.getElementById("next-btn")!.addEventListener("click", () => {
+      if (!this._item) return;
+      this.emit("chuck:goto-challenge", { id: this._item.id + 1 });
+    });
 
-    this.sub('chuck:challenge-loaded', ({ challenge }) => {
+    this.sub("chuck:challenge-loaded", ({ challenge }) => {
       const item = challengeToContentItem(challenge as any);
       this._loadItem(item);
     });
-    this.sub('chuck:content-loaded' as any, ({ item }: { item: ContentItem }) => {
-      this._loadItem(item);
-    });
-    this.sub('chuck:challenge-success', ({ result }) => this._showFeedback(result, true));
-    this.sub('chuck:challenge-failed',  ({ result }) => this._showFeedback(result, false));
-    this.sub('chuck:code-changed',      ()           => this._resetFeedback());
+    this.sub(
+      "chuck:content-loaded" as any,
+      ({ item }: { item: ContentItem }) => {
+        this._loadItem(item);
+      },
+    );
+    this.sub("chuck:challenge-success", ({ result }) =>
+      this._showFeedback(result, true),
+    );
+    this.sub("chuck:challenge-failed", ({ result }) =>
+      this._showFeedback(result, false),
+    );
+    this.sub("chuck:code-changed", () => this._resetFeedback());
   }
 
-  loadContent(item: ContentItem): void { this._loadItem(item); }
+  loadContent(item: ContentItem): void {
+    this._loadItem(item);
+  }
 
   private _loadItem(item: ContentItem): void {
-    this._item       = item;
+    this._item = item;
     this._hintStates = [];
     this._renderItem();
     this._updateNav();
   }
 
   private _updateNav(): void {
-    const prev = this.shadow.getElementById('prev-btn') as HTMLButtonElement;
-    const next = this.shadow.getElementById('next-btn') as HTMLButtonElement;
+    const prev = this.shadow.getElementById("prev-btn") as HTMLButtonElement;
+    const next = this.shadow.getElementById("next-btn") as HTMLButtonElement;
     if (!this._item) return;
+
     prev.disabled = this._item.id <= 1;
-    // next toujours désactivé — activé uniquement après validation réussie
-    next.disabled = true;
-    next.classList.remove('success');
+
+    // Désactiver "next" sauf si le défi est validé
+    const isValidated = this._isChallengeValidated(this._item.id);
+    next.disabled = !isValidated || this._item.id >= this._totalCount;
   }
 
   private _renderItem(): void {
     if (!this._item) return;
     const item = this._item;
 
-    const headerTitle = this.shadow.getElementById('panel-title')!;
-    headerTitle.textContent = item.type === 'challenge'
-      ? `${item.id} / ${this._totalCount}`
-      : `${item.id}`;
+    // Vérifiez si le défi est déjà validé (à adapter selon votre logique de sauvegarde)
+    const isAlreadyValidated = this._isChallengeValidated(item.id);
+
+    const headerTitle = this.shadow.getElementById("panel-title")!;
+    headerTitle.textContent =
+      item.type === "challenge"
+        ? `${item.id} / ${this._totalCount}`
+        : `${item.id}`;
 
     const badgeLabel: Record<string, string> = {
-      challenge: '⚔ Défi', lesson: '📖 Leçon',
-      tip: '💡 Conseil', reference: '🔗 Référence',
+      challenge: "⚔ Défi",
+      lesson: "📖 Leçon",
+      tip: "💡 Conseil",
+      reference: "🔗 Référence",
     };
 
     const metaItems: string[] = [];
-    if ('meta' in item && item.meta?.estimatedMinutes)
+    if ("meta" in item && item.meta?.estimatedMinutes)
       metaItems.push(`~${item.meta.estimatedMinutes} min`);
-    if (item.type === 'challenge' && item.arena_name)
+    if (item.type === "challenge" && item.arena_name)
       metaItems.push(item.arena_name);
     const metaHtml = metaItems.length
-      ? `<div class="item-meta">${metaItems.join(' · ')}</div>` : '';
+      ? `<div class="item-meta">${metaItems.join(" · ")}</div>`
+      : "";
 
-    const subtitleHtml = 'subtitle' in item && item.subtitle
-      ? `<div class="item-subtitle">${this._esc(item.subtitle)}</div>` : '';
+    const subtitleHtml =
+      "subtitle" in item && item.subtitle
+        ? `<div class="item-subtitle">${this._esc(item.subtitle)}</div>`
+        : "";
 
-    const blocksHtml  = (item.blocks ?? []).map((b, i) => this._renderBlock(b, i)).join('');
-    const validationHtml = isChallenge(item) ? `
-      <div class="validation-zone">
-        <div class="feedback" id="feedback"></div>
-        <button class="validate-btn" id="validate-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Valider le défi
-        </button>
-      </div>` : '';
+    const blocksHtml = (item.blocks ?? [])
+      .map((b, i) => this._renderBlock(b, i))
+      .join("");
 
-    this.shadow.getElementById('body')!.innerHTML = `
-      <div class="item-header">
+    let validationHtml = "";
+    if (isChallenge(item)) {
+      if (isAlreadyValidated) {
+        // Si déjà validé, afficher "Défi suivant"
+        validationHtml = `
+        <div class="validation-zone">
+          <div class="feedback" id="feedback"></div>
+          <button class="validate-btn next-challenge" id="validate-btn">
+            Défi suivant →
+          </button>
+        </div>`;
+      } else {
+        // Sinon, afficher "Valider le défi"
+        validationHtml = `
+        <div class="validation-zone">
+          <div class="feedback" id="feedback"></div>
+          <button class="validate-btn" id="validate-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Valider le défi
+          </button>
+        </div>`;
+      }
+    }
+
+    const medalHtml = isAlreadyValidated
+      ? `<span id="validated-badge" class="medal-badge">🥇</span>`
+      : "";
+
+    this.shadow.getElementById("body")!.innerHTML = `
+    <div class="item-header">
+      <div class="item-header-left">
         <span class="type-badge ${item.type}">${badgeLabel[item.type] ?? item.type}</span>
         <div class="item-title" style="margin-top:6px">${this._esc(item.title)}</div>
         ${subtitleHtml}${metaHtml}
       </div>
-      <div class="blocks">${blocksHtml}</div>
-      ${validationHtml}`;
+      <div class="item-header-right">
+        ${medalHtml}
+      </div>
+    </div>
+    <div class="blocks">${blocksHtml}</div>
+    ${validationHtml}`;
 
-    this.shadow.getElementById('validate-btn')
-      ?.addEventListener('click', () => this._validate());
+    // --- Gestion du clic sur le bouton "Défi suivant" ---
+    const validateBtn = this.shadow.getElementById("validate-btn");
+    if (validateBtn) {
+      if (isAlreadyValidated) {
+        validateBtn.addEventListener("click", () => {
+          this.emit("chuck:goto-challenge", { id: this._item!.id + 1 });
+        });
+      } else {
+        validateBtn.addEventListener("click", () => this._validate());
+      }
+    }
 
-    this.shadow.querySelectorAll('.hint-item[data-hint]').forEach(el => {
-      el.addEventListener('click', () => {
-        const i = parseInt((el as HTMLElement).dataset['hint'] ?? '0', 10);
+    this.shadow.querySelectorAll(".hint-item[data-hint]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const i = parseInt((el as HTMLElement).dataset["hint"] ?? "0", 10);
         if (!this._hintStates[i]) {
           this._hintStates[i] = true;
-          el.classList.add('hint-revealed', 'revealed');
+          el.classList.add("hint-revealed", "revealed");
         }
       });
     });
@@ -224,90 +310,108 @@ export class ChuckChallengePanel extends ChuckComponent {
 
   private _renderBlock(block: ContentBlock, idx: number): string {
     switch (block.kind) {
-      case 'theory': return `
+      case "theory":
+        return `
         <div class="block block-theory">
-          ${block.title ? `<h3>${this._esc(block.title)}</h3>` : ''}
+          ${block.title ? `<h3>${this._esc(block.title)}</h3>` : ""}
           ${this._md(block.content)}
         </div>`;
-      case 'code': return `
+      case "code":
+        return `
         <div class="block-code">
           <div class="code-inner">
-            ${block.label ? `<div class="code-label">${this._esc(block.label)}</div>` : ''}
+            ${block.label ? `<div class="code-label">${this._esc(block.label)}</div>` : ""}
             <pre class="code-body">${this._esc(block.content)}</pre>
           </div>
-          ${block.lang && !block.label ? `<div class="code-caption">${this._esc(block.lang)}</div>` : ''}
+          ${block.lang && !block.label ? `<div class="code-caption">${this._esc(block.lang)}</div>` : ""}
         </div>`;
-      case 'mission': return `
+      case "mission":
+        return `
         <div class="block-mission">
-          <h4>${block.title ? this._esc(block.title) : '🎯 Mission'}</h4>
+          <h4>${block.title ? this._esc(block.title) : "🎯 Mission"}</h4>
           <div class="mission-body">${this._md(block.content)}</div>
         </div>`;
-      case 'tip': return `
+      case "tip":
+        return `
         <div class="block block-tip">💡 ${this._mdInline(block.content)}</div>`;
-      case 'warning': return `
+      case "warning":
+        return `
         <div class="block block-warning">⚠️ ${this._mdInline(block.content)}</div>`;
-      case 'ref': {
-        const icon = block.icon ?? '📖';
-        const cls  = block.url ? 'block-ref has-url' : 'block-ref';
-        const tag  = block.url ? 'a' : 'div';
-        const href = block.url ? `href="${this._esc(block.url)}" target="_blank" rel="noopener"` : '';
+      case "ref": {
+        const icon = block.icon ?? "📖";
+        const cls = block.url ? "block-ref has-url" : "block-ref";
+        const tag = block.url ? "a" : "div";
+        const href = block.url
+          ? `href="${this._esc(block.url)}" target="_blank" rel="noopener"`
+          : "";
         return `<${tag} class="${cls}" ${href}>
           <span class="ref-icon">${icon}</span>
           <div class="ref-text">
             <div class="ref-label">${this._esc(block.label)}</div>
-            ${block.detail ? `<div class="ref-detail">${this._esc(block.detail)}</div>` : ''}
+            ${block.detail ? `<div class="ref-detail">${this._esc(block.detail)}</div>` : ""}
           </div></${tag}>`;
       }
-      case 'concepts': return `
+      case "concepts":
+        return `
         <div class="block block-concepts">
-          ${block.items.map(c => `<span class="concept-tag">${this._esc(c)}</span>`).join('')}
+          ${block.items.map((c) => `<span class="concept-tag">${this._esc(c)}</span>`).join("")}
         </div>`;
-      case 'table': return `
+      case "table":
+        return `
         <div class="block block-table">
           <table class="content-table">
-            <thead><tr>${block.headers.map(h => `<th>${this._esc(String(h))}</th>`).join('')}</tr></thead>
-            <tbody>${block.rows.map(row =>
-              `<tr>${row.map(cell => `<td>${this._esc(String(cell))}</td>`).join('')}</tr>`
-            ).join('')}</tbody>
+            <thead><tr>${block.headers.map((h) => `<th>${this._esc(String(h))}</th>`).join("")}</tr></thead>
+            <tbody>${block.rows
+              .map(
+                (row) =>
+                  `<tr>${row.map((cell) => `<td>${this._esc(String(cell))}</td>`).join("")}</tr>`,
+              )
+              .join("")}</tbody>
           </table>
         </div>`;
-      case 'image': return `
+      case "image":
+        return `
         <div class="block block-image">
           <img src="${this._esc(block.src)}" alt="${this._esc(block.alt)}" loading="lazy">
-          ${block.caption ? `<div class="img-caption">${this._esc(block.caption)}</div>` : ''}
+          ${block.caption ? `<div class="img-caption">${this._esc(block.caption)}</div>` : ""}
         </div>`;
-      case 'divider': return `<div class="block block-divider"><hr></div>`;
-      case 'hints': {
-        const hintsHtml = block.items.map((h, i) => {
-          this._hintStates[idx * 100 + i] = false;
-          return `<div class="hint-item" data-hint="${idx * 100 + i}">
+      case "divider":
+        return `<div class="block block-divider"><hr></div>`;
+      case "hints": {
+        const hintsHtml = block.items
+          .map((h, i) => {
+            this._hintStates[idx * 100 + i] = false;
+            return `<div class="hint-item" data-hint="${idx * 100 + i}">
             <span class="hint-placeholder" style="color:var(--text-muted);font-style:italic">💡 Indice ${i + 1} — cliquer pour révéler</span>
             <span class="hint-text-hidden">${this._esc(h)}</span>
           </div>`;
-        }).join('');
+          })
+          .join("");
         return `<div class="block block-hints"><div class="hints-label">Indices</div>${hintsHtml}</div>`;
       }
-      default: return '';
+      default:
+        return "";
     }
   }
 
   // ── Validation ────────────────────────────────────────────────
   private _validate(): void {
-    const editor = document.getElementById('editor') as
-      (HTMLElement & { getSource?(): string }) | null;
-    const source = editor?.getSource?.() ?? '';
+    const editor = document.getElementById("editor") as
+      | (HTMLElement & { getSource?(): string })
+      | null;
+    const source = editor?.getSource?.() ?? "";
     if (!source.trim()) return;
 
-    const btn = this.shadow.getElementById('validate-btn') as HTMLButtonElement;
-    btn.disabled    = true;
-    btn.textContent = 'Validation…';
+    const btn = this.shadow.getElementById("validate-btn") as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = "Validation…";
 
     // Compter les hints révélés
     const hintsUsed = Object.values(this._hintStates).filter(Boolean).length;
 
     requestAnimationFrame(() => {
-      this.emit('chuck:validate', { source, hintsUsed });
-      btn.disabled  = false;
+      this.emit("chuck:validate", { source, hintsUsed });
+      btn.disabled = false;
       btn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Valider le défi`;
@@ -315,95 +419,115 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 
   // ── Feedback ──────────────────────────────────────────────────
-  private _showFeedback(result: ValidationResult & { medal?: string }, success: boolean): void {
-    const el   = this.shadow.getElementById('feedback');
-    const next = this.shadow.getElementById('next-btn') as HTMLButtonElement | null;
+  private _showFeedback(
+    result: ValidationResult & { medal?: string },
+    success: boolean,
+  ): void {
+    const el = this.shadow.getElementById("feedback");
+    const next = this.shadow.getElementById(
+      "next-btn",
+    ) as HTMLButtonElement | null;
     if (!el) return;
 
     if (success) {
-      const medal = (result as any).medal ?? '🥇';
+      const medal = (result as any).medal ?? "🥇";
 
-      el.className = 'feedback success';
+      el.className = "feedback success";
       el.innerHTML = `
-        <div class="fb-title">${medal} Défi réussi !</div>
-        <div class="fb-cycles">${result.cycles} cycle(s) CPU</div>`;
+      <div class="fb-title">${medal} Défi réussi !</div>
+      <div class="fb-cycles">${result.cycles} cycle(s) CPU</div>`;
 
-      // Cacher le bouton valider, remplacer par "Défi suivant"
-      const btn = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
-      if (btn) btn.style.display = 'none';
+      // Masquer le bouton "Valider le défi"
+      const btn = this.shadow.getElementById(
+        "validate-btn",
+      ) as HTMLButtonElement | null;
+      if (btn) {
+        btn.style.display = "none";
+      }
 
-      // Bouton "Défi suivant" si pas dernier
+      // Ajouter le bouton "Défi suivant" si ce n'est pas le dernier défi
       if (this._item && this._item.id < this._totalCount) {
-        const nextBtn = document.createElement('button');
-        nextBtn.id        = 'next-challenge-btn';
-        nextBtn.className = 'validate-btn next-challenge';
+        const nextBtn = document.createElement("button");
+        nextBtn.id = "next-challenge-btn";
+        nextBtn.className = "validate-btn next-challenge";
         nextBtn.innerHTML = `Défi suivant →`;
-        nextBtn.style.cssText = 'background: var(--green); margin-top: 4px;';
-        nextBtn.addEventListener('click', () => {
-          this.emit('chuck:goto-challenge', { id: this._item!.id + 1 });
+        nextBtn.style.cssText = "background: var(--green); margin-top: 4px;";
+        nextBtn.addEventListener("click", () => {
+          this.emit("chuck:goto-challenge", { id: this._item!.id + 1 });
         });
-        el.insertAdjacentElement('afterend', nextBtn);
+        el.insertAdjacentElement("afterend", nextBtn);
       }
 
-      // Badge médaille dans le header
-      const itemHeader = this.shadow.querySelector('.item-header');
-    if (itemHeader && !this.shadow.getElementById('validated-badge')) {
-      const badge = document.createElement('span');
-      badge.id = 'validated-badge';
-      badge.textContent = medal;
-      badge.style.cssText = 'font-size:16px;flex-shrink:0;margin-left:8px;';
-      // Ajouter le badge après le type-badge dans item-header
-      const typeBadge = itemHeader.querySelector('.type-badge');
-      if (typeBadge) {
-        typeBadge.insertAdjacentElement('afterend', badge);
-      } else {
-        itemHeader.insertAdjacentElement('afterbegin', badge);
+      // Ajouter la médaille dans item-header-right
+      const itemHeaderRight = this.shadow.querySelector(".item-header-right");
+      if (itemHeaderRight && !this.shadow.getElementById("validated-badge")) {
+        const badge = document.createElement("span");
+        badge.id = "validated-badge";
+        badge.textContent = medal;
+        badge.className = "medal-badge";
+        itemHeaderRight.appendChild(badge);
       }
-    }
 
-      // next-btn : activer mais garder discret (backup navigation)
+      // Activer le bouton "next-btn" dans le header
       if (next && this._item && this._item.id < this._totalCount) {
         next.disabled = false;
-        next.classList.add('success');
-        setTimeout(() => next.classList.remove('success'), 600);
+        next.classList.add("success");
+        setTimeout(() => next.classList.remove("success"), 600);
       }
+
+      // Sauvegarder le défi comme validé
+      this._saveValidatedChallenge(this._item!.id);
+
       this._celebrate();
     } else {
       const details = result.timeout
-        ? 'Programme non terminé (timeout).'
-        : result.failures.map(f => `• ${f.message}`).join('<br>');
-      el.className = 'feedback failure';
+        ? "Programme non terminé (timeout)."
+        : result.failures.map((f) => `• ${f.message}`).join("<br>");
+      el.className = "feedback failure";
       el.innerHTML = `
-        <div class="fb-title">✗ Défi échoué</div>
-        <div class="fb-detail">${details}</div>
-        ${result.cycles ? `<div class="fb-cycles">${result.cycles} cycle(s)</div>` : ''}`;
+      <div class="fb-title">✗ Défi échoué</div>
+      <div class="fb-detail">${details}</div>
+      ${result.cycles ? `<div class="fb-cycles">${result.cycles} cycle(s)</div>` : ""}`;
     }
 
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   // ── Célébration plein écran ───────────────────────────────────
   private _celebrate(): void {
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     const W = window.innerWidth;
     const H = window.innerHeight;
-    canvas.width  = W;
+    canvas.width = W;
     canvas.height = H;
     canvas.style.cssText =
-      'position:fixed;top:0;left:0;width:100%;height:100%;' +
-      'pointer-events:none;z-index:99999';
+      "position:fixed;top:0;left:0;width:100%;height:100%;" +
+      "pointer-events:none;z-index:99999";
     document.body.appendChild(canvas);
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext("2d")!;
 
     const COLORS = [
-      '#3BDB8C', '#38BDF8', '#FACC15',
-      '#FB923C', '#F472B6', '#A78BFA', '#FF6B6B',
+      "#3BDB8C",
+      "#38BDF8",
+      "#FACC15",
+      "#FB923C",
+      "#F472B6",
+      "#A78BFA",
+      "#FF6B6B",
     ];
 
     interface P {
-      x:number; y:number; vx:number; vy:number;
-      color:string; w:number; h:number;
-      rot:number; rotV:number; opacity:number; g:number;
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      color: string;
+      w: number;
+      h: number;
+      rot: number;
+      rotV: number;
+      opacity: number;
+      g: number;
     }
 
     // Origine en bas-centre, jaillissement vers le haut
@@ -423,7 +547,7 @@ export class ChuckChallengePanel extends ChuckComponent {
         color: COLORS[Math.floor(Math.random() * COLORS.length)]!,
         w: 7 + Math.random() * 8,
         h: 4 + Math.random() * 5,
-        rot:  Math.random() * Math.PI * 2,
+        rot: Math.random() * Math.PI * 2,
         rotV: (Math.random() - 0.5) * 0.28,
         opacity: 1,
         g: 0.28 + Math.random() * 0.14,
@@ -440,17 +564,16 @@ export class ChuckChallengePanel extends ChuckComponent {
       for (const p of particles) {
         p.vy += p.g;
         p.vx *= 0.988;
-        p.x  += p.vx;
-        p.y  += p.vy;
+        p.x += p.vx;
+        p.y += p.vy;
         p.rot += p.rotV;
-        if (frame > FADE_START)
-          p.opacity = Math.max(0, p.opacity - 0.022);
+        if (frame > FADE_START) p.opacity = Math.max(0, p.opacity - 0.022);
         if (p.opacity <= 0 || p.y > H + 40) continue;
         alive = true;
 
         ctx.save();
         ctx.globalAlpha = p.opacity;
-        ctx.fillStyle   = p.color;
+        ctx.fillStyle = p.color;
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
         if (p.w / p.h > 1.5) {
@@ -472,68 +595,111 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 
   private _resetFeedback(): void {
-    const el      = this.shadow.getElementById('feedback');
-    const next    = this.shadow.getElementById('next-btn') as HTMLButtonElement | null;
-    const btn     = this.shadow.getElementById('validate-btn') as HTMLButtonElement | null;
-    const badge   = this.shadow.getElementById('validated-badge');
-    const nextChallenge = this.shadow.getElementById('next-challenge-btn');
-    if (el)           el.className = 'feedback';
-    if (btn)          btn.style.display = '';
-    if (badge)        badge.remove();
+    const el = this.shadow.getElementById("feedback");
+    const next = this.shadow.getElementById(
+      "next-btn",
+    ) as HTMLButtonElement | null;
+    const btn = this.shadow.getElementById(
+      "validate-btn",
+    ) as HTMLButtonElement | null;
+    const badge = this.shadow.getElementById("validated-badge");
+    const nextChallenge = this.shadow.getElementById("next-challenge-btn");
+
+    if (el) el.className = "feedback";
+    if (btn) btn.style.display = "";
+    if (badge) badge.remove();
     if (nextChallenge) nextChallenge.remove();
-    if (next)         { next.classList.remove('success'); this._updateNav(); }
+    if (next) {
+      next.classList.remove("success");
+      this._updateNav();
+    }
+  }
+
+  private _isChallengeValidated(challengeId: number): boolean {
+    // Exemple : Récupérer depuis localStorage ou une variable globale
+    const validatedChallenges = JSON.parse(
+      localStorage.getItem("validatedChallenges") || "[]",
+    );
+    return validatedChallenges.includes(challengeId);
+  }
+
+  private _saveValidatedChallenge(challengeId: number): void {
+    const validatedChallenges = JSON.parse(
+      localStorage.getItem("validatedChallenges") || "[]",
+    );
+    if (!validatedChallenges.includes(challengeId)) {
+      validatedChallenges.push(challengeId);
+      localStorage.setItem(
+        "validatedChallenges",
+        JSON.stringify(validatedChallenges),
+      );
+    }
   }
 
   // ── Markdown ──────────────────────────────────────────────────
   private _md(s: string): string {
-    const e = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const e = s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
     return e
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/^- (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
-      .replace(/\n{2,}/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-      .replace(/^(.)/s, '<p>$1')
-      .replace(/(.)$/s, '$1</p>');
+      .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/```([\s\S]*?)```/g, "<pre>$1</pre>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/^- (.+)$/gm, "<li>$1</li>")
+      .replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>")
+      .replace(/\n{2,}/g, "</p><p>")
+      .replace(/\n/g, "<br>")
+      .replace(/^(.)/s, "<p>$1")
+      .replace(/(.)$/s, "$1</p>");
   }
 
   private _mdInline(s: string): string {
-    const e = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const e = s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
     return e
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
   }
 
   private _esc(s: string): string {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 }
 
-customElements.define('chuck-challenge-panel', ChuckChallengePanel);
+customElements.define("chuck-challenge-panel", ChuckChallengePanel);
 
 function challengeToContentItem(c: any): ContentItem {
-  const blocks: import('../types/content.js').ContentBlock[] = [];
-  if (c.description)        blocks.push({ kind: 'theory', content: c.description });
-  if (c.meta?.zaks)         blocks.push({ kind:'ref', icon:'📖', label:`${c.meta.zaks.chapter}, p. ${c.meta.zaks.page}`, detail:c.meta.zaks.topic });
-  if (c.meta?.concepts?.length) blocks.push({ kind: 'concepts', items: c.meta.concepts });
-  if (c.hints?.length)      blocks.push({ kind:'hints', items: c.hints.map((h:any) => h.text ?? h) });
+  const blocks: import("../types/content.js").ContentBlock[] = [];
+  if (c.description) blocks.push({ kind: "theory", content: c.description });
+  if (c.meta?.zaks)
+    blocks.push({
+      kind: "ref",
+      icon: "📖",
+      label: `${c.meta.zaks.chapter}, p. ${c.meta.zaks.page}`,
+      detail: c.meta.zaks.topic,
+    });
+  if (c.meta?.concepts?.length)
+    blocks.push({ kind: "concepts", items: c.meta.concepts });
+  if (c.hints?.length)
+    blocks.push({ kind: "hints", items: c.hints.map((h: any) => h.text ?? h) });
 
   return {
-    type:       'challenge',
-    id:          c.id,
-    arena:       c.arena,
-    arena_name:  c.arena_name,
-    title:       c.title,
+    type: "challenge",
+    id: c.id,
+    arena: c.arena,
+    arena_name: c.arena_name,
+    title: c.title,
     blocks,
-    template:    c.template ?? '',
-    assertions:  c.assertions ?? [],
-    maxCycles:   c.maxCycles,
-    meta:        c.meta,
+    template: c.template ?? "",
+    assertions: c.assertions ?? [],
+    maxCycles: c.maxCycles,
+    meta: c.meta,
   } as ChallengeItem;
 }
