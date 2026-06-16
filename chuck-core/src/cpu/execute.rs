@@ -178,14 +178,14 @@ fn dispatch_api(cpu: &mut Cpu, mem: &mut Memory, addr: u16) {
         // ── SYS_STOP_VOICE $F039 : X=voix ────────────────────────────────
         SYS_STOP_VOICE => {
             let voice_base = 0xD100u16 + (cpu.x.min(2) as u16) * 8;
-            mem.io.write_register(voice_base + 7, 0x01); // gate=0
+            mem.io.write_register(voice_base + 7, 0x00); // gate=0
         }
 
         // ── SYS_STOP_ALL $F03C ────────────────────────────────────────────
         SYS_STOP_ALL => {
-            mem.io.write_register(0xD107, 0x01);
-            mem.io.write_register(0xD10F, 0x01);
-            mem.io.write_register(0xD117, 0x01);
+            mem.io.write_register(0xD107, 0x00);
+            mem.io.write_register(0xD10F, 0x00);
+            mem.io.write_register(0xD117, 0x00);
         }
 
         // ── SYS_PLAY_SFX $F03F : NOP ─────────────────────────────────────
