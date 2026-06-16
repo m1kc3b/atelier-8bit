@@ -1,6 +1,6 @@
 // chuck-core/src/memory.rs
 //
-// Mémoire 64 Ko du Chuck-8 Computer selon la spec v1.0.
+// Mémoire 64 Ko du Chuck-8 Computer selon la spec v1.1.
 //
 // Memory Map :
 //   $0000–$3FFF   RAM (16 Ko) — Zero Page, Stack, variables, programme
@@ -25,10 +25,10 @@ pub const FRAMEBUF_A_END: u16 = 0x5FFF;
 pub const FRAMEBUF_B    : u16 = 0x6000;
 pub const FRAMEBUF_B_END: u16 = 0x7FFF;
 
-pub const VRAM_TEXT     : u16 = 0x4800;
-pub const VRAM_TEXT_END : u16 = 0x48FF; // 256 octets
-pub const VRAM_ATTR     : u16 = 0x4900;
-pub const VRAM_ATTR_END : u16 = 0x49FF; // 256 octets
+pub const VRAM_TEXT     : u16 = 0x4800; // mode texte 32×32
+pub const VRAM_TEXT_END : u16 = 0x4BFF;
+pub const VRAM_ATTR     : u16 = 0x4C00; // attributs couleur
+pub const VRAM_ATTR_END : u16 = 0x4FFF;
 pub const VRAM_SPRITES  : u16 = 0x5000; // 8 sprites × 256 octets
 pub const VRAM_SPR_END  : u16 = 0x5FFF;
 pub const VRAM_TILES    : u16 = 0x6000; // 256 tuiles 8×8
@@ -46,8 +46,8 @@ pub const ENTRY_POINT   : u16 = 0xE000;
 // ── Largeur et hauteur de l'écran ─────────────────────────────────────────────
 pub const SCREEN_W      : u16 = 128;
 pub const SCREEN_H      : u16 = 128;
-pub const TEXT_COLS     : u16 = 16;
-pub const TEXT_ROWS     : u16 = 16;
+pub const TEXT_COLS     : u16 = 32;
+pub const TEXT_ROWS     : u16 = 32;
 
 pub struct Memory {
     /// RAM principale 64 Ko (inclut VRAM, ROM mappée, tout)
@@ -304,9 +304,9 @@ impl Memory {
 
     /// Affiche un caractère à (col, row) en mode texte
     pub fn put_char(&mut self, ch: u8, col: u8, row: u8, ink: u8, paper: u8) {
-        if col >= 16 || row >= 16 { return; }
-        let text_addr = VRAM_TEXT + (row as u16) * 16 + (col as u16);
-        let attr_addr = VRAM_ATTR + (row as u16) * 16 + (col as u16);
+        if col >= 32 || row >= 32 { return; }
+        let text_addr = VRAM_TEXT + (row as u16) * 32 + (col as u16);
+        let attr_addr = VRAM_ATTR + (row as u16) * 32 + (col as u16);
         self.ram[text_addr as usize] = ch;
         self.ram[attr_addr as usize] = (paper << 4) | (ink & 0x0F);
         self.mark_dirty(text_addr);
@@ -344,7 +344,7 @@ impl Memory {
                     // Newline : retour chariot + avance ligne
                     self.io.vpu.cursor_x = 0;
                     let next_row = row + 1;
-                    if next_row >= 16 {
+                    if next_row >= 32 {
                         self.scroll_text_up();
                         self.io.vpu.cursor_y = 31;
                     } else {
@@ -362,12 +362,12 @@ impl Memory {
                     self.put_char(ch, col, row, ink, paper);
                     // Avancer le curseur
                     let next_col = col + 1;
-                    if next_col >= 16 {
+                    if next_col >= 32 {
                         self.io.vpu.cursor_x = 0;
                         let next_row = row + 1;
-                        if next_row >= 16 {
+                        if next_row >= 32 {
                             self.scroll_text_up();
-                            self.io.vpu.cursor_y = 15;
+                            self.io.vpu.cursor_y = 31;
                         } else {
                             self.io.vpu.cursor_y = next_row;
                         }
@@ -468,10 +468,10 @@ impl Memory {
         // Copie lignes 1-31 → lignes 0-30
         for row in 0u16..31 {
             for col in 0u16..32 {
-                let src_t = VRAM_TEXT + (row + 1) * 16 + col;
-                let dst_t = VRAM_TEXT +  row      * 16 + col;
-                let src_a = VRAM_ATTR + (row + 1) * 16 + col;
-                let dst_a = VRAM_ATTR +  row      * 16 + col;
+                let src_t = VRAM_TEXT + (row + 1) * 32 + col;
+                let dst_t = VRAM_TEXT +  row      * 32 + col;
+                let src_a = VRAM_ATTR + (row + 1) * 32 + col;
+                let dst_a = VRAM_ATTR +  row      * 32 + col;
                 self.ram[dst_t as usize] = self.ram[src_t as usize];
                 self.ram[dst_a as usize] = self.ram[src_a as usize];
             }
@@ -480,8 +480,8 @@ impl Memory {
         let ink   = self.io.vpu.ink;
         let paper = self.io.vpu.paper;
         for col in 0u16..32 {
-            let t = VRAM_TEXT + 15 * 16 + col;
-            let a = VRAM_ATTR + 15 * 16 + col;
+            let t = VRAM_TEXT + 31 * 32 + col;
+            let a = VRAM_ATTR + 31 * 32 + col;
             self.ram[t as usize] = 0x20;
             self.ram[a as usize] = (paper << 4) | ink;
         }

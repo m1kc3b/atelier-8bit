@@ -335,7 +335,7 @@ Pour les programmes qui tournent en continu (des jeux, des démos), on utilise u
 ; ── Constantes (addresses et API) ─────────
 SYS_CLEAR       = $F000
 SYS_DRAW_PIXEL  = $F003
-SYS_RAND        = $F05A
+SYS_RAND        = $D306
 
 ; ── Variables en Zero Page ────────────────
 ; La ZP est précieuse — mets-y tout ce qui change souvent
@@ -953,7 +953,7 @@ SYS_PRINT_NUM   = $F024  ; A=entier 8-bit → décimal au curseur
 SYS_PRINT_HEX   = $F027  ; A=valeur → "$XX" au curseur
 SYS_SET_CURSOR  = $F02A  ; X=colonne, Y=ligne
 SYS_SET_COLOR   = $F030  ; A=(ink<<4)|paper
-SYS_RAND        = $F05A  ; → A=octet aléatoire
+SYS_RAND        = $D306  ; → A=octet aléatoire
 SYS_FRAME_NUM   = $F069  ; → A=lo, X=hi (compteur frames)
 ```
 
@@ -1109,7 +1109,7 @@ MOUSE_BTN  = $D224   ; bit0=gauche bit1=droit (0=enfoncé)
 
 ```asm
 SYS_FRAME_NUM = $F069  ; → A=lo, X=hi (compteur frames 16-bit)
-SYS_RAND      = $F05A  ; → A=octet pseudo-aléatoire
+SYS_RAND      = $D306  ; → A=octet pseudo-aléatoire
 
 ; Animation : clignoter toutes les 16 frames (~0.27s)
   JSR SYS_FRAME_NUM
@@ -1141,7 +1141,7 @@ ETEINT:
 
 SYS_CLEAR      = $F000
 SYS_DRAW_PIXEL = $F003
-SYS_RAND       = $F05A
+SYS_RAND       = $D306
 
   .org $E000
 
@@ -1496,7 +1496,7 @@ Un programme simple mais graphiquement satisfaisant. Des étoiles descendent dep
 ; ══════════════════════════════════════════
 
 SYS_DRAW_PIXEL = $F003
-SYS_RAND       = $F05A
+SYS_RAND       = $D306
 
   .org $E000
 

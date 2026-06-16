@@ -1,4 +1,4 @@
-// chuck-ide/src/core/emulator.ts  — VERSION WASM
+// chuck-ide/src/core/emulator.ts  — VERSION WASM v1.1
 //
 // Façade entre le Bus d'événements TS et le cœur Rust/WASM.
 // Remplace entièrement l'ancien emulator.ts basé sur le CPU TypeScript.
@@ -10,7 +10,9 @@
 import { bus }    from './bus.js';
 import type { ToolbarState } from './bus.js';
 
-// Types retournés par le WASM (miroir de wasm_api.rs)
+// Types retournés par le WASM (miroir de wasm_api.rs via serde_wasm_bindgen)
+// Toutes les méthodes WASM retournent JsValue — on caste après désérialisation.
+
 interface JsAssembleResult {
   ok:            boolean;
   error_msg:     string;
@@ -22,7 +24,7 @@ interface JsAssembleResult {
 interface JsCpuState {
   a: number; x: number; y: number;
   pc: number; sp: number; p: number;
-  cycles: number;
+  cycles: number;           // f64 côté Rust
   flag_n: boolean; flag_v: boolean; flag_b: boolean;
   flag_d: boolean; flag_i: boolean; flag_z: boolean; flag_c: boolean;
 }
@@ -30,32 +32,46 @@ interface JsCpuState {
 interface JsRunResult  { cycles: number; halted: boolean; state: JsCpuState; }
 interface JsStepResult { cycles: number; halted: boolean; state: JsCpuState; disasm: string; }
 
-// Interface minimale du module WASM tel qu'exposé par wasm-bindgen
+// Interface du module WASM tel qu'exposé par wasm-bindgen.
+// Toutes les méthodes retournent `any` car wasm-bindgen sérialise via JsValue.
 interface WasmModule {
   ChuckCore: new() => WasmCore;
 }
 
 interface WasmCore {
-  assemble(source: string): JsAssembleResult;
-  reset(): void;
-  run(maxCycles: number): JsRunResult;
-  step(): JsStepResult;
-  get_state(): JsCpuState;
-  memory_view(): Uint8Array;
+  // Assemblage
+  assemble(source: string): any;          // → JsAssembleResult
+
+  // CPU
+  reset(): void;                          // hard reset (RAM + ROM + CPU + IoState)
+  soft_reset(): void;                     // soft reset (préserve le code, remet RAM basse + CPU)
+  run(maxCycles: number): any;            // → JsRunResult
+  step(): any;                            // → JsStepResult
+  get_state(): any;                       // → JsCpuState
+
+  // VBlank — à appeler à 60 Hz via requestAnimationFrame
+  vblank_tick(): void;
+
+  // Mémoire
+  memory_view(): Uint8Array;              // zero-copy — ne pas stocker
+  memory_snapshot(): Uint8Array;          // snapshot avec I/O synchronisés (pour validation)
   mem_peek(addr: number): number;
   mem_poke(addr: number, val: number): void;
-  take_dirty_pixels(): [number, number] | null;
-  set_keyboard(key: number): void;
+
+  // Pixels VRAM
+  take_dirty_pixels(): any;              // → Array [min, max] | null
+
+  // Périphériques I/O
+  set_key(ascii: number, raw: number, modifiers: number): void;
+  clear_key(): void;
+  set_pad(pad: number, state: number): void;
+  set_mouse(x: number, y: number, btn: number, scroll: number): void;
 }
 
-const DISPLAY_START = 0x0200;
-const DISPLAY_END   = 0x05FF;
-
 export class Emulator {
-  private core:      WasmCore;
-  private _unsubs:   Array<() => void> = [];
-  private _state:    ToolbarState = 'idle';
-  private _rafId:    number | null = null;
+  private core:    WasmCore;
+  private _unsubs: Array<() => void> = [];
+  private _rafId:  number | null = null;
 
   private constructor(core: WasmCore) {
     this.core = core;
@@ -64,7 +80,6 @@ export class Emulator {
   // ── Chargement du WASM ────────────────────────────────────────────────────
 
   static async create(): Promise<Emulator> {
-    // Charge le module WASM depuis public/
     const wasmModule = await import('/chuck_core.js') as WasmModule;
     const core       = new wasmModule.ChuckCore();
     const emu        = new Emulator(core);
@@ -80,20 +95,17 @@ export class Emulator {
   // ── Liaison Bus ───────────────────────────────────────────────────────────
 
   private _bindBus(): void {
-    const sub = <K extends keyof Parameters<typeof bus.on>[0]>(
-      ev: K, fn: any
-    ) => {
-      const unsub = bus.on(ev as any, fn);
+    const sub = (ev: any, fn: any) => {
+      const unsub = bus.on(ev, fn);
       this._unsubs.push(unsub);
     };
 
-    sub('chuck:assemble',    ({ source }: { source: string }) => this._assemble(source));
-    sub('chuck:run',         ()                               => this._run());
-    sub('chuck:stop',        ()                               => this._stop());
-    sub('chuck:reset',       ()                               => this._reset());
-    sub('chuck:step',        ()                               => this._step());
-    sub('chuck:goto',        ({ address }: { address: number }) => this._goto(address));
-    sub('chuck:validate',    ({ source }: { source: string }) => this._validate(source));
+    sub('chuck:assemble', ({ source }: { source: string }) => this._assemble(source));
+    sub('chuck:run',      ()                               => this._run());
+    sub('chuck:stop',     ()                               => this._stop());
+    sub('chuck:reset',    ()                               => this._reset());
+    sub('chuck:step',     ()                               => this._step());
+    sub('chuck:validate', ({ source }: { source: string }) => this._validate(source));
 
     sub('chuck:memory-read', ({ address, length }: { address: number; length: number }) => {
       const bytes = new Uint8Array(length);
@@ -103,16 +115,25 @@ export class Emulator {
       bus.emit('chuck:memory-data', { address, bytes });
     });
 
-    // Touche clavier
+    // Clavier — set_key(ascii, raw, modifiers) en v1.1
     document.addEventListener('keydown', (e) => {
-      this.core.set_keyboard(e.keyCode & 0xFF);
+      const ascii     = e.key.length === 1 ? e.key.charCodeAt(0) & 0xFF : 0;
+      const raw       = e.keyCode & 0xFF;
+      const modifiers = (e.shiftKey ? 0x01 : 0)
+                      | (e.ctrlKey  ? 0x02 : 0)
+                      | (e.altKey   ? 0x04 : 0);
+      this.core.set_key(ascii, raw, modifiers);
+    });
+
+    document.addEventListener('keyup', () => {
+      this.core.clear_key();
     });
   }
 
   // ── Assemblage ────────────────────────────────────────────────────────────
 
   private _assemble(source: string): void {
-    const result: JsAssembleResult = this.core.assemble(source);
+    const result = this.core.assemble(source) as JsAssembleResult;
 
     if (!result.ok) {
       bus.emit('chuck:assemble-err', {
@@ -131,12 +152,11 @@ export class Emulator {
       org:          result.org,
     });
     bus.emit('chuck:log', {
-      text:  `✓ Assemblé — ${result.bytes_written} octet(s) à $${result.org.toString(16).toUpperCase().padStart(4,'0')}`,
+      text:  `✓ Assemblé — ${result.bytes_written} octet(s) à $${result.org.toString(16).toUpperCase().padStart(4, '0')}`,
       level: 'info',
     });
 
-    // Envoyer l'état initial du CPU
-    this._emitState(this.core.get_state());
+    this._emitState(this.core.get_state() as JsCpuState);
     this._emitDirtyPixels();
   }
 
@@ -146,11 +166,13 @@ export class Emulator {
     bus.emit('chuck:toolbar-state', { state: 'running' });
     bus.emit('chuck:log', { text: '▶ Exécution…', level: 'info' });
 
-    // Exécution par tranches pour ne pas bloquer l'UI
     const SLICE_CYCLES = 100_000;
 
     const tick = () => {
-      const result: JsRunResult = this.core.run(SLICE_CYCLES);
+      // Déclenche le VBlank à chaque frame (60 Hz)
+      this.core.vblank_tick();
+
+      const result = this.core.run(SLICE_CYCLES) as JsRunResult;
       this._emitState(result.state);
       this._emitDirtyPixels();
 
@@ -160,6 +182,8 @@ export class Emulator {
           text:  `■ Arrêt — ${result.cycles} cycle(s)`,
           level: 'info',
         });
+        bus.emit('chuck:toolbar-state', { state: 'assembled' });
+        this._rafId = null;
       } else {
         this._rafId = requestAnimationFrame(tick);
       }
@@ -179,19 +203,19 @@ export class Emulator {
 
   private _reset(): void {
     this._stop();
-    this.core.reset();
-    this._emitState(this.core.get_state());
-    bus.emit('chuck:cpu-reset', this.core.get_state() as any);
+    // soft_reset : préserve le code assemblé, remet CPU + RAM basse + IoState
+    this.core.soft_reset();
+    const state = this.core.get_state() as JsCpuState;
+    this._emitState(state);
+    bus.emit('chuck:cpu-reset', state as any);
     bus.emit('chuck:log', { text: '↺ CPU réinitialisé', level: 'info' });
     this._emitDirtyPixels();
   }
 
   private _step(): void {
-    const result: JsStepResult = this.core.step();
-    const pcHex = result.state.pc.toString(16).toUpperCase().padStart(4, '0');
-    const prevPc = (result.state.pc - 1); // approximatif pour le log
+    const result = this.core.step() as JsStepResult;
     bus.emit('chuck:log', {
-      text:  `→ Step — PC=$${prevPc.toString(16).toUpperCase().padStart(4,'0')}  ${result.disasm}`,
+      text:  `→ Step — PC=$${result.state.pc.toString(16).toUpperCase().padStart(4, '0')}  ${result.disasm}`,
       level: 'info',
     });
     this._emitState(result.state);
@@ -202,26 +226,10 @@ export class Emulator {
     }
   }
 
-  private _goto(address: number): void {
-    this.core.mem_poke(0, 0); // dummy — le goto n'existe pas en WASM direct
-    // On met simplement le PC
-    const state = this.core.get_state();
-    (state as any).pc = address;
-    bus.emit('chuck:log', {
-      text:  `⤷ PC → $${address.toString(16).toUpperCase().padStart(4,'0')}`,
-      level: 'info',
-    });
-  }
-
   // ── Validation des défis ──────────────────────────────────────────────────
 
   private _validate(source: string): void {
-    // Sauvegarde l'état courant
-    const savedMem = new Uint8Array(this.core.memory_view());
-
-    // Assemble dans une instance temporaire... mais on n'a qu'une instance.
-    // Solution : assemble + run dans le core courant, puis compare.
-    const asmResult: JsAssembleResult = this.core.assemble(source);
+    const asmResult = this.core.assemble(source) as JsAssembleResult;
     if (!asmResult.ok) {
       bus.emit('chuck:challenge-failed', {
         result: {
@@ -233,13 +241,14 @@ export class Emulator {
       return;
     }
 
-    this.core.reset();
-    const runResult: JsRunResult = this.core.run(100_000);
+    this.core.soft_reset();
+    const runResult = this.core.run(100_000) as JsRunResult;
     this._emitDirtyPixels();
 
     bus.emit('chuck:validate-done', {
       state:   runResult.state,
-      memory:  this.core.memory_view(),
+      // memory_snapshot() synchronise les registres I/O dans la zone $D000–$D3FF
+      memory:  this.core.memory_snapshot(),
       cycles:  runResult.cycles,
       halted:  runResult.halted,
     });
@@ -260,10 +269,11 @@ export class Emulator {
   }
 
   private _emitDirtyPixels(): void {
-    // Le composant chuck-display écoute chuck:memory-data pour rafraîchir
     const dirty = this.core.take_dirty_pixels();
-    if (dirty) {
-      const [min, max] = dirty;
+    // take_dirty_pixels() retourne JsValue : soit null, soit un Array JS [min, max]
+    if (dirty !== null && dirty !== undefined) {
+      const min   = (dirty as number[])[0];
+      const max   = (dirty as number[])[1];
       const len   = max - min + 1;
       const bytes = new Uint8Array(len);
       const mem   = this.core.memory_view();

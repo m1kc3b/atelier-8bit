@@ -157,7 +157,7 @@ La mémoire du Chuck-8 est organisée sur un espace adressable de 64 Ko ($0000�
 |-------------|-----|-----|
 |$0000-$00FF  |ZeroPage (Variables rapides)|R/W|
 |$0100-$01FF  |Pile CPU (Stack)|R/W|
-|$0200-$03FF  |Ram program/data|R/W|
+|$0200-$3FFF  |Ram program/data|R/W|
 |$4000-$7FFF  |VRAM dynamique (Mode 0 ou 1)|R/W|
 |$8000-$BFFF  |Cartouche ROM|R|
 |$C000-$CFFF  |RAM Expansion / Sauvegarde|R/W|

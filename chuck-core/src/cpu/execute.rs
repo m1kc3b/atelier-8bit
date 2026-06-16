@@ -148,10 +148,10 @@ fn dispatch_api(cpu: &mut Cpu, mem: &mut Memory, addr: u16) {
             cpu.y = mem.io.vpu.cursor_y;
         }
 
-        // ── SYS_SET_COLOR $F030 : A=(ink<<4)|paper ───────────────────────
+        // ── SYS_SET_COLOR $F030 : A = INK(bits7-4) | PAPER(bits3-0) — spec v1.1 §8.1 ─
         SYS_SET_COLOR => {
-            mem.io.vpu.ink   = (cpu.a >> 4) & 0x0F;
-            mem.io.vpu.paper =  cpu.a        & 0x0F;
+            mem.io.vpu.ink   = (cpu.a >> 4) & 0x0F;  // INK = bits 7-4 de A
+            mem.io.vpu.paper =  cpu.a        & 0x0F;  // PAPER = bits 3-0 de A
         }
 
         // ── SYS_SCROLL_UP $F033 ──────────────────────────────────────────
@@ -178,14 +178,14 @@ fn dispatch_api(cpu: &mut Cpu, mem: &mut Memory, addr: u16) {
         // ── SYS_STOP_VOICE $F039 : X=voix ────────────────────────────────
         SYS_STOP_VOICE => {
             let voice_base = 0xD100u16 + (cpu.x.min(2) as u16) * 8;
-            mem.io.write_register(voice_base + 7, 0x00); // gate=0
+            mem.io.write_register(voice_base + 7, 0x01); // gate=0
         }
 
         // ── SYS_STOP_ALL $F03C ────────────────────────────────────────────
         SYS_STOP_ALL => {
-            mem.io.write_register(0xD107, 0x00);
-            mem.io.write_register(0xD10F, 0x00);
-            mem.io.write_register(0xD117, 0x00);
+            mem.io.write_register(0xD107, 0x01);
+            mem.io.write_register(0xD10F, 0x01);
+            mem.io.write_register(0xD117, 0x01);
         }
 
         // ── SYS_PLAY_SFX $F03F : NOP ─────────────────────────────────────
@@ -239,7 +239,7 @@ fn dispatch_api(cpu: &mut Cpu, mem: &mut Memory, addr: u16) {
             // RTS immédiat — déjà effectué par l'intercepteur
         }
 
-        // ── SYS_RAND $F05A : → A=aléatoire ───────────────────────────────
+        // ── SYS_GET_RAND $F05A : → A=aléatoire (routine API, ≠ registre SYS_RAND_REG=$D306) ─
         SYS_RAND_API => {
             cpu.a = mem.io.next_rand();
         }
