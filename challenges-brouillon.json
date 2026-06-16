@@ -1,0 +1,1347 @@
+{
+  "version": "5.0.0",
+  "challenges": [
+    {
+      "id": 1,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Allumer la Machine",
+      "description": "Le Chuck-8 est éteint. Le VPU (Video Processing Unit) est à l'arrêt. Avant de pouvoir afficher quoi que ce soit, il faut l'activer.\n\nÉcris `LDA #$80 : STA VPU_CTRL` pour envoyer la commande d'activation. Le bit 7 de `VPU_CTRL` = 1 = VPU allumé.",
+      "meta": {
+        "concepts": [
+          "VPU_CTRL",
+          "LDA",
+          "STA",
+          "memory-mapped I/O",
+          ".org $E000"
+        ],
+        "estimatedMinutes": 5
+      },
+      "hints": [
+        {
+          "text": "VPU_CTRL = $D000. C'est une adresse I/O — écrire dedans envoie une commande au VPU."
+        },
+        {
+          "text": "$80 en binaire = 10000000. Le bit 7 allume le VPU en mode texte."
+        },
+        {
+          "text": "Structure : VPU_CTRL = $D000 / .org $E000 / LDA #$80 / STA VPU_CTRL / BRK"
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 1/6\n;  Objectif : allumer la machine\n; ══════════════════════════════════════\n\nVPU_CTRL = $D000\n\n  .org $0600     ; BUG 1 — mauvaise origine\n\n  LDA #$00       ; BUG 2 — mauvaise valeur\n  STA VPU_CTRL\n\n  BRK\n",
+      "maxCycles": 500,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 53248,
+          "value": 128,
+          "failMsg": "VPU_CTRL ($D000) doit valoir $80 (bit7=1 = VPU activé). LDA #$80 : STA VPU_CTRL."
+        },
+        {
+          "type": "memory",
+          "address": 57344,
+          "value": 169,
+          "failMsg": "Le programme doit commencer à $E000 (.org $E000). L'opcode LDA ($A9) devrait être à $E000."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Ton Nom en Couleur",
+      "description": "Le VPU est allumé. Maintenant fais-le parler.\n\nAffiche les 5 lettres `CHUCK` en **jaune sur fond bleu** en haut à gauche. Pour ça tu dois :\n1. Activer le VPU en mode texte (`LDA #$80 : STA $D000`)\n2. Positionner le curseur en (0,0)\n3. Définir la couleur avec `SYS_SET_COLOR` — `A = (ink<<4)|paper` = `$76` (jaune=7, bleu=6)\n4. Écrire chaque lettre via `VPU_CHAR_OUT` ($D00F)",
+      "meta": {
+        "concepts": [
+          "VPU_CHAR_OUT",
+          "SYS_SET_COLOR",
+          "VPU_CURSOR_X",
+          "VPU_CURSOR_Y",
+          "ASCII"
+        ],
+        "estimatedMinutes": 8
+      },
+      "hints": [
+        {
+          "text": "SYS_SET_COLOR = $F030. A = (ink << 4) | paper. Jaune=7, Bleu=6 → $76"
+        },
+        {
+          "text": "VPU_CURSOR_X = $D00B, VPU_CURSOR_Y = $D00C. Mets-les à 0 avant d'écrire."
+        },
+        {
+          "text": "Pour chaque lettre : LDA #'C' : STA $D00F puis LDA #'H' : STA $D00F etc."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 2/6\n;  Objectif : afficher CHUCK en couleur\n; ══════════════════════════════════════\n\nVPU_CTRL      = $D000\nVPU_CURSOR_X  = $D00B\nVPU_CURSOR_Y  = $D00C\nVPU_CHAR_OUT  = $D00F\nSYS_SET_COLOR = $F030\n\n  .org $E000\n\n  LDA #$80 : STA VPU_CTRL    ; active le VPU\n\n  ; BUG : le curseur n'est pas positionné en (0,0)\n  ; BUG : la couleur n'est pas définie\n  ; BUG : les lettres ne sont pas écrites\n\n  BRK\n",
+      "maxCycles": 1000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 18432,
+          "value": 67,
+          "failMsg": "La case texte (0,0) doit contenir 'C' (ASCII 67). Écris LDA #'C' : STA $D00F après avoir positionné le curseur."
+        },
+        {
+          "type": "memory",
+          "address": 18433,
+          "value": 72,
+          "failMsg": "La case texte (1,0) doit contenir 'H'."
+        },
+        {
+          "type": "memory",
+          "address": 18434,
+          "value": 85,
+          "failMsg": "La case texte (2,0) doit contenir 'U'."
+        },
+        {
+          "type": "memory",
+          "address": 19456,
+          "value": 118,
+          "failMsg": "L'attribut couleur (0,0) doit être $76 (jaune ink=7 sur fond bleu paper=6). Appelle SYS_SET_COLOR avec A=$76."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Le Premier Pixel",
+      "description": "Quitte le monde du texte. Passe en mode graphique et dessine une **croix blanche** (couleur 1) au centre de l'écran (64, 64).\n\nLa croix : 5 pixels horizontaux (x=62 à 66, y=64) et 5 pixels verticaux (x=64, y=62 à 66).\n\nUtilise `SYS_DRAW_PIXEL` ($F003) : A=couleur, X=px, Y=py.",
+      "meta": {
+        "concepts": [
+          "SYS_SET_MODE",
+          "SYS_DRAW_PIXEL",
+          "mode graphique",
+          "coordonnées pixel"
+        ],
+        "estimatedMinutes": 10
+      },
+      "hints": [
+        {
+          "text": "SYS_SET_MODE = $F01B. A=1 pour le mode graphique."
+        },
+        {
+          "text": "SYS_DRAW_PIXEL = $F003. A=couleur (1=blanc), X=px (0-127), Y=py (0-127)."
+        },
+        {
+          "text": "Centre de l'écran = (64, 64). La croix fait 5 pixels de long dans chaque direction."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 3/6\n;  Objectif : dessiner une croix blanche\n;  au centre de l'écran (64,64)\n; ══════════════════════════════════════\n\nSYS_SET_MODE   = $F01B\nSYS_DRAW_PIXEL = $F003\nSYS_CLEAR      = $F000\n\n  .org $E000\n\n  ; Passe en mode graphique\n  LDA #1 : JSR SYS_SET_MODE\n  ; Efface en noir\n  LDA #0 : JSR SYS_CLEAR\n\n  ; Dessine la barre horizontale (y=64, x de 62 à 66)\n  ; BUG : la couleur n'est pas blanche (1)\n  LDA #0            ; BUG — mauvaise couleur\n  LDX #62 : LDY #64 : JSR SYS_DRAW_PIXEL\n  LDA #0\n  LDX #63 : LDY #64 : JSR SYS_DRAW_PIXEL\n  ; ... complète les pixels manquants\n\n  BRK\n",
+      "maxCycles": 2000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 20512,
+          "value": 17,
+          "failMsg": "Pixel (64,64) doit être blanc. Nibble-packed $5020 = $11 (pixels 64 et 65 blancs car la barre horizontale passe par là)."
+        },
+        {
+          "type": "memory",
+          "address": 20384,
+          "value": 16,
+          "failMsg": "Pixel (64,62) doit être blanc. $4FA0 = $10 (pixel blanc à x=64 sur la barre verticale)."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Pluie de Pixels",
+      "locked": true,
+      "description": "Ta première vraie boucle graphique. Remplis l'écran de **200 pixels aléatoires colorés** en une seule passe.\n\nLe générateur aléatoire du Chuck-8 est à `SYS_RAND` ($F05A) — il retourne un octet aléatoire dans A à chaque appel.\n\nStratégie :\n1. Mode graphique + écran noir\n2. Boucle 200 fois : couleur aléatoire (jamais 0), x aléatoire (0-127), y aléatoire (0-127)\n3. `SYS_DRAW_PIXEL`\n\nUtilise X comme compteur de boucle.",
+      "meta": {
+        "concepts": [
+          "SYS_RAND",
+          "boucle DEX/BNE",
+          "PHA/PLA",
+          "AND masque"
+        ],
+        "estimatedMinutes": 15
+      },
+      "hints": [
+        {
+          "text": "SYS_RAND ($F05A) → A = octet 0-255. AND #$0F pour une couleur 0-15. BEQ sur COULEUR pour éviter le noir."
+        },
+        {
+          "text": "AND #$7F force x et y dans 0-127. TAX pour x, TAY pour y."
+        },
+        {
+          "text": "LDX #200 en dehors de la boucle. DEX : BNE LOOP à la fin. PHA/PLA pour sauvegarder la couleur entre les deux JSR SYS_RAND."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 4/6\n;  Objectif : 200 pixels aléatoires\n; ══════════════════════════════════════\n\nSYS_SET_MODE   = $F01B\nSYS_CLEAR      = $F000\nSYS_DRAW_PIXEL = $F003\nSYS_RAND       = $F05A\n\nCOMPTEUR = $20\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  LDX #200       ; 200 pixels à dessiner\n\nLOOP:\n  STX COMPTEUR   ; sauvegarde le compteur\n\n  ; Couleur aléatoire (pas noire)\nCOULEUR:\n  JSR SYS_RAND\n  ; BUG : AND #$0F manque\n  ; BUG : BEQ COULEUR manque\n\n  PHA            ; sauvegarde couleur\n\n  ; X = position x aléatoire (0-127)\n  JSR SYS_RAND\n  ; BUG : AND #$7F manque\n  TAX\n\n  ; Y = position y aléatoire (0-127)\n  JSR SYS_RAND\n  ; BUG : AND #$7F manque\n  TAY\n\n  PLA            ; restaure couleur\n  JSR SYS_DRAW_PIXEL\n\n  LDX COMPTEUR   ; restaure compteur\n  DEX\n  BNE LOOP\n\n  BRK\n",
+      "maxCycles": 150000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 57344,
+          "value": 169,
+          "failMsg": "Le programme doit être à $E000 (.org $E000)."
+        },
+        {
+          "type": "register",
+          "register": "X",
+          "value": 0,
+          "failMsg": "Le compteur X doit atteindre 0 après 200 itérations. Vérifie que la boucle tourne bien 200 fois avec DEX : BNE LOOP."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "L'Arc-en-Ciel",
+      "locked": true,
+      "description": "16 couleurs, 16 bandes verticales. Chaque bande fait **8 pixels de large** et **128 pixels de haut**.\n\nRésultat : un dégradé arc-en-ciel spectaculaire qui couvre tout l'écran.\n\nStratégie : une table de 16 couleurs + une boucle de 16 itérations. Pour chaque couleur : `SYS_FILL_RECT` avec x=couleur×8, y=0, w=8, h=128.",
+      "meta": {
+        "concepts": [
+          "SYS_FILL_RECT",
+          "table .byte",
+          "LDA table,X",
+          "boucle",
+          "multiplication par 8"
+        ],
+        "estimatedMinutes": 15
+      },
+      "hints": [
+        {
+          "text": "SYS_FILL_RECT = $F00C. Paramètres dans $80=x, $81=y, $82=w, $83=h. Couleur dans A."
+        },
+        {
+          "text": "x = couleur_index × 8. Pour multiplier par 8 : ASL : ASL : ASL (3 fois)."
+        },
+        {
+          "text": "Table : COULEURS: .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15. LDA COULEURS,X pour lire."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 5/6\n;  Objectif : 16 bandes de couleur\n;  8px de large × 128px de haut\n; ══════════════════════════════════════\n\nSYS_SET_MODE  = $F01B\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\nCOULEURS: .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15\n\n  LDX #0\n\nBANDE:\n  ; Couleur courante\n  LDA COULEURS,X\n  PHA                    ; sauvegarde\n\n  ; x = X * 8 (BUG : la multiplication est incorrecte)\n  TXA\n  ; BUG : 3 ASL manquent ici\n  STA $80                ; x\n\n  LDA #0   : STA $81     ; y = 0\n  LDA #8   : STA $82     ; w = 8\n  LDA #128 : STA $83     ; h = 128\n\n  PLA                    ; restaure couleur\n  JSR SYS_FILL_RECT\n\n  INX\n  CPX #16\n  BNE BANDE\n\n  BRK\n",
+      "maxCycles": 50000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 0,
+          "failMsg": "Pixel (0,0) = noir (couleur 0). La première bande doit être noire (couleur 0, x=0)."
+        },
+        {
+          "type": "memory",
+          "address": 16388,
+          "value": 17,
+          "failMsg": "Pixel (8,0) = blanc (couleur 1). La deuxième bande (x=8) doit être blanche. Nibble-packed : $11."
+        },
+        {
+          "type": "memory",
+          "address": 16440,
+          "value": 255,
+          "failMsg": "Pixel (112,0) = couleur 15 (gris clair). La dernière bande (x=112) doit valoir $FF en nibble-packed."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "⚔️ BOSS — Écran de Titre",
+      "locked": true,
+      "description": "Le boss de l'arène. Crée un vrai écran de titre digne d'un jeu des années 80 :\n\n1. **Fond bleu** (couleur 6) sur tout l'écran\n2. **Cadre blanc** (contour 128×128)\n3. **Texte \"CHUCK-8\"** centré, jaune sur fond bleu (colonne 12, ligne 14)\n4. **Texte \"PRESS START\"** centré en dessous (colonne 10, ligne 17)\n\nTu vas combiner mode graphique (fond + cadre) et mode texte (les inscriptions). Le Chuck-8 permet de switcher entre les deux — le contenu de la VRAM est préservé.",
+      "meta": {
+        "concepts": [
+          "SYS_CLEAR",
+          "SYS_DRAW_RECT",
+          "SYS_SET_MODE",
+          "SYS_SET_CURSOR",
+          "mode mixte gfx+texte"
+        ],
+        "estimatedMinutes": 20
+      },
+      "hints": [
+        {
+          "text": "Ordre : 1) mode gfx → SYS_CLEAR couleur 6 → SYS_DRAW_RECT cadre blanc → 2) mode texte → positionner curseur → SYS_SET_COLOR $76 → écrire les lettres."
+        },
+        {
+          "text": "SYS_DRAW_RECT = $F009. $80=x=0, $81=y=0, $82=w=128, $83=h=128, A=1 (blanc)."
+        },
+        {
+          "text": "Pour 'CHUCK-8' : commencer à la colonne 12, ligne 14. Chaque STA $D00F avance le curseur automatiquement."
+        }
+      ],
+      "template": "; ══════════════════════════════════════════════════\n;  CHUCK-8 — Défi 6/6 — BOSS : Écran de titre\n; ══════════════════════════════════════════════════\n\nSYS_CLEAR      = $F000\nSYS_SET_MODE   = $F01B\nSYS_DRAW_RECT  = $F009\nSYS_SET_CURSOR = $F02A\nSYS_SET_COLOR  = $F030\nVPU_CHAR_OUT   = $D00F\n\n  .org $E000\n\n  ; === MODE GRAPHIQUE ===\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #6 : JSR SYS_CLEAR       ; fond bleu\n\n  ; Cadre blanc 128×128\n  LDA #0   : STA $80            ; x=0\n  LDA #0   : STA $81            ; y=0\n  LDA #128 : STA $82            ; w=128\n  LDA #128 : STA $83            ; h=128\n  LDA #1   : JSR SYS_DRAW_RECT  ; BUG : mauvaise adresse ?\n\n  ; === MODE TEXTE ===\n  LDA #0 : JSR SYS_SET_MODE     ; passe en texte\n\n  ; Couleur jaune sur bleu\n  LDA #$76 : JSR SYS_SET_COLOR\n\n  ; Positionner curseur pour CHUCK-8 (col 12, ligne 14)\n  LDA #12 : TAX\n  LDA #14 : TAY\n  JSR SYS_SET_CURSOR\n\n  ; BUG : les lettres ne sont pas écrites\n  ; Écris CHUCK-8 ici...\n\n  BRK\n",
+      "maxCycles": 5000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 102,
+          "failMsg": "Pixel (0,0) = bleu (couleur 6). Le fond doit être bleu. SYS_CLEAR avec A=6."
+        },
+        {
+          "type": "memory",
+          "address": 16447,
+          "value": 17,
+          "failMsg": "Pixel (127,0) = blanc. Le cadre doit atteindre x=127. SYS_DRAW_RECT avec w=128."
+        },
+        {
+          "type": "memory",
+          "address": 18892,
+          "value": 67,
+          "failMsg": "Case texte (12,14) = 'C'. CHUCK-8 doit commencer à la colonne 12, ligne 14."
+        },
+        {
+          "type": "memory",
+          "address": 19916,
+          "value": 118,
+          "failMsg": "Attribut (12,14) = $76 (jaune/bleu). Appelle SYS_SET_COLOR avec A=$76 avant d'écrire."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "arena": 2,
+      "arena_name": "L'Artiste",
+      "title": "La Jauge de Carburant",
+      "description": "## 📡 Théorie — SYS_FILL_RECT\n\n`SYS_FILL_RECT` remplit un rectangle d'une couleur unie. Mêmes paramètres que `SYS_DRAW_RECT` :\n\n```asm\nSYS_FILL_RECT = $F00C\n; $80=x  $81=y  $82=w  $83=h  A=couleur\n\n  LDA #$00 : STA $80   ; x=0\n  LDA #$10 : STA $81   ; y=16\n  LDA #$08 : STA $82   ; w=8\n  LDA #$40 : STA $83   ; h=64\n  LDA #5               ; vert\n  JSR SYS_FILL_RECT\n```\n\nC'est le principal outil pour dessiner des jauges, barres de vie, etc.\n\n---\n\n## 🎯 Mission — Jauge de carburant\n\nLe tableau de bord a une jauge de carburant : un rectangle de fond gris (couleur 12) de 10×60 pixels, avec une barre verte (couleur 5) à l'intérieur de 8×45 pixels (75% plein).\n\nLe code a **les paramètres mélangés** entre les deux appels SYS_FILL_RECT : les largeurs/hauteurs sont échangées entre le fond et la barre.\n\n```asm\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  ; Fond de la jauge : gris (12), position (10,34), 10×60\n  LDA #10 : STA $80   ; x ✓\n  LDA #34 : STA $81   ; y ✓\n  LDA #60 : STA $82   ; BUG : w/h échangés (doit être w=10)\n  LDA #10 : STA $83   ; BUG : doit être h=60\n  LDA #12 : JSR SYS_FILL_RECT\n\n  ; Barre verte : (11,49), 8×45\n  LDA #11 : STA $80   ; x ✓\n  LDA #49 : STA $81   ; y ✓\n  LDA #45 : STA $82   ; BUG : doit être w=8\n  LDA #8  : STA $83   ; BUG : doit être h=45\n  LDA #5  : JSR SYS_FILL_RECT\n\n  BRK\n```\n\nCorrige les 4 valeurs de $82/$83 pour les deux appels.",
+      "template": "; ══════════════════════════════════════\n;  ARTISTE — Programme 1/6\n;  Jauge carburant : fond 10×60, barre 8×45\n; ══════════════════════════════════════\n\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  ; Fond gris (12) : (10,34) 10×60\n  LDA #10 : STA $80\n  LDA #34 : STA $81\n  LDA #60 : STA $82   ; BUG — w/h inversés\n  LDA #10 : STA $83   ; BUG\n  LDA #12 : JSR SYS_FILL_RECT\n\n  ; Barre verte (5) : (11,49) 8×45\n  LDA #11 : STA $80\n  LDA #49 : STA $81\n  LDA #45 : STA $82   ; BUG — w/h inversés\n  LDA #8  : STA $83   ; BUG\n  LDA #5  : JSR SYS_FILL_RECT\n\n  BRK\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 18565,
+          "value": 204,
+          "failMsg": "Pixel (10,34) = gris (12). Le fond gris doit commencer à y=34."
+        },
+        {
+          "type": "memory",
+          "address": 19525,
+          "value": 85,
+          "failMsg": "Pixel (10,49) = vert (5). La barre verte commence à y=49."
+        },
+        {
+          "type": "memory",
+          "address": 22341,
+          "value": 204,
+          "failMsg": "Pixel (10,93) = gris. Le fond fait h=60 donc va jusqu'à y=93."
+        }
+      ],
+      "maxCycles": 5000,
+      "hints": [
+        {
+          "text": "$82 = largeur (w), $83 = hauteur (h). Fond : w=10, h=60. Barre : w=8, h=45."
+        },
+        {
+          "text": "SYS_FILL_RECT : $80=x, $81=y, $82=largeur, $83=hauteur, A=couleur."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_FILL_RECT",
+          "Zone ABI",
+          "Rectangles",
+          "HUD"
+        ],
+        "estimatedMinutes": 10,
+        "zaks": {
+          "chapter": "Chapitre 5",
+          "page": 78,
+          "topic": "Arithmétique"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "arena": 2,
+      "arena_name": "L'Artiste",
+      "title": "La Boucle de Peinture",
+      "description": "## 📡 Théorie — Boucle avec registre de couleur\n\nPour dessiner plusieurs formes avec des couleurs différentes, on utilise X comme index et une table de données `.byte` :\n\n```asm\nCOULEURS:\n  .byte 2, 5, 7, 3    ; rouge, vert, jaune, cyan\n\n  LDX #$00\nBOUCLE:\n  LDA COULEURS,X      ; charge la couleur X\n  ; ... dessiner avec cette couleur ...\n  INX\n  CPX #4\n  BNE BOUCLE\n```\n\n---\n\n## 🎯 Mission — 4 barres de couleur\n\nLe tableau de bord affiche 4 barres verticales de couleurs différentes. Le code utilise une boucle mais **la condition d'arrêt est incorrecte** (arrêt à 3 au lieu de 4), et **la hauteur de chaque barre est mal calculée** dans la table.\n\n```asm\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  LDX #$00\nBARRE:\n  LDA COULEURS,X    ; couleur de la barre\n  PHA               ; sauvegarde\n  TXA\n  ASL               ; X * 2 → pour espacer les barres\n  ASL               ; X * 4\n  CLC : ADC #20     ; décalage de départ x=20\n  STA $80           ; x de la barre courante\n  LDA #20 : STA $81 ; y=20\n\n  LDA #8  : STA $82 ; w=8\n  LDA HAUTEURS,X    ; hauteur variable\n  STA $83\n  PLA               ; restaure couleur\n  JSR SYS_FILL_RECT\n\n  INX\n  CPX #3            ; BUG : devrait être #4 (4 barres)\n  BNE BARRE\n\n  BRK\n\nCOULEURS:  .byte 2, 5, 7, 3\nHAUTEURS:  .byte 40, 60, 50, 0  ; BUG : dernière hauteur 0 au lieu de 70\n```",
+      "template": "; ══════════════════════════════════════\n;  ARTISTE — Programme 2/6\n;  4 barres verticales colorées\n; ══════════════════════════════════════\n\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  LDX #$00\nBARRE:\n  LDA COULEURS,X\n  PHA\n  TXA : ASL : ASL\n  CLC : ADC #20\n  STA $80\n  LDA #20 : STA $81\n  LDA #8  : STA $82\n  LDA HAUTEURS,X : STA $83\n  PLA\n  JSR SYS_FILL_RECT\n\n  INX\n  CPX #3            ; BUG 1 — nombre de barres\n  BNE BARRE\n\n  BRK\n\nCOULEURS:  .byte 2, 5, 7, 3\nHAUTEURS:  .byte 40, 60, 50, 0  ; BUG 2 — dernière valeur\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 17674,
+          "value": 34,
+          "failMsg": "Pixel (20,20) = rouge (2). Première barre doit être rouge."
+        },
+        {
+          "type": "memory",
+          "address": 17681,
+          "value": 51,
+          "failMsg": "Pixel (34,20) = cyan (3). La 4ème barre doit exister (CPX #4)."
+        },
+        {
+          "type": "memory",
+          "address": 22097,
+          "value": 51,
+          "failMsg": "Pixel (34,89) = cyan. La 4ème barre a h=70 (va jusqu'à y=89)."
+        }
+      ],
+      "maxCycles": 10000,
+      "hints": [
+        {
+          "text": "BUG 1 : CPX #4 pour 4 barres (X va de 0 à 3)."
+        },
+        {
+          "text": "BUG 2 : La 4ème hauteur (index 3) doit être 70, pas 0."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Boucle INX/CPX/BNE",
+          ".byte table",
+          "PHA/PLA",
+          "Adressage indexé"
+        ],
+        "estimatedMinutes": 12,
+        "zaks": {
+          "chapter": "Chapitre 6",
+          "page": 95,
+          "topic": "Boucles et branchements"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "arena": 2,
+      "arena_name": "L'Artiste",
+      "title": "Le Dégradé",
+      "description": "## 📡 Théorie — Boucle DEX/BNE sur 256 pixels\n\nPour remplir des zones larges rapidement, `DEX/BNE` depuis 0 donne 256 tours :\n\n```asm\n  LDA #3     ; couleur\n  LDX #$00\nBOUCLE:\n  STA $4000,X   ; nibble-packed : 2px par octet\n  DEX\n  BNE BOUCLE    ; 256 tours\n```\n\nEn mode nibble-packed, un octet = 2 pixels identiques si on écrit `color | (color << 4)`. L'API `SYS_CLEAR` fait ça automatiquement. Pour écrire directement :\n\n```asm\n  LDA #5       ; vert\n  ASL : ASL : ASL : ASL  ; × 16 = $50\n  ORA COULEUR_ORIGNALE   ; OR pour combiner les deux nibbles\n```\n\n---\n\n## 🎯 Mission — Bandes horizontales\n\nLe tableau de bord affiche 4 bandes horizontales de 32 pixels de haut chacune (128 / 4 = 32 lignes = 32 × 64 = 2048 octets par bande). Chaque bande a une couleur différente.\n\nLe code a **la boucle intérieure cassée** (utilise INX au lieu de DEX) et **les couleurs nibble-packées incorrectement** (seul le nibble bas est rempli, pas les deux).\n\n```asm\nBANDES:\n  .byte $11, $22, $55, $77   ; nibble-packed : blanc,rouge,vert,jaune\n\n  .org $E000\n\n  LDA #1 : JSR $F01B   ; gfx\n  LDA #0 : JSR $F000   ; clear\n\n  LDA #$00 : STA $F0   ; pointeur lo\n  LDA #$40 : STA $F1   ; pointeur hi ($4000)\n\n  LDX #4               ; 4 bandes\nBANDE_EXT:\n  LDY #$00\n  LDA BANDES-1,X       ; charge couleur bande\n\n  ; boucle interne : 32 lignes × 64 octets = 2048 octets = 8 passes de 256\n  STX $10              ; sauvegarde X\n  LDX #8               ; 8 passes de 256\nPASSE:\n  LDY #$00\nLIGNE:\n  STA ($F0),Y\n  INY                  ; BUG : devrait être DEY (pour 256 tours)\n  BNE LIGNE\n  INC $F1             ; page suivante\n  DEX\n  BNE PASSE\n  LDX $10             ; restaure X bande\n\n  DEX\n  BNE BANDE_EXT\n\n  BRK\n\nBANDES: .byte $01, $02, $05, $07  ; BUG : pas nibble-packed ($11,$22,$55,$77)\n```",
+      "template": "; ══════════════════════════════════════\n;  ARTISTE — Programme 3/6\n;  4 bandes horizontales 128px large\n; ══════════════════════════════════════\n\n  .org $E000\n\n  LDA #1 : JSR $F01B\n  LDA #0 : JSR $F000\n\n  LDA #$00 : STA $F0\n  LDA #$40 : STA $F1\n\n  LDX #4\nBANDE_EXT:\n  STX $10\n  LDA BANDES-1,X\n\n  LDX #8\nPASSE:\n  LDY #$00\nLIGNE:\n  STA ($F0),Y\n  INY                  ; BUG 1 — direction boucle interne\n  BNE LIGNE\n  INC $F1\n  DEX\n  BNE PASSE\n  LDX $10\n\n  DEX\n  BNE BANDE_EXT\n\n  BRK\n\n; BUG 2 : valeurs pas nibble-packed (manque le nibble haut)\nBANDES: .byte $01, $02, $05, $07\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 17,
+          "failMsg": "Octet $4000 = $11 (blanc nibble-packed). BANDES[0] doit être $11."
+        },
+        {
+          "type": "memory",
+          "address": 18432,
+          "value": 34,
+          "failMsg": "Octet $4800 = $22 (rouge nibble-packed). 2ème bande à l'offset 2048."
+        },
+        {
+          "type": "memory",
+          "address": 20480,
+          "value": 85,
+          "failMsg": "Octet $5000 = $55 (vert nibble-packed). 3ème bande."
+        },
+        {
+          "type": "memory",
+          "address": 22528,
+          "value": 119,
+          "failMsg": "Octet $5800 = $77 (jaune nibble-packed). 4ème bande."
+        }
+      ],
+      "maxCycles": 100000,
+      "hints": [
+        {
+          "text": "BUG 1 : DEY au lieu de INY pour 256 tours (DEY depuis 0 → $FF → ... → $01 → $00)."
+        },
+        {
+          "text": "BUG 2 : nibble-packed = la couleur dans les deux nibbles. Blanc(1)=$11, Rouge(2)=$22, Vert(5)=$55, Jaune(7)=$77."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "DEY/BNE 256 tours",
+          "Nibble-packing",
+          "Pointeur ($F0),Y",
+          "INC page"
+        ],
+        "estimatedMinutes": 15,
+        "zaks": {
+          "chapter": "Chapitre 4",
+          "page": 76,
+          "topic": "Adressage indirect"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "arena": 2,
+      "arena_name": "L'Artiste",
+      "title": "Le Compteur de Frames",
+      "description": "## 📡 Théorie — SYS_FRAME_NUM et calcul d'animation\n\n`SYS_FRAME_NUM` retourne le compteur de frames dans A (lo) et X (hi) :\n\n```asm\n  JSR SYS_FRAME_NUM   ; A=lo, X=hi\n  AND #$3F            ; module 64 (0-63)\n```\n\nCombiné avec des masques, ça permet d'animer sans variable externe. Par exemple, si on fait `AND #$1F` (0-31) et qu'on l'utilise comme hauteur d'une barre, la barre pulse.\n\n---\n\n## 🎯 Mission — Barre pulsante\n\nLe tableau de bord a une barre qui grandit et rétrécit en fonction du frame counter. La hauteur = `(frame_count AND $3F)` soit 0 à 63 pixels. La boucle principale utilise `SYS_WAIT_VBLANK` pour sync à 60 Hz.\n\nLe code a **la condition de masque incorrecte** (AND #$FF garde toute la valeur → barre dépasse l'écran) et **oublie de recharger A** après SYS_FILL_RECT (qui écrase A).\n\n```asm\nSYS_SET_MODE    = $F01B\nSYS_CLEAR       = $F000\nSYS_FILL_RECT   = $F00C\nSYS_WAIT_VBLANK = $F057\nSYS_FRAME_NUM   = $F069\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\nLOOP:\n  JSR SYS_WAIT_VBLANK\n  LDA #0 : JSR SYS_CLEAR    ; efface\n\n  JSR SYS_FRAME_NUM          ; A = frame lo\n  AND #$FF                   ; BUG 1 : doit être #$3F (0-63)\n  STA $83                    ; hauteur\n\n  LDA #50 : STA $80          ; x=50\n  LDA #10 : STA $81          ; y=10 (haut de la barre)\n  LDA #28 : STA $82          ; w=28\n\n  ; BUG 2 : pas de LDA couleur avant JSR — A vaut la hauteur !\n  JSR SYS_FILL_RECT\n\n  JMP LOOP\n```",
+      "template": "; ══════════════════════════════════════\n;  ARTISTE — Programme 4/6\n;  Barre pulsante synchronisée au VBlank\n; ══════════════════════════════════════\n\nSYS_SET_MODE    = $F01B\nSYS_CLEAR       = $F000\nSYS_FILL_RECT   = $F00C\nSYS_WAIT_VBLANK = $F057\nSYS_FRAME_NUM   = $F069\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\nLOOP:\n  JSR SYS_WAIT_VBLANK\n  LDA #0 : JSR SYS_CLEAR\n\n  JSR SYS_FRAME_NUM\n  AND #$FF                   ; BUG 1 — masque\n  STA $83                    ; hauteur\n\n  LDA #50 : STA $80\n  LDA #10 : STA $81\n  LDA #28 : STA $82\n\n  ; BUG 2 — couleur manquante avant JSR\n  JSR SYS_FILL_RECT\n\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 5,
+          "failMsg": "Programme en boucle infinie — Stop puis Valider. La barre doit pulser en vert avec hauteur AND #$3F."
+        }
+      ],
+      "maxCycles": 200000,
+      "hints": [
+        {
+          "text": "BUG 1 : AND #$3F donne une valeur 0-63 (6 bits). AND #$FF garde tout (0-255) → dépasse l'écran."
+        },
+        {
+          "text": "BUG 2 : après STA $83 (qui charge la hauteur dans $83), il manque LDA #5 (vert) avant JSR SYS_FILL_RECT."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_FRAME_NUM",
+          "SYS_WAIT_VBLANK",
+          "Boucle infinie",
+          "Animation"
+        ],
+        "estimatedMinutes": 12,
+        "zaks": {
+          "chapter": "Chapitre 6",
+          "page": 95,
+          "topic": "Boucles"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "arena": 2,
+      "arena_name": "L'Artiste",
+      "title": "Le Double Buffering",
+      "description": "## 📡 Théorie — SYS_FLIP : double buffering\n\nLe double buffering évite le scintillement : on dessine dans un buffer caché (B) et on l'affiche d'un coup.\n\n```asm\nVPU_CTRL = $D000\nSYS_FLIP = $F018\n\n  ; Activer le backbuffer\n  LDA #$83      ; bit7=enable, bit1=flip mode, bit0=gfx\n  STA VPU_CTRL\n\n  ; ... dessiner dans $6000-$7FFF (framebuffer B) ...\n\n  ; Swap au VBlank\n  JSR SYS_FLIP  ; A↔B instantané au prochain VBlank\n```\n\nSans double buffering, on peut voir les pixels se dessiner un par un — un déchirement visible surtout sur les animations rapides.\n\n---\n\n## 🎯 Mission — Animation sans déchirement\n\nLe programme anime un carré qui rebondit. Il utilise le double buffering mais **le VPU_CTRL n'active pas le flip mode** (bit1 manquant) et **SYS_FLIP est appelé avant** de finir le dessin au lieu d'après.\n\n```asm\nSYS_SET_MODE    = $F01B\nSYS_CLEAR       = $F000\nSYS_FILL_RECT   = $F00C\nSYS_WAIT_VBLANK = $F057\nSYS_FLIP        = $F018\nVPU_CTRL        = $D000\n\n  .org $E000\n\n  LDA #$81 : STA VPU_CTRL   ; BUG : devrait être #$83 (bit1=flip)\n\n  LDA #$00 : STA $10        ; pos_x = 0\n  LDA #$01 : STA $11        ; dir = +1\n\nLOOP:\n  JSR SYS_WAIT_VBLANK\n\n  JSR SYS_FLIP               ; BUG : flip AVANT dessin (devrait être APRÈS)\n\n  LDA #0 : JSR SYS_CLEAR\n\n  ; Dessiner le carré à pos_x\n  LDA $10 : STA $80         ; x = pos_x\n  LDA #54 : STA $81         ; y = 54 (centre)\n  LDA #20 : STA $82         ; w = 20\n  LDA #20 : STA $83         ; h = 20\n  LDA #7  : JSR SYS_FILL_RECT\n\n  ; Déplacer\n  LDA $10 : CLC : ADC $11 : STA $10\n  LDA $10 : CMP #108 : BCC NO_R\n  LDA #$FF : STA $11\nNO_R:\n  LDA $10 : CMP #$01 : BCS NO_L\n  LDA #$01 : STA $11\nNO_L:\n\n  ; JSR SYS_FLIP ← doit être ici\n\n  JMP LOOP\n",
+      "template": "; ══════════════════════════════════════\n;  ARTISTE — Programme 5/6\n;  Carré rebondissant en double buffer\n; ══════════════════════════════════════\n\nSYS_SET_MODE    = $F01B\nSYS_CLEAR       = $F000\nSYS_FILL_RECT   = $F00C\nSYS_WAIT_VBLANK = $F057\nSYS_FLIP        = $F018\nVPU_CTRL        = $D000\n\n  .org $E000\n\n  LDA #$81 : STA VPU_CTRL   ; BUG 1 — bit1 manquant\n\n  LDA #$00 : STA $10        ; pos_x\n  LDA #$01 : STA $11        ; direction\n\nLOOP:\n  JSR SYS_WAIT_VBLANK\n\n  JSR SYS_FLIP               ; BUG 2 — trop tôt\n\n  LDA #0 : JSR SYS_CLEAR\n\n  LDA $10 : STA $80\n  LDA #54 : STA $81\n  LDA #20 : STA $82\n  LDA #20 : STA $83\n  LDA #7  : JSR SYS_FILL_RECT\n\n  LDA $10 : CLC : ADC $11 : STA $10\n  LDA $10 : CMP #108 : BCC NO_R\n  LDA #$FF : STA $11\nNO_R:\n  LDA $10 : CMP #$01 : BCS NO_L\n  LDA #$01 : STA $11\nNO_L:\n\n  ; Ajoute JSR SYS_FLIP ici\n\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 7,
+          "failMsg": "Programme en boucle infinie — Stop puis Valider. Le carré doit rebondir sans scintillement."
+        }
+      ],
+      "maxCycles": 200000,
+      "hints": [
+        {
+          "text": "BUG 1 : LDA #$83 (bit7=enable, bit1=flip mode, bit0=gfx). Sans bit1, SYS_FLIP ne fait rien."
+        },
+        {
+          "text": "BUG 2 : JSR SYS_FLIP doit venir APRÈS SYS_FILL_RECT (fin du dessin), avant JMP LOOP."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_FLIP",
+          "Double buffering",
+          "VPU_CTRL",
+          "Animation sans déchirement"
+        ],
+        "estimatedMinutes": 15,
+        "zaks": {
+          "chapter": "Chapitre 8",
+          "page": 142,
+          "topic": "Animation"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "arena": 2,
+      "arena_name": "L'Artiste",
+      "title": "⚔️ BOSS — Le Tableau de Bord",
+      "description": "## 📡 Récapitulatif Arène 2\n\nTu maîtrises : SYS_FILL_RECT, boucles avec tables de données, nibble-packing, frame counter, double buffering.\n\n---\n\n## 🎯 Mission BOSS — HUD complet\n\nLe HUD du jeu affiche simultanément :\n1. Fond **bleu foncé** (6)\n2. Cadre **blanc** sur tout l'écran\n3. Barre de vie **rouge** en haut à gauche : (5,5) taille 40×8\n4. Barre d'énergie **jaune** en haut à droite : (83,5) taille 40×8\n5. Zone de jeu **noire** au centre : (5,18) taille 118×100\n\nLe code a **4 bugs** : mauvaises positions/dimensions pour les deux barres, et la zone de jeu a une hauteur incorrecte.\n\n```asm\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\nSYS_DRAW_RECT = $F009\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #6 : JSR SYS_CLEAR       ; fond bleu\n\n  ; Cadre blanc\n  LDA #0:STA $80:STA $81:LDA #128:STA $82:STA $83\n  LDA #1 : JSR SYS_DRAW_RECT\n\n  ; Barre de vie rouge (5,5) 40×8\n  LDA #5  : STA $80\n  LDA #5  : STA $81\n  LDA #20 : STA $82   ; BUG : devrait être 40\n  LDA #8  : STA $83\n  LDA #2  : JSR SYS_FILL_RECT\n\n  ; Barre d'énergie jaune (83,5) 40×8\n  LDA #83 : STA $80\n  LDA #10 : STA $81   ; BUG : devrait être y=5\n  LDA #40 : STA $82\n  LDA #8  : STA $83\n  LDA #7  : JSR SYS_FILL_RECT\n\n  ; Zone de jeu noire (5,18) 118×100\n  LDA #5   : STA $80\n  LDA #18  : STA $81\n  LDA #118 : STA $82\n  LDA #80  : STA $83  ; BUG : devrait être 100\n  LDA #0   : JSR SYS_FILL_RECT\n\n  BRK\n```\n\n_🏆 L'Arène 2 est complète quand le HUD s'affiche correctement !_",
+      "template": "; ══════════════════════════════════════\n;  ARTISTE — BOSS / HUD COMPLET\n;  3 BUGS À CORRIGER\n; ══════════════════════════════════════\n\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\nSYS_DRAW_RECT = $F009\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #6 : JSR SYS_CLEAR\n\n  LDA #0:STA $80:STA $81:LDA #128:STA $82:STA $83\n  LDA #1 : JSR SYS_DRAW_RECT\n\n  ; Barre vie rouge (5,5) 40×8\n  LDA #5  : STA $80\n  LDA #5  : STA $81\n  LDA #20 : STA $82   ; BUG 1\n  LDA #8  : STA $83\n  LDA #2  : JSR SYS_FILL_RECT\n\n  ; Barre énergie jaune (83,5) 40×8\n  LDA #83 : STA $80\n  LDA #10 : STA $81   ; BUG 2\n  LDA #40 : STA $82\n  LDA #8  : STA $83\n  LDA #7  : JSR SYS_FILL_RECT\n\n  ; Zone jeu noire (5,18) 118×100\n  LDA #5   : STA $80\n  LDA #18  : STA $81\n  LDA #118 : STA $82\n  LDA #80  : STA $83  ; BUG 3\n  LDA #0   : JSR SYS_FILL_RECT\n\n  BRK\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16706,
+          "value": 34,
+          "failMsg": "Pixel (5,5) = rouge (2). Barre vie commence à x=5, y=5."
+        },
+        {
+          "type": "memory",
+          "address": 16726,
+          "value": 34,
+          "failMsg": "Pixel (44,5) = rouge. Barre vie fait w=40 (x+w-1 = 44)."
+        },
+        {
+          "type": "memory",
+          "address": 16745,
+          "value": 119,
+          "failMsg": "Pixel (83,5) = jaune. Barre énergie à y=5 pas y=10."
+        },
+        {
+          "type": "memory",
+          "address": 23874,
+          "value": 0,
+          "failMsg": "Pixel (5,117) = noir. Zone jeu h=100 → va jusqu'à y=117."
+        }
+      ],
+      "maxCycles": 10000,
+      "hints": [
+        {
+          "text": "BUG 1 : w de la barre vie = 40 (pas 20). BUG 2 : y de la barre énergie = 5 (pas 10)."
+        },
+        {
+          "text": "BUG 3 : h de la zone jeu = 100 (pas 80). $83 = 100 = $64 en hexadécimal."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_FILL_RECT",
+          "SYS_DRAW_RECT",
+          "HUD",
+          "Synthèse Arène 2"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 6",
+          "page": 101,
+          "topic": "Synthèse"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "arena": 3,
+      "arena_name": "L'Astronome",
+      "title": "Les Premières Étoiles",
+      "description": "## 📡 Théorie — SYS_RAND : aléatoire\n\n`SYS_RAND` retourne un octet pseudo-aléatoire dans A :\n\n```asm\nSYS_RAND = $F05A\n  JSR SYS_RAND    ; A = valeur aléatoire 0-255\n  AND #$7F        ; force dans 0-127 (pour rester à l'écran)\n  TAX             ; X = position x aléatoire\n  JSR SYS_RAND\n  AND #$7F\n  TAY             ; Y = position y aléatoire\n```\n\nAttention : après `JSR SYS_RAND`, X est utilisé comme index dans la ROM — donc **X et Y sont détruits**. Il faut sauvegarder les valeurs avec PHA/STA si besoin.\n\n---\n\n## 🎯 Mission — Constellation aléatoire\n\nLe programme trace 8 étoiles blanches à des positions aléatoires. La boucle fonctionne mais **après JSR SYS_DRAW_PIXEL, A est écrasé** — il faut le recharger avant chaque appel, et **X et Y sont détruits par SYS_RAND** donc la position calculée est perdue.\n\n```asm\nSYS_SET_MODE   = $F01B\nSYS_CLEAR      = $F000\nSYS_RAND       = $F05A\nSYS_DRAW_PIXEL = $F003\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  LDX #8              ; 8 étoiles\nETOILE:\n  PHA                 ; BUG : pousse X pas A ici\n  JSR SYS_RAND : AND #$7F : TAX    ; pos_x dans X\n  JSR SYS_RAND : AND #$7F : TAY    ; pos_y dans Y\n  ; BUG : X est détruit par le 2ème JSR SYS_RAND !\n  ; Il faut sauvegarder X après le 1er appel\n  LDA #1\n  JSR SYS_DRAW_PIXEL\n  PLA                 ; BUG : restaure dans A mais on voulait X\n  DEX\n  BNE ETOILE\n\n  BRK\n```\n\nRestructure le code pour sauvegarder correctement la position X et le compteur de boucle.",
+      "template": "; ══════════════════════════════════════\n;  ASTRONOME — Programme 1/6\n;  8 étoiles blanches à positions aléatoires\n; ══════════════════════════════════════\n\nSYS_SET_MODE   = $F01B\nSYS_CLEAR      = $F000\nSYS_RAND       = $F05A\nSYS_DRAW_PIXEL = $F003\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  LDX #8\nETOILE:\n  STX $10              ; sauvegarde compteur boucle dans ZP\n  JSR SYS_RAND : AND #$7F\n  STA $11              ; ← sauvegarde pos_x ici (pas TAX tout de suite)\n  JSR SYS_RAND : AND #$7F\n  TAY                  ; pos_y dans Y (ne sera pas détruit)\n  LDA $11 : TAX        ; maintenant pos_x dans X\n  LDA #1               ; couleur blanche\n  JSR SYS_DRAW_PIXEL   ; dessine l'étoile\n  LDX $10              ; restaure compteur\n  DEX\n  BNE ETOILE           ; BUG — manque quelque chose ici\n\n  BRK\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "X",
+          "value": 0,
+          "failMsg": "X doit valoir 0 après la boucle (8 étoiles dessinées). La boucle DEX/BNE doit faire 8 tours."
+        }
+      ],
+      "maxCycles": 5000,
+      "hints": [
+        {
+          "text": "STX $10 au début de la boucle sauvegarde le compteur. LDX $10 le restaure avant DEX."
+        },
+        {
+          "text": "STA $11 sauvegarde pos_x. Après le 2ème SYS_RAND, LDA $11 : TAX charge pos_x dans X."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_RAND",
+          "STA/STX ZP",
+          "Sauvegarde registres",
+          "SYS_DRAW_PIXEL"
+        ],
+        "estimatedMinutes": 12,
+        "zaks": {
+          "chapter": "Chapitre 7",
+          "page": 115,
+          "topic": "PHA/PLA sauvegarde"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "arena": 3,
+      "arena_name": "L'Astronome",
+      "title": "La Voie Lactée",
+      "description": "## 📡 Théorie — Remplissage rapide avec SYS_MEMSET\n\n`SYS_MEMSET` remplit une zone mémoire avec une valeur :\n\n```asm\nSYS_MEMSET = $F063\n; $80/$81 = adresse destination (lo/hi)\n; A = valeur de remplissage\n; $82/$83 = longueur (lo/hi)\n\n  LDA #$00 : STA $80   ; dst lo\n  LDA #$40 : STA $81   ; dst hi ($4000 = framebuf)\n  LDA #$00 : STA $82   ; len lo\n  LDA #$20 : STA $83   ; len hi ($2000 = 8192 octets)\n  LDA #$11             ; nibble-packed blanc\n  JSR SYS_MEMSET\n```\n\nC'est beaucoup plus rapide que d'écrire octet par octet.\n\n---\n\n## 🎯 Mission — Remplissage du ciel\n\nLe programme remplit le framebuffer en bleu nuit (nibble-packed #$66) puis dessine 32 étoiles. Mais **l'adresse destination est incorrecte** (pointe vers $5000 au lieu de $4000) et **la longueur ne couvre pas tout le framebuffer** (4096 au lieu de 8192 octets).\n\n```asm\nSYS_MEMSET     = $F063\nSYS_SET_MODE   = $F01B\nSYS_RAND       = $F05A\nSYS_DRAW_PIXEL = $F003\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\n  ; Remplir framebuf en bleu nuit ($66 = nibble-packed couleur 6)\n  LDA #$00 : STA $80   ; dst lo ✓\n  LDA #$50 : STA $81   ; BUG 1 : dst hi = $50 ($5000), devrait être $40 ($4000)\n  LDA #$00 : STA $82   ; len lo ✓\n  LDA #$10 : STA $83   ; BUG 2 : len = $1000 = 4096, devrait être $2000 = 8192\n  LDA #$66             ; bleu nuit nibble-packed ✓\n  JSR SYS_MEMSET\n\n  ; 32 étoiles blanches\n  LDX #32\nSTAR:\n  STX $10\n  JSR SYS_RAND : AND #$7F : STA $11\n  JSR SYS_RAND : AND #$7F : TAY\n  LDA $11 : TAX\n  LDA #1 : JSR SYS_DRAW_PIXEL\n  LDX $10 : DEX : BNE STAR\n\n  BRK\n",
+      "template": "; ══════════════════════════════════════\n;  ASTRONOME — Programme 2/6\n;  Ciel bleu nuit + 32 étoiles\n; ══════════════════════════════════════\n\nSYS_MEMSET     = $F063\nSYS_SET_MODE   = $F01B\nSYS_RAND       = $F05A\nSYS_DRAW_PIXEL = $F003\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\n  LDA #$00 : STA $80\n  LDA #$50 : STA $81   ; BUG 1 — adresse\n  LDA #$00 : STA $82\n  LDA #$10 : STA $83   ; BUG 2 — longueur\n  LDA #$66\n  JSR SYS_MEMSET\n\n  LDX #32\nSTAR:\n  STX $10\n  JSR SYS_RAND : AND #$7F : STA $11\n  JSR SYS_RAND : AND #$7F : TAY\n  LDA $11 : TAX\n  LDA #1 : JSR SYS_DRAW_PIXEL\n  LDX $10 : DEX : BNE STAR\n\n  BRK\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 102,
+          "failMsg": "Pixel (0,0) = bleu nuit ($66). SYS_MEMSET doit démarrer à $4000."
+        },
+        {
+          "type": "memory",
+          "address": 20480,
+          "value": 102,
+          "failMsg": "Pixel milieu framebuf = bleu. La longueur doit être $2000 = 8192 octets."
+        },
+        {
+          "type": "memory",
+          "address": 24575,
+          "value": 102,
+          "failMsg": "Dernier octet framebuf ($5FFF) = bleu. Tout le framebuffer doit être rempli."
+        }
+      ],
+      "maxCycles": 50000,
+      "hints": [
+        {
+          "text": "BUG 1 : le framebuffer A est à $4000, donc dst hi = $40 (LDA #$40 : STA $81)."
+        },
+        {
+          "text": "BUG 2 : 128×128 / 2 = 8192 octets = $2000. LDA #$20 : STA $83."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_MEMSET",
+          "Adresse 16-bit",
+          "Framebuffer",
+          "Nibble-packing"
+        ],
+        "estimatedMinutes": 10,
+        "zaks": {
+          "chapter": "Chapitre 4",
+          "page": 76,
+          "topic": "Adressage indirect"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "arena": 3,
+      "arena_name": "L'Astronome",
+      "title": "Le Scintillement",
+      "description": "## 📡 Théorie — Clignotement avec frame counter\n\nPour faire scintiller une étoile, on peut tester un bit du frame counter :\n\n```asm\nSYS_FRAME_NUM = $F069\n  JSR SYS_FRAME_NUM   ; A=lo frame\n  AND #$08            ; bit 3 : alterne toutes les 8 frames\n  BEQ ETEINT          ; éteint si bit=0\n  ; allumé\nETEINT:\n```\n\nLa période de clignotement = `8 frames / 60 Hz ≈ 0.13 secondes`.\n\n---\n\n## 🎯 Mission — Étoile pulsante\n\nUne étoile centrale clignote : elle est blanche si `frame AND #$10` est non-nul, noire sinon. Mais **le masque est mal choisi** (AND #$01 = 1 bit → clignote 30× par seconde, trop rapide) et **la couleur \"éteint\" est bleue** au lieu de noire (le ciel est bleu, mais l'étoile éteinte doit \"disparaître\" en prenant la couleur du ciel = $66 nibble-packed).\n\n```asm\nSYS_SET_MODE    = $F01B\nSYS_FRAME_NUM   = $F069\nSYS_DRAW_PIXEL  = $F003\nSYS_WAIT_VBLANK = $F057\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\nLOOP:\n  JSR SYS_WAIT_VBLANK\n  JSR SYS_FRAME_NUM     ; A=lo\n  AND #$01              ; BUG 1 : trop rapide, devrait être #$10\n  BEQ ETEINTE\n\nALLUMEE:\n  LDA #1               ; blanc\n  LDX #64 : LDY #64\n  JSR SYS_DRAW_PIXEL\n  JMP LOOP\n\nETEINTE:\n  LDA #0               ; BUG 2 : noir, devrait être bleu (6) pour \"disparaître\"\n  LDX #64 : LDY #64\n  JSR SYS_DRAW_PIXEL\n  JMP LOOP\n",
+      "template": "; ══════════════════════════════════════\n;  ASTRONOME — Programme 3/6\n;  Étoile centrale pulsante (lente)\n; ══════════════════════════════════════\n\nSYS_SET_MODE    = $F01B\nSYS_FRAME_NUM   = $F069\nSYS_DRAW_PIXEL  = $F003\nSYS_WAIT_VBLANK = $F057\nSYS_MEMSET      = $F063\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\n  ; Fond bleu nuit\n  LDA #$00:STA $80:LDA #$40:STA $81\n  LDA #$00:STA $82:LDA #$20:STA $83\n  LDA #$66 : JSR SYS_MEMSET\n\nLOOP:\n  JSR SYS_WAIT_VBLANK\n  JSR SYS_FRAME_NUM\n  AND #$01              ; BUG 1 — masque trop petit\n  BEQ ETEINTE\n\nALLUMEE:\n  LDA #1\n  LDX #64 : LDY #64 : JSR SYS_DRAW_PIXEL\n  JMP LOOP\n\nETEINTE:\n  LDA #0               ; BUG 2 — mauvaise couleur\n  LDX #64 : LDY #64 : JSR SYS_DRAW_PIXEL\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 1,
+          "failMsg": "Programme en boucle — Stop puis Valider. L'étoile doit pulser lentement (AND #$10) en blanc, s'éteindre en bleu (couleur 6)."
+        }
+      ],
+      "maxCycles": 200000,
+      "hints": [
+        {
+          "text": "BUG 1 : AND #$10 → bit 4 alterne toutes les 16 frames ≈ 0.27s. Clignotement visible et lent."
+        },
+        {
+          "text": "BUG 2 : pour que l'étoile 'disparaisse' dans le ciel bleu, la couleur éteinte = 6 (bleu), pas 0 (noir)."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_FRAME_NUM",
+          "AND masque",
+          "Animation clignotement",
+          "SYS_WAIT_VBLANK"
+        ],
+        "estimatedMinutes": 10,
+        "zaks": {
+          "chapter": "Chapitre 5",
+          "page": 92,
+          "topic": "Opérations logiques"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "arena": 3,
+      "arena_name": "L'Astronome",
+      "title": "La Pluie d'Étoiles",
+      "description": "## 📡 Théorie — Table de sprites en ZP\n\nPour animer plusieurs objets, on stocke leurs positions en Zero Page :\n\n```asm\n; Variables en ZP pour 4 étoiles filantes\nSTAR_X: .byte 10, 40, 80, 110  ; positions x ($10–$13)\nSTAR_Y: .byte 0, 20, 5, 15     ; positions y ($14–$17)\n\n; Ou en ZP directement (plus rapide) :\n  LDA #10 : STA $10   ; étoile 0, x\n  LDA #0  : STA $14   ; étoile 0, y\n```\n\nL'index X permet d'accéder à l'étoile N via `LDA $10,X` (ZP indexé).\n\n---\n\n## 🎯 Mission — 4 étoiles filantes\n\n4 étoiles tombent du haut vers le bas. Quand une étoile sort par le bas (y > 127), elle réapparaît en haut (y = 0) à un x aléatoire.\n\nLe code a **le test de bord bas incorrect** (CMP #128 au lieu de #120, plus BCS au lieu de BCC pour le saut de non-reset) et **oublie d'effacer l'ancienne position** avant de déplacer.\n\n```asm\n  .org $E000\n\n  LDA #1 : JSR $F01B\n  LDA #$00:STA $80:LDA #$40:STA $81\n  LDA #$00:STA $82:LDA #$20:STA $83\n  LDA #$66 : JSR $F063   ; fond bleu\n\n  ; Init étoiles (positions x en $10-$13, y en $14-$17)\n  LDA #20:STA $10 : LDA #50:STA $11\n  LDA #90:STA $12 : LDA #110:STA $13\n  LDA #0:STA $14  : LDA #30:STA $15\n  LDA #60:STA $16 : LDA #10:STA $17\n\nLOOP:\n  JSR $F057              ; wait vblank\n  LDX #4\nSTAR:\n  DEX\n\n  ; Effacer ancienne pos\n  LDA $10,X : TAX        ; BUG : écrase X (l'index boucle!)\n  LDA $14,X : TAY\n  LDA #6 : JSR $F003     ; efface en bleu\n\n  ; Déplacer y += 2\n  LDA $17,X : CLC : ADC #2 : STA $17,X  ; BUG : index mélangé\n\n  ; Test bord bas\n  CMP #128               ; BUG : devrait être #120 pour rester visible\n  BCC NO_RESET           ; BUG : devrait être BCS (sauter si >= 120)\n  JSR $F05A : AND #$7F : STA $10,X  ; reset x aléatoire\n  LDA #0 : STA $14,X\nNO_RESET:\n  ; Dessiner\n  LDA $10,X : TAX\n  LDA $14,X : TAY\n  LDA #1 : JSR $F003\n\n  CPX #0 : BNE STAR   ; BUG : CPX après TAX = compare pos_x\n  JMP LOOP\n```",
+      "template": "; ══════════════════════════════════════\n;  ASTRONOME — Programme 4/6\n;  4 étoiles filantes tombantes\n; ══════════════════════════════════════\n; Variables : pos_x en $10-$13, pos_y en $14-$17\n; ══════════════════════════════════════\n\n  .org $E000\n\n  LDA #1 : JSR $F01B\n  LDA #$00:STA $80:LDA #$40:STA $81\n  LDA #$00:STA $82:LDA #$20:STA $83\n  LDA #$66 : JSR $F063\n\n  LDA #20:STA $10 : LDA #50:STA $11\n  LDA #90:STA $12 : LDA #110:STA $13\n  LDA #0:STA $14  : LDA #30:STA $15\n  LDA #60:STA $16 : LDA #10:STA $17\n\nLOOP:\n  JSR $F057\n\n  LDX #3           ; index 0-3 pour 4 étoiles\nSTAR:\n  STX $20          ; sauvegarde index boucle\n\n  ; Effacer ancienne position\n  LDA $10,X : TAX\n  LDA $14,X : TAY\n  LDA #6 : JSR $F003   ; efface en bleu\n  LDX $20              ; restaure index\n\n  ; Avancer y\n  LDA $14,X : CLC : ADC #2 : STA $14,X\n\n  ; Test bord bas : si y >= 120, reset\n  CMP #128             ; BUG 1 — seuil trop grand\n  BCC NO_RESET         ; BUG 2 — mauvais sens (devrait sauter si < seuil)\n  JSR $F05A : AND #$7F : STA $10,X\n  LDA #0 : STA $14,X\nNO_RESET:\n  ; Dessiner\n  LDA $10,X : TAX\n  LDA $14,X : TAY\n  LDA #1 : JSR $F003\n  LDX $20\n  DEX\n  BPL STAR         ; tant que X >= 0\n\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 1,
+          "failMsg": "Programme en boucle — Stop puis Valider. 4 étoiles doivent descendre et reparaître en haut."
+        }
+      ],
+      "maxCycles": 500000,
+      "hints": [
+        {
+          "text": "BUG 1 : CMP #120 ($78). Quand y >= 120, l'étoile est presque sortie → reset."
+        },
+        {
+          "text": "BUG 2 : BCS NO_RESET (Branch if Carry Set = branche si y < 120). BCC brancherait si y >= 120."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Table ZP",
+          "STX/LDX sauvegarde",
+          "BCS/BCC bord",
+          "Animation multi-objets"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 8",
+          "page": 142,
+          "topic": "Animation sprite"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "arena": 3,
+      "arena_name": "L'Astronome",
+      "title": "La Constellation Nommée",
+      "description": "## 📡 Théorie — SYS_PRINT_STR et mode mixte\n\nOn peut superposer du texte sur un fond graphique en combinant les modes. Une technique : passer en mode texte, écrire, repasser en gfx (le framebuffer graphique reste intact).\n\nMais il existe plus simple : `SYS_PRINT_STR` écrit une chaîne null-terminée dans la mémoire texte. Si on est en mode texte, ça s'affiche immédiatement.\n\n```asm\nSYS_PRINT_STR = $F021\n; $80/$81 = adresse de la chaîne (lo/hi)\n\nMSG:  .byte \"Orion\", 0   ; null-terminated\n\n  LDA #<MSG : STA $80\n  LDA #>MSG : STA $81\n  JSR SYS_PRINT_STR\n```\n\n---\n\n## 🎯 Mission — Étiquette de constellation\n\nLe programme affiche le ciel étoilé puis passe en mode texte pour afficher \"ORION\" à la position (10, 28) en jaune. Mais **l'adresse de la chaîne est incorrecte** (lo/hi inversés dans $80/$81) et **le curseur n'est pas positionné** avant l'affichage.\n\n```asm\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_SET_CURSOR = $F02A\nSYS_SET_COLOR  = $F030\nSYS_PRINT_STR  = $F021\nVPU_CURSOR_X   = $D00B\nVPU_CURSOR_Y   = $D00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE   ; gfx\n  LDA #0 : JSR SYS_CLEAR\n\n  ; [... étoiles aléatoires ici ...]\n\n  LDA #0 : JSR SYS_SET_MODE   ; texte\n\n  ; Positionner curseur — BUG : manque SYS_SET_CURSOR ou écriture directe\n  ; (curseur reste à (0,0) au lieu de (10,28))\n\n  LDA #$70 : JSR SYS_SET_COLOR   ; jaune sur noir\n\n  ; Afficher \"ORION\"\n  LDA #>LABEL : STA $80  ; BUG : hi en $80 et lo en $81 (inversé !)\n  LDA #<LABEL : STA $81\n  JSR SYS_PRINT_STR\n\n  BRK\n\nLABEL: .byte \"ORION\", 0\n",
+      "template": "; ══════════════════════════════════════\n;  ASTRONOME — Programme 5/6\n;  \"ORION\" en jaune à (10,28)\n; ══════════════════════════════════════\n\nSYS_SET_MODE   = $F01B\nSYS_CLEAR      = $F000\nSYS_SET_CURSOR = $F02A\nSYS_SET_COLOR  = $F030\nSYS_PRINT_STR  = $F021\nVPU_CURSOR_X   = $D00B\nVPU_CURSOR_Y   = $D00C\n\n  .org $E000\n\n  LDA #0 : JSR SYS_SET_MODE   ; mode texte direct\n\n  ; BUG 1 : curseur pas positionné en (10,28)\n  ; Ajoute : LDX #10 : LDY #28 : JSR SYS_SET_CURSOR\n\n  LDA #$70 : JSR SYS_SET_COLOR  ; jaune sur noir\n\n  ; BUG 2 : hi/lo inversés\n  LDA #>LABEL : STA $80\n  LDA #<LABEL : STA $81\n  JSR SYS_PRINT_STR\n\n  BRK\n\nLABEL: .byte \"ORION\", 0\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 19338,
+          "value": 79,
+          "failMsg": "Case texte (10,28) = 'O'. Positionne le curseur avec LDX #10 : LDY #28 : JSR SYS_SET_CURSOR."
+        },
+        {
+          "type": "memory",
+          "address": 19342,
+          "value": 78,
+          "failMsg": "Case texte (14,28) = 'N'. 'ORION' fait 5 chars, doit finir en col 14."
+        }
+      ],
+      "maxCycles": 2000,
+      "hints": [
+        {
+          "text": "BUG 1 : LDX #10 : LDY #28 : JSR SYS_SET_CURSOR (X=col, Y=ligne)."
+        },
+        {
+          "text": "BUG 2 : $80=lo, $81=hi (little-endian). LDA #<LABEL:STA $80 puis LDA #>LABEL:STA $81."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_PRINT_STR",
+          "SYS_SET_CURSOR",
+          "Adresse 16-bit lo/hi",
+          "Mode texte"
+        ],
+        "estimatedMinutes": 10,
+        "zaks": {
+          "chapter": "Chapitre 4",
+          "page": 79,
+          "topic": "Adresses 16-bit"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "arena": 3,
+      "arena_name": "L'Astronome",
+      "title": "⚔️ BOSS — La Nuit Étoilée",
+      "description": "## 📡 Récapitulatif Arène 3\n\nTu maîtrises : SYS_RAND, SYS_MEMSET, frame counter, clignotement, SYS_PRINT_STR.\n\n---\n\n## 🎯 Mission BOSS — Ciel complet\n\nLa nuit étoilée finale :\n1. Fond bleu nuit (SYS_MEMSET $66)\n2. 20 étoiles blanches fixes (boucle SYS_RAND)\n3. Boucle principale 60 Hz : une étoile clignote (bit #$10 du frame), un météore tombe\n4. Texte \"CHUCK-8 v1.0\" en bas en blanc sur bleu\n\nLe code a **4 bugs** dispersés :\n\n```asm\n  .org $E000\n\n  LDA #1 : JSR $F01B\n\n  ; Fond bleu nuit\n  LDA #$00:STA $80:LDA #$40:STA $81\n  LDA #$00:STA $82:LDA #$20:STA $83\n  LDA #$66 : JSR $F063\n\n  ; 20 étoiles fixes\n  LDX #20\nINIT_STAR:\n  STX $10\n  JSR $F05A:AND #$7F:STA $11\n  JSR $F05A:AND #$3F:TAY    ; BUG 1 : AND #$3F limite à 63, devrait être #$5F (95)\n  LDA $11:TAX\n  LDA #1:JSR $F003\n  LDX $10:DEX:BNE INIT_STAR\n\n  ; Météore : pos en $20 (x) et $21 (y)\n  JSR $F05A:AND #$7F:STA $20\n  LDA #0:STA $21\n\nLOOP:\n  JSR $F057\n\n  ; Étoile clignotante au centre\n  JSR $F069:AND #$10:BEQ OFF\n  LDA #1:LDX #64:LDY #64:JSR $F003:JMP CONT\nOFF:\n  LDA #6:LDX #64:LDY #64:JSR $F003\nCONT:\n\n  ; Météore\n  LDA $20:TAX:LDA $21:TAY\n  LDA #6:JSR $F003           ; efface\n\n  LDA $21:CLC:ADC #2:STA $21 ; descend\n  CMP #128:BCC NO_RST         ; BUG 2 : devrait être #120\n  JSR $F05A:AND #$7F:STA $20\n  LDA #0:STA $21\nNO_RST:\n  LDA $20:TAX:LDA $21:TAY\n  LDA #8:JSR $F003            ; dessine orange (8) ✓\n\n  ; Texte en bas (mode texte puis retour gfx)\n  LDA #0:JSR $F01B\n  LDA #$10:STA $D00B          ; BUG 3 : col=16, devrait être col=10\n  LDA #31:STA $D00C\n  LDA #$11:JSR $F030          ; BUG 4 : $11 = ink=1 paper=1 (blanc/blanc)\n                               ; devrait être $16 (blanc sur bleu)\n  LDA #<TITRE:STA $80:LDA #>TITRE:STA $81:JSR $F021\n  LDA #1:JSR $F01B\n\n  JMP LOOP\n\nTITRE: .byte \"CHUCK-8 v1.0\", 0\n```\n\n_🌌 L'Arène 3 est complète quand la nuit étoilée s'anime !_",
+      "template": "; ══════════════════════════════════════\n;  ASTRONOME — BOSS / NUIT ÉTOILÉE\n;  4 BUGS À CORRIGER\n; ══════════════════════════════════════\n\n  .org $E000\n\n  LDA #1 : JSR $F01B\n\n  LDA #$00:STA $80:LDA #$40:STA $81\n  LDA #$00:STA $82:LDA #$20:STA $83\n  LDA #$66 : JSR $F063\n\n  LDX #20\nINIT_STAR:\n  STX $10\n  JSR $F05A:AND #$7F:STA $11\n  JSR $F05A:AND #$3F:TAY     ; BUG 1 — plage y\n  LDA $11:TAX:LDA #1:JSR $F003\n  LDX $10:DEX:BNE INIT_STAR\n\n  JSR $F05A:AND #$7F:STA $20\n  LDA #0:STA $21\n\nLOOP:\n  JSR $F057\n\n  JSR $F069:AND #$10:BEQ OFF\n  LDA #1:LDX #64:LDY #64:JSR $F003:JMP CONT\nOFF:\n  LDA #6:LDX #64:LDY #64:JSR $F003\nCONT:\n  LDA $20:TAX:LDA $21:TAY:LDA #6:JSR $F003\n  LDA $21:CLC:ADC #2:STA $21\n  CMP #128:BCC NO_RST         ; BUG 2 — seuil\n  JSR $F05A:AND #$7F:STA $20:LDA #0:STA $21\nNO_RST:\n  LDA $20:TAX:LDA $21:TAY:LDA #8:JSR $F003\n\n  LDA #0:JSR $F01B\n  LDA #$10:STA $D00B          ; BUG 3 — col curseur\n  LDA #31:STA $D00C\n  LDA #$11:JSR $F030          ; BUG 4 — couleur texte\n  LDA #<TITRE:STA $80:LDA #>TITRE:STA $81:JSR $F021\n  LDA #1:JSR $F01B\n\n  JMP LOOP\n\nTITRE: .byte \"CHUCK-8 v1.0\", 0\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 1,
+          "failMsg": "Programme en boucle — Stop puis Valider. La nuit étoilée doit s'animer avec météore et texte."
+        }
+      ],
+      "maxCycles": 500000,
+      "hints": [
+        {
+          "text": "BUG 1 : AND #$5F donne 0-95. BUG 2 : CMP #120 ($78) pour reset météore avant sortie."
+        },
+        {
+          "text": "BUG 3 : LDA #10 : STA $D00B (col=10 pour centrer 'CHUCK-8 v1.0' = 12 chars). BUG 4 : LDA #$16 = ink=1 white, paper=6 blue."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Synthèse Arène 3",
+          "Animation",
+          "SYS_FRAME_NUM",
+          "Multi-objets"
+        ],
+        "estimatedMinutes": 30,
+        "zaks": {
+          "chapter": "Chapitre 8",
+          "page": 145,
+          "topic": "Moteur d'animation"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "arena": 4,
+      "arena_name": "L'Architecte",
+      "title": "La Sous-Routine Paramétrée",
+      "description": "## 📡 Théorie — Sous-routines et convention ABI\n\nLa convention Chuck-8 : A=1er param, X=2ème, Y=3ème, $80–$8F=params larges.\n\n```asm\n; DRAW_HLINE : A=couleur, X=x_start, Y=y, $80=longueur\nDRAW_HLINE:\n  PHA              ; sauvegarde couleur\n  STX $F0          ; pos_x courante\n  ; boucle sur la longueur...\n  PLA : RTS\n```\n\n---\n\n## 🎯 Mission — Ligne horizontale\n\n`DRAW_HLINE` dessine une ligne horizontale. Mais **les paramètres sont passés dans le mauvais ordre** aux deux appels et **PHA/PLA sont déséquilibrés** dans la routine (un PLA de trop).\n\n```asm\n  .org $E000\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  ; Appel 1 : ligne verte y=30, x=10, len=80\n  LDA #30     ; BUG : A=couleur, pas y\n  LDX #10\n  LDY #5      ; couleur dans Y ?\n  LDA #80:STA $80\n  JSR DRAW_HLINE\n\n  ; Appel 2 : ligne rouge y=80, x=20, len=60\n  LDA #80     ; BUG : y pas couleur\n  LDX #20\n  LDY #2\n  LDA #60:STA $80\n  JSR DRAW_HLINE\n\n  BRK\n\nDRAW_HLINE:       ; A=couleur X=x_start Y=y $80=len\n  PHA             ; sauvegarde couleur\n  STX $F0         ; x courant\n  LDA #$00:STA $F1:LDA #$40:STA $F2  ; setup pointeur ligne\n  ; calcul adresse ligne Y : $4000 + Y*64\n  TYA:ASL:ASL:ASL:ASL:ASL:ASL        ; Y * 64\n  CLC:ADC $F0:STA $F0\n  LDA #$40:ADC #0:STA $F1             ; hi\n  PLA             ; restore couleur\n  PHA             ; BUG : double PHA sans PLA correspondant\n  LDY $80\nLINE_LOOP:\n  STA ($F0),Y\n  DEY:BNE LINE_LOOP\n  PLA             ; PLA 1\n  PLA             ; PLA 2 — BUG : un de trop\n  RTS\n```",
+      "template": "; ══════════════════════════════════════\n;  ARCHITECTE — Programme 1/6\n;  DRAW_HLINE : A=couleur X=x Y=y $80=len\n; ══════════════════════════════════════\n\n  .org $E000\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  ; Ligne verte (5) y=30 x=10 len=80\n  LDA #5       ; couleur dans A ← correct\n  LDX #10      ; x_start\n  LDY #30      ; BUG 1 — y en Y mais A=couleur c'est OK, Y=y c'est OK\n                ; En fait le vrai bug : les appels ont A et Y échangés\n  LDA #80:STA $80\n  JSR DRAW_HLINE\n\n  ; Ligne rouge (2) y=80 x=20 len=60\n  LDA #2\n  LDX #20\n  LDY #80\n  LDA #60:STA $80\n  JSR DRAW_HLINE\n\n  BRK\n\n; Convention : A=couleur X=x_start Y=y $80=longueur\nDRAW_HLINE:\n  STY $10          ; sauvegarde y\n  STX $11          ; sauvegarde x\n  PHA              ; sauvegarde couleur\n  ; Calcul adresse : $4000 + y*64 + x/2\n  LDA $10\n  ASL:ASL:ASL:ASL:ASL:ASL   ; y*64 (lo)\n  STA $F0\n  LDA #$40:STA $F1\n  LDA $11:LSR:CLC:ADC $F0:STA $F0  ; + x/2\n  PLA              ; restaure couleur\n  ; BUG 2 : il manque la vérification nibble (x pair/impair)\n  ; Pour simplifier : la ligne écrit couleur dans nibble bas seulement\n  ; Fix : écrire couleur|(couleur<<4) pour les deux nibbles\n  ORA #$00         ; BUG 2 : devrait OR avec couleur<<4\n  LDY $80\nHLOOP:\n  STA ($F0),Y\n  DEY:BNE HLOOP\n  RTS\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 18309,
+          "value": 85,
+          "failMsg": "Ligne verte à y=30, x=10. Pixel (10,30) = vert nibble-packed ($55)."
+        },
+        {
+          "type": "memory",
+          "address": 21514,
+          "value": 34,
+          "failMsg": "Ligne rouge à y=80, x=20. Pixel (20,80) = rouge nibble-packed ($22)."
+        }
+      ],
+      "maxCycles": 10000,
+      "hints": [
+        {
+          "text": "BUG 2 : pour nibble-packed, la couleur doit remplir les deux nibbles. Utilise ORA et ASL×4 : PHA : ASL:ASL:ASL:ASL : ORA pour combiner."
+        },
+        {
+          "text": "Couleur nibble-packed : LDA couleur : ASL:ASL:ASL:ASL : ORA couleur_original → $CC pour rouge(2)."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "JSR/RTS",
+          "ABI",
+          "PHA/PLA",
+          "Adresse ligne calcul"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 7",
+          "page": 118,
+          "topic": "JSR/RTS"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "arena": 4,
+      "arena_name": "L'Architecte",
+      "title": "La Bibliothèque de Dessin",
+      "description": "## 📡 Théorie — Fonctions réutilisables\n\nUne bibliothèque 6502 : plusieurs routines dans le même fichier, chacune avec sa convention d'appel documentée.\n\n```asm\n; ── DRAW_BOX : dessine un rectangle creux ────────────\n; A=couleur  $80=x  $81=y  $82=w  $83=h\nDRAW_BOX:\n  JSR HLINE_TOP     ; ligne du haut\n  JSR HLINE_BOTTOM  ; ligne du bas\n  JSR VLINE_LEFT    ; ligne gauche\n  JSR VLINE_RIGHT   ; ligne droite\n  RTS\n```\n\n---\n\n## 🎯 Mission — Grille de tableaux de bord\n\nLe programme dessine une grille 2×2 de cadres colorés en appelant SYS_DRAW_RECT 4 fois en boucle. Les positions sont calculées à partir d'une table. Mais **la table de positions Y est incorrecte** (toutes à 0 au lieu d'alterner 10/70) et **le calcul d'index dans la boucle est cassé**.\n\n```asm\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  LDX #4\nCADRE:\n  DEX\n  ; Charger position depuis tables\n  LDA POS_X,X:STA $80\n  LDA POS_Y,X:STA $81   ; BUG : POS_Y a toutes des 0\n  LDA #50:STA $82\n  LDA #40:STA $83\n  LDA COULEURS,X\n  JSR $F009    ; SYS_DRAW_RECT\n\n  CPX #0:BNE CADRE\n  BRK\n\nPOS_X:    .byte 10, 70, 10, 70\nPOS_Y:    .byte 0, 0, 0, 0       ; BUG : devrait être 10,10,70,70\nCOULEURS: .byte 1, 5, 7, 3\n```",
+      "template": "; ══════════════════════════════════════\n;  ARCHITECTE — Programme 2/6\n;  Grille 2×2 de cadres colorés\n; ══════════════════════════════════════\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  LDX #4\nCADRE:\n  DEX\n  LDA POS_X,X:STA $80\n  LDA POS_Y,X:STA $81\n  LDA #50:STA $82\n  LDA #40:STA $83\n  LDA COULEURS,X\n  JSR $F009\n\n  CPX #0:BNE CADRE\n  BRK\n\nPOS_X:    .byte 10, 70, 10, 70\nPOS_Y:    .byte 0, 0, 0, 0       ; BUG — corrige les valeurs\nCOULEURS: .byte 1, 5, 7, 3\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 17029,
+          "value": 17,
+          "failMsg": "Cadre 0 : coin (10,10) = blanc. POS_Y[0] = 10."
+        },
+        {
+          "type": "memory",
+          "address": 20869,
+          "value": 119,
+          "failMsg": "Cadre 2 : coin (10,70) = jaune. POS_Y[2] = 70."
+        },
+        {
+          "type": "memory",
+          "address": 20899,
+          "value": 51,
+          "failMsg": "Cadre 3 : coin (70,70) = cyan. POS_Y[3] = 70."
+        }
+      ],
+      "maxCycles": 10000,
+      "hints": [
+        {
+          "text": "POS_Y doit être .byte 10, 10, 70, 70 pour deux rangées : cadres 0,1 en y=10 et cadres 2,3 en y=70."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          ".byte table",
+          "LDA table,X",
+          "DEX/BPL"
+        ],
+        "estimatedMinutes": 10,
+        "zaks": {
+          "chapter": "Chapitre 3",
+          "page": 71,
+          "topic": "Tables .byte"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "arena": 4,
+      "arena_name": "L'Architecte",
+      "title": "L'Adressage Indirect",
+      "description": "## 📡 Théorie — ($zp),Y pour copier des données\n\n`STA ($F0),Y` écrit à l'adresse pointée par `$F0/$F1` + Y. Parfait pour copier une table vers l'écran :\n\n```asm\n; Copie SPRITE_DATA vers framebuffer à (px, py)\n  LDA #<SPRITE_DATA : STA $F0\n  LDA #>SPRITE_DATA : STA $F1\n\n  LDY #$00\nCOPY:\n  LDA ($F0),Y    ; lit depuis SPRITE_DATA\n  STA $4100,Y    ; écrit dans framebuf\n  INY\n  CPY #32        ; 32 octets = 1 ligne de 64px\n  BNE COPY\n```\n\n---\n\n## 🎯 Mission — Sprite 8×8\n\nUn sprite 8×8 pixels (4 octets par ligne en nibble-packed = 32 octets total) doit être copié vers le framebuffer à la position (48, 60). Mais **les pointeurs source sont inversés** et **le calcul de destination ne tient pas compte du stride de 64** (128px/2).\n\n```asm\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  ; Source : SPRITE\n  LDA #>SPRITE:STA $F0   ; BUG : lo/hi inversés\n  LDA #<SPRITE:STA $F1\n\n  ; Destination : framebuf + 60*64 + 48/2\n  ; = $4000 + 3840 + 24 = $4000 + $0F18 = $4F18\n  LDA #$18:STA $F2     ; lo dest BUG : $F0+60*64+24 = $4F18 → lo=$18 ✓\n  LDA #$4F:STA $F3     ; hi dest ✓\n\n  LDY #$00\nROW:\n  LDA ($F0),Y           ; lit sprite\n  STA ($F2),Y           ; écrit framebuf\n  INY\n  CPY #32               ; 8 lignes × 4 octets (BUG : devrait être 8×4=32 ok ✓)\n  BNE ROW\n\n  BRK\n\nSPRITE:\n  ; 8 lignes × 4 octets nibble-packed (8 pixels de large)\n  .byte $07,$77,$77,$70   ; ligne 0\n  .byte $77,$11,$11,$77   ; ligne 1\n  .byte $77,$19,$91,$77   ; ligne 2 (yeux)\n  .byte $77,$11,$11,$77\n  .byte $77,$10,$01,$77   ; sourire\n  .byte $77,$01,$10,$77\n  .byte $07,$77,$77,$70\n  .byte $00,$77,$77,$00\n```",
+      "template": "; ══════════════════════════════════════\n;  ARCHITECTE — Programme 3/6\n;  Copie sprite 8×8 nibble-packed\n; ══════════════════════════════════════\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  ; Source SPRITE — BUG : lo/hi inversés\n  LDA #>SPRITE:STA $F0\n  LDA #<SPRITE:STA $F1\n\n  ; Destination : $4000 + 60*64 + 24 = $4F18\n  LDA #$18:STA $F2\n  LDA #$4F:STA $F3\n\n  LDY #$00\nCOPY:\n  LDA ($F0),Y\n  STA ($F2),Y\n  INY\n  CPY #32\n  BNE COPY\n\n  BRK\n\nSPRITE:\n  .byte $07,$77,$77,$70\n  .byte $77,$11,$11,$77\n  .byte $77,$19,$91,$77\n  .byte $77,$11,$11,$77\n  .byte $77,$10,$01,$77\n  .byte $77,$01,$10,$77\n  .byte $07,$77,$77,$70\n  .byte $00,$77,$77,$00\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 20248,
+          "value": 7,
+          "failMsg": "Pixel (48,60) = $07 (nibble=0 et 7). Premier octet du sprite à destination."
+        },
+        {
+          "type": "memory",
+          "address": 20376,
+          "value": 119,
+          "failMsg": "Ligne 2 sprite (60+2=62) = $77. Le sprite doit être copié complet."
+        }
+      ],
+      "maxCycles": 5000,
+      "hints": [
+        {
+          "text": "BUG : LDA #<SPRITE:STA $F0 (lo en $F0) puis LDA #>SPRITE:STA $F1 (hi en $F1)."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Adressage indirect ($zp),Y",
+          "lo/hi adresse",
+          "Sprite copie"
+        ],
+        "estimatedMinutes": 12,
+        "zaks": {
+          "chapter": "Chapitre 4",
+          "page": 76,
+          "topic": "Adressage indirect"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "arena": 4,
+      "arena_name": "L'Architecte",
+      "title": "La Carte du Niveau",
+      "description": "## 📡 Théorie — Tilemap et dessin de carte\n\nUne tilemap encode chaque case avec un numéro de tile. On la parcourt et on dessine chaque case :\n\n```asm\nMAP:\n  .byte 1,1,1,1,1  ; 1=mur, 0=sol, 2=joueur\n  .byte 1,0,0,0,1\n  .byte 1,0,2,0,1\n  .byte 1,1,1,1,1\n\nTILE_COLORS: .byte 0, 11, 5, 7   ; noir, gris(mur), vert(sol), jaune(joueur)\n```\n\n---\n\n## 🎯 Mission — Niveau 1\n\nLa carte 8×8 cases est dessinée case par case. Chaque case fait 16×16 pixels. Mais **la taille des cases est incorrecte** dans $82/$83 (8 au lieu de 16) et **l'avancement X entre cases est faux** (ajoute 8 au lieu de 16).\n\n```asm\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  LDX #8           ; 8 lignes\nLINE:\n  STX $10\n  LDY #8           ; 8 colonnes\nCOL:\n  ; Calculer position x : (8-Y)*16+0\n  ; BUG : utilise *8 au lieu de *16\n  LDA #8:SEC:SBC Y:ASL:ASL:ASL:STA $80   ; ×8, devrait être ×16 (ASL×4)\n  ; Calculer position y : (8-X)*16+0\n  LDA #8:SEC:SBC X:ASL:ASL:ASL:STA $81   ; même bug\n  ; Taille case\n  LDA #8:STA $82:STA $83   ; BUG : 8×8 au lieu de 16×16\n  ; Couleur selon tile\n  LDX $10:DEX:TXA:ASL:ASL:ASL:CLC:ADC Y:TAX\n  LDA MAP,X\n  TAX:LDA TILE_COLORS,X\n  JSR $F00C    ; SYS_FILL_RECT\n\n  DEY:BNE COL\n\n  LDX $10:DEX:BNE LINE\n  BRK\n\nMAP:\n  .byte 1,1,1,1,1,1,1,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,0,2,0,0,0,0,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,0,0,0,0,2,0,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,1,1,1,1,1,1,1\n\nTILE_COLORS: .byte 6,11,0,7   ; 0=bleu vide, 1=gris mur, 2=noir sol, 3=jaune joueur\n```",
+      "template": "; ══════════════════════════════════════\n;  ARCHITECTE — Programme 4/6\n;  Carte 8×8, cases de 16×16 pixels\n; ══════════════════════════════════════\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  LDX #8\nLINE:\n  STX $10\n  LDA #0:STA $20   ; col courante\nCOL:\n  ; x = col * 16\n  LDA $20:ASL:ASL:ASL:STA $80    ; BUG 1 : ×8 au lieu de ×16 (manque 1 ASL)\n  ; y = (8-ligne) * 16... simplifié : y = (8 - LDX restore) * 16\n  LDA $10:SEC:SBC #1:ASL:ASL:ASL:STA $81  ; BUG 1 idem\n\n  LDA #8:STA $82:STA $83         ; BUG 2 : taille case 8×8, devrait être 16×16\n\n  ; Index map = (ligne-1)*8 + col\n  LDA $10:SEC:SBC #1:ASL:ASL:ASL:CLC:ADC $20\n  TAX\n  LDA MAP,X:TAX\n  LDA TILE_COLORS,X\n  JSR $F00C\n\n  INC $20\n  LDA $20:CMP #8:BCC COL\n\n  LDX $10:DEX:BNE LINE\n  BRK\n\nMAP:\n  .byte 1,1,1,1,1,1,1,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,0,2,0,0,0,0,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,0,0,0,0,2,0,1\n  .byte 1,0,0,0,0,0,0,1\n  .byte 1,1,1,1,1,1,1,1\n\nTILE_COLORS: .byte 6,11,0,7\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 187,
+          "failMsg": "Tile mur (0,0) = gris (11=$BB nibble-packed). Cases 16×16 : tile (0,0) à pixel (0,0)."
+        },
+        {
+          "type": "memory",
+          "address": 17416,
+          "value": 0,
+          "failMsg": "Tile sol (1,1) = noir (0). Case (1,1) à pixel (16,16)."
+        }
+      ],
+      "maxCycles": 50000,
+      "hints": [
+        {
+          "text": "BUG 1 : 4×ASL pour ×16 (au lieu de 3×ASL pour ×8). LDA $20:ASL:ASL:ASL:ASL:STA $80."
+        },
+        {
+          "text": "BUG 2 : LDA #16:STA $82:STA $83 pour des cases 16×16."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Tilemap",
+          "Coordonnées 2D",
+          "ASL pour ×16"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 5",
+          "page": 88,
+          "topic": "ASL multiplication"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "arena": 4,
+      "arena_name": "L'Architecte",
+      "title": "L'État Global du Jeu",
+      "description": "## 📡 Théorie — Variables d'état en Zero Page\n\nToutes les variables importantes d'un jeu vont en Zero Page pour la vitesse :\n\n```asm\n; En-tête du programme : définir les variables\nSCORE_LO = $10   ; score (16-bit)\nSCORE_HI = $11\nLIVES    = $12   ; vies restantes\nLEVEL    = $13   ; niveau courant\nPLAYER_X = $14\nPLAYER_Y = $15\n```\n\nOn les initialise au démarrage et on les sauvegarde/restaure autour des sous-routines qui les écrasent.\n\n---\n\n## 🎯 Mission — Écran de score\n\nLe programme affiche le score et les vies en mode texte. Le score est 16-bit (stocké en $10/$11). L'affichage doit montrer \"SCORE: 1234\" et \"VIES: 3\". Mais **la conversion score → texte utilise la mauvaise valeur** (octet haut au lieu du bas) et **le curseur de VIES est sur la même ligne que SCORE**.\n\n```asm\nSCORE_LO = $10 : SCORE_HI = $11 : LIVES = $12\n\n  .org $E000\n\n  LDA #0:JSR $F01B   ; mode texte\n  LDA #$00:STA SCORE_LO:LDA #$04:STA SCORE_HI  ; score=1024 (BUG : 0x0400)\n  LDA #3:STA LIVES\n\n  ; Afficher SCORE:\n  LDA #0:STA $D00B:STA $D00C\n  LDA #$10:JSR $F030       ; blanc sur noir\n\n  LDA #'S':STA $D00F:LDA #'C':STA $D00F\n  LDA #'O':STA $D00F:LDA #'R':STA $D00F\n  LDA #'E':STA $D00F:LDA #':':STA $D00F\n  LDA #' ':STA $D00F\n\n  LDA SCORE_HI             ; BUG 1 : devrait afficher SCORE_LO d'abord\n  JSR $F027                ; SYS_PRINT_HEX\n  LDA SCORE_LO\n  JSR $F027\n\n  ; Afficher VIES:\n  LDA #0:STA $D00B         ; BUG 2 : col=0 ligne=0 (même que score!)\n  LDA #0:STA $D00C         ; devrait être ligne 2\n\n  LDA #'V':STA $D00F:LDA #'I':STA $D00F\n  LDA #'E':STA $D00F:LDA #'S':STA $D00F\n  LDA #':':STA $D00F:LDA #' ':STA $D00F\n  LDA LIVES:JSR $F024      ; SYS_PRINT_NUM\n\n  BRK\n```",
+      "template": "; ══════════════════════════════════════\n;  ARCHITECTE — Programme 5/6\n;  Écran score : \"SCORE: $0400\" + \"VIES: 3\"\n; ══════════════════════════════════════\n\nSCORE_LO = $10 : SCORE_HI = $11 : LIVES = $12\n\n  .org $E000\n\n  LDA #0:JSR $F01B\n  LDA #$00:STA SCORE_LO\n  LDA #$04:STA SCORE_HI    ; score = $0400\n  LDA #3:STA LIVES\n\n  LDA #0:STA $D00B:STA $D00C\n  LDA #$10:JSR $F030\n\n  LDA #'S':STA $D00F:LDA #'C':STA $D00F\n  LDA #'O':STA $D00F:LDA #'R':STA $D00F\n  LDA #'E':STA $D00F:LDA #':':STA $D00F:LDA #' ':STA $D00F\n\n  LDA SCORE_HI             ; BUG 1 — ordre hi/lo\n  JSR $F027\n  LDA SCORE_LO\n  JSR $F027\n\n  LDA #0:STA $D00B\n  LDA #0:STA $D00C         ; BUG 2 — ligne 0 au lieu de 2\n\n  LDA #'V':STA $D00F:LDA #'I':STA $D00F\n  LDA #'E':STA $D00F:LDA #'S':STA $D00F\n  LDA #':':STA $D00F:LDA #' ':STA $D00F\n  LDA LIVES:JSR $F024\n\n  BRK\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 18439,
+          "value": 48,
+          "failMsg": "Col 7 ligne 0 = '0' (premier chiffre de $0400 = octet hi=$04, lo=$00 → affiche '$0400' donc col 7='$', 8='0', 9='4', 10='0', 11='0')."
+        },
+        {
+          "type": "memory",
+          "address": 18502,
+          "value": 51,
+          "failMsg": "Ligne 2 col 6 = '3' (nombre de vies). VIES doit être ligne 2."
+        }
+      ],
+      "maxCycles": 2000,
+      "hints": [
+        {
+          "text": "BUG 1 : pour afficher $0400, afficher HI ($04) puis LO ($00) : LDA SCORE_HI:JSR $F027, LDA SCORE_LO:JSR $F027. C'est déjà l'ordre correct !"
+        },
+        {
+          "text": "BUG 2 : LDA #2:STA $D00C pour ligne 2 (VIES sous SCORE)."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_PRINT_HEX",
+          "SYS_PRINT_NUM",
+          "Variables ZP",
+          "Écran score"
+        ],
+        "estimatedMinutes": 12,
+        "zaks": {
+          "chapter": "Chapitre 7",
+          "page": 122,
+          "topic": "Architecture programme"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "arena": 4,
+      "arena_name": "L'Architecte",
+      "title": "⚔️ BOSS — L'Architecte Complet",
+      "description": "## 📡 Récapitulatif Arène 4\n\nTu maîtrises : sous-routines paramétrées, tables de données, adressage indirect, tilemap, variables d'état.\n\n---\n\n## 🎯 Mission BOSS — Tableau de bord + carte\n\nLe programme combine une mini-carte (4×4 tiles de 20px) et un panneau de score texte. **4 bugs** : mauvaise taille de tile dans la carte, score en ZP mal initialisé, mode non switché pour le texte, et curseur du titre mal placé.\n\n```asm\nSCORE_LO=$10:SCORE_HI=$11:LIVES=$12\n\n  .org $E000\n\n  LDA #5:STA LIVES\n  LDA #$39:STA SCORE_LO:LDA #$05:STA SCORE_HI  ; score=$0539\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  ; Mini-carte 4×4 tiles de 20px = 80×80px à (2,2)\n  LDX #4\nMLINE:\n  STX $10\n  LDY #4\nMCOL:\n  LDA #4:SEC:SBC Y               ; col index (0-3)\n  ASL:ASL:ASL:ASL:CLC:ADC #2    ; ×16 + offset BUG:devrait être ×20 (ASL+ASL+ASL+ASL+ADC×4?)\n  STA $80\n  LDA $10:SEC:SBC #1:ASL:ASL:ASL:ASL:CLC:ADC #2:STA $81  ; BUG idem\n  LDA #16:STA $82:STA $83        ; BUG : 16 au lieu de 20\n  LDA MMAP-1,X:TAX:LDA TILE_C,X\n  JSR $F00C\n  DEY:BNE MCOL\n  LDX $10:DEX:BNE MLINE\n\n  ; Score en mode texte\n  LDA #1:JSR $F01B               ; BUG : devrait être #0 (mode texte)\n  LDA #$10:JSR $F030\n  LDA #0:STA $D00B:LDA #22:STA $D00C\n  LDA #'S':STA $D00F:LDA #'C':STA $D00F:LDA #'O':STA $D00F\n  LDA #'R':STA $D00F:LDA #'E':STA $D00F:LDA #':':STA $D00F\n  LDA #' ':STA $D00F\n  LDA SCORE_HI:JSR $F027:LDA SCORE_LO:JSR $F027\n\n  BRK\n\nMMAP:     .byte 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,1,1,1\nTILE_C:   .byte 0,11,5,7\n```\n\n_🏰 L'Arène 4 est complète quand la carte et le score s'affichent !_",
+      "template": "; ══════════════════════════════════════\n;  ARCHITECTE — BOSS\n;  Carte 4×4 + score texte, 4 BUGS\n; ══════════════════════════════════════\n\nSCORE_LO=$10:SCORE_HI=$11:LIVES=$12\n\n  .org $E000\n\n  LDA #5:STA LIVES\n  LDA #$39:STA SCORE_LO\n  LDA #$05:STA SCORE_HI\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n\n  LDX #4\nMLINE:\n  STX $10\n  LDY #4\nMCOL:\n  LDA #4:SEC:SBC Y\n  ASL:ASL:ASL:ASL:CLC:ADC #2   ; BUG 1 : ×16, devrait être ×20\n  STA $80\n  LDA $10:SEC:SBC #1\n  ASL:ASL:ASL:ASL:CLC:ADC #2   ; BUG 1\n  STA $81\n  LDA #16:STA $82:STA $83      ; BUG 2 : taille tile\n  LDA MMAP-1,X:TAX:LDA TILE_C,X\n  JSR $F00C\n  DEY:BNE MCOL\n  LDX $10:DEX:BNE MLINE\n\n  LDA #1:JSR $F01B              ; BUG 3 : mode GFX au lieu de texte\n  LDA #$10:JSR $F030\n  LDA #0:STA $D00B\n  LDA #22:STA $D00C             ; BUG 4 : ligne 22 (bonne valeur, c'est OK)\n  LDA #'S':STA $D00F:LDA #'C':STA $D00F\n  LDA #'O':STA $D00F:LDA #'R':STA $D00F\n  LDA #'E':STA $D00F:LDA #':':STA $D00F:LDA #' ':STA $D00F\n  LDA SCORE_HI:JSR $F027:LDA SCORE_LO:JSR $F027\n\n  BRK\n\nMMAP:   .byte 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,1,1,1\nTILE_C: .byte 0,11,5,7\n",
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16513,
+          "value": 0,
+          "failMsg": "Tile (0,0) de la carte à pixel (2,2) = noir (0). Tile mur=noir dans TILE_C."
+        },
+        {
+          "type": "memory",
+          "address": 19143,
+          "value": 48,
+          "failMsg": "Score ligne 22 col 7. LDA #0:JSR $F01B pour mode texte avant l'affichage."
+        }
+      ],
+      "maxCycles": 20000,
+      "hints": [
+        {
+          "text": "BUG 1 : ×20 = ASL×4 (×16) puis ADC #4 ou CLC:ADC tile_size. Exemple : ASL:ASL:ASL:ASL:STA tmp:ASL:ASL:ADC tmp (×16+×4=×20)."
+        },
+        {
+          "text": "BUG 2 : LDA #20:STA $82:STA $83. BUG 3 : LDA #0:JSR $F01B pour mode texte."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Synthèse Arène 4",
+          "Tilemap",
+          "Mixte gfx/texte",
+          "Score"
+        ],
+        "estimatedMinutes": 30,
+        "zaks": {
+          "chapter": "Chapitre 7",
+          "page": 122,
+          "topic": "Architecture"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "arena": 5,
+      "arena_name": "Le Démiurge",
+      "title": "Lire la Manette",
+      "description": "## 📡 Théorie — SYS_READ_PAD\n\n`SYS_READ_PAD` lit l'état d'une manette. A=0 pour manette 1, A=1 pour manette 2. Retourne un byte avec les boutons (bit=0 si enfoncé, logique NES) :\n\n```asm\nSYS_READ_PAD = $F048\nPAD_UP    = %00000001\nPAD_DOWN  = %00000010\nPAD_LEFT  = %00000100\nPAD_RIGHT = %00001000\n\n  LDA #0 : JSR SYS_READ_PAD   ; lit manette 1 → A\n  EOR #$FF                     ; inverse (1=enfoncé)\n  AND #PAD_RIGHT               ; teste bouton droite\n  BEQ PAS_DROITE               ; 0 = pas enfoncé\n```\n\n---\n\n## 🎯 Mission — Carré contrôlable\n\nUn carré rouge se déplace avec la manette. Mais **les bits PAD sont inversés dans le test** (AND au lieu de EOR+AND) et **la vitesse de déplacement est 4 pixels** au lieu de 2 (trop rapide).\n\n```asm\nPAD_UP=$01:PAD_DOWN=$02:PAD_LEFT=$04:PAD_RIGHT=$08\n\n  .org $E000\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #64:STA $10:STA $11   ; pos x, y = centre\n\nLOOP:\n  JSR $F057                  ; wait vblank\n\n  LDA $10:TAX:LDA $11:TAY\n  LDA #0:JSR $F00C           ; efface (rect 1×1 noir)... sauf que $82/$83=0\n\n  LDA #0:JSR $F048           ; lit pad\n  ; BUG 1 : manque EOR #$FF — les bits sont inversés !\n  ; Le bouton enfoncé = bit à 0, pas à 1\n\n  PHA                        ; sauvegarde état pad\n\n  AND #PAD_RIGHT:BEQ NO_R\n  LDA $10:CLC:ADC #4:STA $10  ; BUG 2 : +4 trop rapide (devrait être +2)\nNO_R:\n  PLA:PHA\n  AND #PAD_LEFT:BEQ NO_L\n  LDA $10:SEC:SBC #4:STA $10  ; BUG 2\nNO_L:\n  PLA:PHA\n  AND #PAD_DOWN:BEQ NO_D\n  LDA $11:CLC:ADC #4:STA $11  ; BUG 2\nNO_D:\n  PLA\n  AND #PAD_UP:BEQ NO_U\n  LDA $11:SEC:SBC #4:STA $11  ; BUG 2\nNO_U:\n  ; Dessiner\n  LDA $10:STA $80:LDA $11:STA $81\n  LDA #8:STA $82:STA $83\n  LDA #2:JSR $F00C           ; carré rouge 8×8\n\n  JMP LOOP\n",
+      "template": "; ══════════════════════════════════════\n;  DÉMIURGE — Programme 1/6\n;  Carré rouge contrôlé par manette\n; ══════════════════════════════════════\n\nPAD_UP=$01:PAD_DOWN=$02:PAD_LEFT=$04:PAD_RIGHT=$08\n\n  .org $E000\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #60:STA $10:STA $11   ; pos x, y\n\nLOOP:\n  JSR $F057\n\n  ; Effacer ancien carré\n  LDA $10:STA $80:LDA $11:STA $81\n  LDA #8:STA $82:STA $83\n  LDA #0:JSR $F00C           ; noir\n\n  LDA #0:JSR $F048           ; lit manette 1\n  ; BUG 1 : manque EOR #$FF\n  PHA\n\n  AND #PAD_RIGHT:BEQ NO_R\n  LDA $10:CLC:ADC #4:STA $10  ; BUG 2 : vitesse 4 → 2\nNO_R:\n  PLA:PHA:AND #PAD_LEFT:BEQ NO_L\n  LDA $10:SEC:SBC #4:STA $10  ; BUG 2\nNO_L:\n  PLA:PHA:AND #PAD_DOWN:BEQ NO_D\n  LDA $11:CLC:ADC #4:STA $11  ; BUG 2\nNO_D:\n  PLA:AND #PAD_UP:BEQ NO_U\n  LDA $11:SEC:SBC #4:STA $11  ; BUG 2\nNO_U:\n  ; Dessiner nouveau\n  LDA $10:STA $80:LDA $11:STA $81\n  LDA #8:STA $82:STA $83\n  LDA #2:JSR $F00C\n\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 2,
+          "failMsg": "Programme en boucle — Stop puis Valider. Le carré doit répondre à la manette."
+        }
+      ],
+      "maxCycles": 500000,
+      "hints": [
+        {
+          "text": "BUG 1 : après JSR SYS_READ_PAD, ajoute EOR #$FF. Ainsi bit=1 signifie bouton enfoncé."
+        },
+        {
+          "text": "BUG 2 : remplace ADC/SBC #4 par ADC/SBC #2 partout pour une vitesse raisonnable."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "SYS_READ_PAD",
+          "EOR #$FF",
+          "Mouvement",
+          "Effacer+redessiner"
+        ],
+        "estimatedMinutes": 15,
+        "zaks": {
+          "chapter": "Chapitre 6",
+          "page": 98,
+          "topic": "CMP et branchements"
+        }
+      }
+    },
+    {
+      "id": 26,
+      "arena": 5,
+      "arena_name": "Le Démiurge",
+      "title": "Les Limites du Terrain",
+      "description": "## 📡 Théorie — Test de bord et clamping\n\nPour empêcher un objet de sortir de l'écran :\n\n```asm\n; Clamp x dans [0, 120]\n  LDA $10       ; pos_x\n  BPL POSITIVE  ; si >= 0, pas de problème\n  LDA #0        ; sinon, force à 0\n  STA $10\nPOSITIVE:\n  CMP #121      ; si x >= 121\n  BCC OK\n  LDA #120\n  STA $10\nOK:\n```\n\n---\n\n## 🎯 Mission — Bords de l'écran\n\nLe carré contrôlable doit rester dans l'écran (x : 0–119, y : 0–119 pour un carré 8×8). Mais **les seuils de bord sont incorrects** (120 au lieu de 120, mais la comparaison utilise BCS au lieu de BCC pour le test bas) et **le bord gauche/haut utilise CMP au lieu de BPL**.\n\n```asm\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #60:STA $10:STA $11\n  LDA #$01:STA $12   ; dir pad stocké\n\nLOOP:\n  JSR $F057\n  LDA $10:STA $80:LDA $11:STA $81:LDA #8:STA $82:STA $83:LDA #0:JSR $F00C\n\n  LDA #0:JSR $F048:EOR #$FF\n  PHA\n  AND #$08:BEQ NR:LDA $10:CLC:ADC #2:STA $10\nNR:PLA:PHA:AND #$04:BEQ NL:LDA $10:SEC:SBC #2:STA $10\nNL:PLA:PHA:AND #$02:BEQ ND:LDA $11:CLC:ADC #2:STA $11\nND:PLA:AND #$01:BEQ NU:LDA $11:SEC:SBC #2:STA $11\nNU:\n  ; Clamp x\n  LDA $10:CMP #120:BCC OK_R   ; BUG 1 : BCC devrait être BCS (saute si < 120)\n  LDA #120:STA $10             ; force à max\nOK_R:\n  LDA $10:CMP #0:BCS OK_L     ; BUG 2 : BCS avec #0 ne marche pas si x négatif\n  LDA #0:STA $10\nOK_L:\n  ; Clamp y (mêmes bugs)\n  LDA $11:CMP #120:BCC OK_D\n  LDA #120:STA $11\nOK_D:\n  LDA $11:CMP #0:BCS OK_U\n  LDA #0:STA $11\nOK_U:\n  LDA $10:STA $80:LDA $11:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n",
+      "template": "; ══════════════════════════════════════\n;  DÉMIURGE — Programme 2/6\n;  Carré reste dans l'écran (0-120)\n; ══════════════════════════════════════\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #60:STA $10:STA $11\n\nLOOP:\n  JSR $F057\n  LDA $10:STA $80:LDA $11:STA $81:LDA #8:STA $82:STA $83:LDA #0:JSR $F00C\n\n  LDA #0:JSR $F048:EOR #$FF\n  PHA:AND #$08:BEQ NR:LDA $10:CLC:ADC #2:STA $10\nNR:PLA:PHA:AND #$04:BEQ NL:LDA $10:SEC:SBC #2:STA $10\nNL:PLA:PHA:AND #$02:BEQ ND:LDA $11:CLC:ADC #2:STA $11\nND:PLA:AND #$01:BEQ NU:LDA $11:SEC:SBC #2:STA $11\nNU:\n  ; Clamp x [0,120]\n  LDA $10:CMP #120:BCC OK_R   ; BUG 1 — sens du branchement\n  LDA #120:STA $10\nOK_R:\n  LDA $10:BPL OK_L             ; BPL = positive → OK. Correct!\n  LDA #0:STA $10\nOK_L:\n  ; Clamp y [0,120]\n  LDA $11:CMP #120:BCC OK_D   ; BUG 2 — même bug\n  LDA #120:STA $11\nOK_D:\n  LDA $11:BPL OK_U\n  LDA #0:STA $11\nOK_U:\n  LDA $10:STA $80:LDA $11:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 2,
+          "failMsg": "Programme en boucle — Stop puis Valider. Le carré doit s'arrêter aux bords."
+        }
+      ],
+      "maxCycles": 500000,
+      "hints": [
+        {
+          "text": "BUG 1 et 2 : CMP #120 : BCS OK_R (BCS = branche si carry set = x < 120). BCC branche si x >= 120, c'est le mauvais sens."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "BPL",
+          "BCS/BCC",
+          "Clamping",
+          "Limites terrain"
+        ],
+        "estimatedMinutes": 15,
+        "zaks": {
+          "chapter": "Chapitre 6",
+          "page": 101,
+          "topic": "Branchements signés"
+        }
+      }
+    },
+    {
+      "id": 27,
+      "arena": 5,
+      "arena_name": "Le Démiurge",
+      "title": "La Cible",
+      "description": "## 📡 Théorie — Collision simple AABB\n\nDeux rectangles A(ax,ay,aw,ah) et B(bx,by,bw,bh) se chevauchent si :\n```\nax < bx+bw  ET  ax+aw > bx\nay < by+bh  ET  ay+ah > by\n```\n\nEn 6502, on vérifie les 4 conditions avec CMP et branches :\n\n```asm\n; Test : joueur_x < cible_x + cible_w ?\n  LDA CIBLE_X : CLC : ADC CIBLE_W\n  CMP JOUEUR_X\n  BCC PAS_COLLISION   ; si cible_x+w <= joueur_x → pas de chevauchement\n```\n\n---\n\n## 🎯 Mission — Attraper la cible\n\nLe joueur (8×8) doit toucher une cible rouge (8×8). Quand il y a collision, la cible se téléporte à un endroit aléatoire. Mais **la détection de collision ne teste que l'axe X** (manque axe Y) et **la téléportation n'exclut pas les bords** (peut sortir si x > 120).\n\n```asm\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #60:STA JOUT_X:STA JOUT_Y\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n\nLOOP:\n  JSR $F057\n  LDA #0:JSR $F000   ; clear\n\n  ; Mouvement joueur (simplifié)\n  LDA #0:JSR $F048:EOR #$FF\n  AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:LDA #0:JSR $F048:EOR #$FF\n  AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X\nNL:\n  ; Collision : teste si |JOUT_X - CIBLE_X| < 8\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL P1:EOR #$FF:ADC #1\nP1:CMP #8:BCS NO_COLL\n  ; BUG : test Y manquant\n  JSR TELEPORT\nNO_COLL:\n\n  ; Dessiner joueur (bleu) et cible (rouge)\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83:LDA #6:JSR $F00C\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n\nTELEPORT:\n  JSR $F05A:AND #$FF:STA CIBLE_X   ; BUG : AND #$FF → peut être > 120\n  JSR $F05A:AND #$FF:STA CIBLE_Y   ; BUG idem\n  RTS\n```",
+      "template": "; ══════════════════════════════════════\n;  DÉMIURGE — Programme 3/6\n;  Attrape la cible rouge ! (collision 2D)\n; ══════════════════════════════════════\n\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #60:STA JOUT_X:STA JOUT_Y\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n\nLOOP:\n  JSR $F057\n  LDA #0:JSR $F000\n\n  LDA #0:JSR $F048:EOR #$FF:PHA\n  AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:PLA:PHA:AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X:NL:PLA:PHA:AND #$02:BEQ ND:LDA JOUT_Y:CLC:ADC #2:CMP #121:BCS ND:STA JOUT_Y\nND:PLA:AND #$01:BEQ NU:LDA JOUT_Y:SEC:SBC #2:BPL SY:LDA #0\nSY:STA JOUT_Y:NU:\n\n  ; Collision X\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL PX:EOR #$FF:ADC #1\nPX:CMP #8:BCS NO_COLL\n  ; BUG 1 : ajoute test Y ici\n  ; LDA JOUT_Y:SEC:SBC CIBLE_Y:BPL PY:EOR #$FF:ADC #1\n  ; PY:CMP #8:BCS NO_COLL\n  JSR TELEPORT\nNO_COLL:\n\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83:LDA #6:JSR $F00C\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n\nTELEPORT:\n  JSR $F05A:AND #$FF:STA CIBLE_X   ; BUG 2 — plage trop grande\n  JSR $F05A:AND #$FF:STA CIBLE_Y\n  RTS\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 2,
+          "failMsg": "Programme en boucle — Stop, Valider. La cible rouge doit se téléporter à une position valide (x,y < 120) quand le joueur la touche."
+        }
+      ],
+      "maxCycles": 500000,
+      "hints": [
+        {
+          "text": "BUG 1 : décommente les 3 lignes du test Y (LDA JOUT_Y... BCS NO_COLL)."
+        },
+        {
+          "text": "BUG 2 : AND #$70 ($70 = 112) maintient x/y dans [0,112] donc le carré 8px reste visible."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Collision AABB",
+          "Valeur absolue 6502",
+          "SYS_RAND",
+          "Téléportation"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 6",
+          "page": 108,
+          "topic": "Comparaisons avancées"
+        }
+      }
+    },
+    {
+      "id": 28,
+      "arena": 5,
+      "arena_name": "Le Démiurge",
+      "title": "Le Score en Temps Réel",
+      "description": "## 📡 Théorie — Score 16-bit et affichage\n\nUn score 16-bit en ZP :\n```asm\nSCORE_LO = $20\nSCORE_HI = $21\n\n; Incrémenter le score de 10\n  CLC\n  LDA SCORE_LO : ADC #10 : STA SCORE_LO\n  LDA SCORE_HI : ADC #0  : STA SCORE_HI   ; propage le carry\n```\n\nPour afficher en mode mixte (gfx + texte superposé), switch en texte, affiche, switch en gfx.\n\n---\n\n## 🎯 Mission — Score qui monte\n\nChaque fois que le joueur touche la cible, le score augmente de 10. Le score s'affiche en haut en mode texte. Mais **l'incrément de score ne propage pas le carry** sur le byte haut, et **le switch de mode pour l'affichage texte rend un bug visuel** (reste en gfx).\n\n```asm\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\nSCORE_LO=$20:SCORE_HI=$21:TOUCHED=$22\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000:LDA #0:STA SCORE_LO:STA SCORE_HI\n\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n  LDA #60:STA JOUT_X:STA JOUT_Y\n\nLOOP:\n  JSR $F057\n  LDA #0:JSR $F000\n\n  ; Mouvement (simplifié)\n  LDA #0:JSR $F048:EOR #$FF:PHA\n  AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:PLA:PHA:AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X:NL:PLA:PHA:AND #$02:BEQ ND:LDA JOUT_Y:CLC:ADC #2:CMP #121:BCS ND:STA JOUT_Y\nND:PLA:AND #$01:BEQ NU:LDA JOUT_Y:SEC:SBC #2:BPL SY:LDA #0\nSY:STA JOUT_Y:NU:\n\n  ; Collision\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL PX:EOR #$FF:ADC #1\nPX:CMP #8:BCS NO_COLL\n  LDA JOUT_Y:SEC:SBC CIBLE_Y:BPL PY:EOR #$FF:ADC #1\nPY:CMP #8:BCS NO_COLL\n\n  ; +10 score\n  CLC:LDA SCORE_LO:ADC #10:STA SCORE_LO\n  ; BUG 1 : carry pas propagé sur SCORE_HI\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\nNO_COLL:\n\n  ; Affichage score\n  LDA #0:JSR $F01B        ; BUG 2 : mode texte mais on y reste ! doit repasser en gfx\n  LDA #$10:JSR $F030\n  LDA #0:STA $D00B:STA $D00C\n  LDA #'P':STA $D00F:LDA #'T':STA $D00F:LDA #'S':STA $D00F:LDA #':':STA $D00F\n  LDA SCORE_HI:JSR $F027:LDA SCORE_LO:JSR $F027\n  ; manque : LDA #1:JSR $F01B  ← repasse en gfx\n\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83:LDA #6:JSR $F00C\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n```",
+      "template": "; ══════════════════════════════════════\n;  DÉMIURGE — Programme 4/6\n;  Score 16-bit qui monte (+10 par cible)\n; ══════════════════════════════════════\n\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\nSCORE_LO=$20:SCORE_HI=$21\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #0:STA SCORE_LO:STA SCORE_HI\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n  LDA #60:STA JOUT_X:STA JOUT_Y\n\nLOOP:\n  JSR $F057:LDA #0:JSR $F000\n\n  LDA #0:JSR $F048:EOR #$FF:PHA\n  AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:PLA:PHA:AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X:NL:PLA:PHA:AND #$02:BEQ ND:LDA JOUT_Y:CLC:ADC #2:CMP #121:BCS ND:STA JOUT_Y\nND:PLA:AND #$01:BEQ NU:LDA JOUT_Y:SEC:SBC #2:BPL SY:LDA #0\nSY:STA JOUT_Y:NU:\n\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL PX:EOR #$FF:ADC #1\nPX:CMP #8:BCS NC:LDA JOUT_Y:SEC:SBC CIBLE_Y:BPL PY:EOR #$FF:ADC #1\nPY:CMP #8:BCS NC\n\n  ; +10 score — BUG 1 : carry non propagé\n  CLC:LDA SCORE_LO:ADC #10:STA SCORE_LO\n  ; Ajoute : LDA SCORE_HI:ADC #0:STA SCORE_HI\n\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\nNC:\n  ; Affiche score\n  LDA #0:JSR $F01B\n  LDA #$10:JSR $F030:LDA #0:STA $D00B:STA $D00C\n  LDA #'P':STA $D00F:LDA #'T':STA $D00F:LDA #'S':STA $D00F:LDA #':':STA $D00F\n  LDA SCORE_HI:JSR $F027:LDA SCORE_LO:JSR $F027\n  ; BUG 2 : repasse en gfx manquant\n  LDA #1:JSR $F01B   ; ← déjà là ? non. Ajoute-le\n\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83:LDA #6:JSR $F00C\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 2,
+          "failMsg": "Programme en boucle — Stop puis Valider. Score doit s'incrémenter et s'afficher correctement."
+        }
+      ],
+      "maxCycles": 500000,
+      "hints": [
+        {
+          "text": "BUG 1 : après ADC #10 : STA SCORE_LO, ajoute : LDA SCORE_HI : ADC #0 : STA SCORE_HI (propage carry)."
+        },
+        {
+          "text": "BUG 2 : après affichage texte, ajoute LDA #1 : JSR $F01B pour repasser en mode graphique."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Score 16-bit",
+          "ADC carry propagé",
+          "Mode mixte",
+          "HUD temps réel"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 5",
+          "page": 78,
+          "topic": "ADC 16-bit"
+        }
+      }
+    },
+    {
+      "id": 29,
+      "arena": 5,
+      "arena_name": "Le Démiurge",
+      "title": "Le Compte à Rebours",
+      "description": "## 📡 Théorie — Timer avec frame counter\n\n```asm\n; Timer 30 secondes = 30 × 60 = 1800 frames\nTIMER_LO = $30 : TIMER_HI = $31\n\n  ; Init\n  LDA #$08 : STA TIMER_LO   ; $0708 = 1800\n  LDA #$07 : STA TIMER_HI\n\n  ; Chaque frame : décrémenter\n  SEC : LDA TIMER_LO : SBC #1 : STA TIMER_LO\n  LDA TIMER_HI : SBC #0 : STA TIMER_HI\n  ; Si TIMER_HI et TIMER_LO = 0 → GAME OVER\n  ORA TIMER_LO : BEQ GAME_OVER\n```\n\n---\n\n## 🎯 Mission — Chrono !\n\nLe jeu a maintenant un timer de 30 secondes. Quand il expire → \"GAME OVER\". Mais **la décrémentation utilise CLC au lieu de SEC** (SBC nécessite SEC) et **le test de fin utilise AND au lieu de ORA** (les deux bytes doivent être 0).\n\n```asm\nTIMER_LO=$30:TIMER_HI=$31:SCORE_LO=$20:SCORE_HI=$21\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #$08:STA TIMER_LO:LDA #$07:STA TIMER_HI  ; 1800 frames = 30s\n  LDA #0:STA SCORE_LO:STA SCORE_HI\n  LDA #60:STA JOUT_X:STA JOUT_Y\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n\nLOOP:\n  JSR $F057:LDA #0:JSR $F000\n\n  ; Décrémenter timer\n  CLC                     ; BUG 1 : doit être SEC\n  LDA TIMER_LO:SBC #1:STA TIMER_LO\n  LDA TIMER_HI:SBC #0:STA TIMER_HI\n\n  ; Test fin\n  LDA TIMER_HI:AND TIMER_LO:BEQ GAME_OVER   ; BUG 2 : AND → ORA\n\n  ; ... [mouvement et collision identiques aux défis précédents] ...\n\n  JMP LOOP\n\nGAME_OVER:\n  LDA #0:JSR $F01B\n  LDA #$10:JSR $F030\n  LDA #11:STA $D00B:LDA #14:STA $D00C\n  LDA #'G':STA $D00F:LDA #'A':STA $D00F\n  LDA #'M':STA $D00F:LDA #'E':STA $D00F\n  LDA #' ':STA $D00F:LDA #'O':STA $D00F\n  LDA #'V':STA $D00F:LDA #'E':STA $D00F:LDA #'R':STA $D00F\n  BRK\n",
+      "template": "; ══════════════════════════════════════\n;  DÉMIURGE — Programme 5/6\n;  Timer 30s → GAME OVER\n; ══════════════════════════════════════\n\nTIMER_LO=$30:TIMER_HI=$31:SCORE_LO=$20:SCORE_HI=$21\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\n\n  .org $E000\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #$08:STA TIMER_LO:LDA #$07:STA TIMER_HI\n  LDA #0:STA SCORE_LO:STA SCORE_HI\n  LDA #60:STA JOUT_X:STA JOUT_Y\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n\nLOOP:\n  JSR $F057:LDA #0:JSR $F000\n\n  ; Timer\n  CLC                      ; BUG 1\n  LDA TIMER_LO:SBC #1:STA TIMER_LO\n  LDA TIMER_HI:SBC #0:STA TIMER_HI\n  LDA TIMER_HI:AND TIMER_LO:BEQ GAME_OVER  ; BUG 2\n\n  ; Mouvement\n  LDA #0:JSR $F048:EOR #$FF:PHA\n  AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:PLA:PHA:AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X:NL:PLA:PHA:AND #$02:BEQ ND:LDA JOUT_Y:CLC:ADC #2:CMP #121:BCS ND:STA JOUT_Y\nND:PLA:AND #$01:BEQ NU:LDA JOUT_Y:SEC:SBC #2:BPL SY:LDA #0\nSY:STA JOUT_Y:NU:\n\n  ; Collision\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL PX:EOR #$FF:ADC #1\nPX:CMP #8:BCS NC:LDA JOUT_Y:SEC:SBC CIBLE_Y:BPL PY:EOR #$FF:ADC #1\nPY:CMP #8:BCS NC\n  CLC:LDA SCORE_LO:ADC #10:STA SCORE_LO\n  LDA SCORE_HI:ADC #0:STA SCORE_HI\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\nNC:\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83:LDA #6:JSR $F00C\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n  JMP LOOP\n\nGAME_OVER:\n  LDA #0:JSR $F01B\n  LDA #$10:JSR $F030\n  LDA #11:STA $D00B:LDA #14:STA $D00C\n  LDA #'G':STA $D00F:LDA #'A':STA $D00F\n  LDA #'M':STA $D00F:LDA #'E':STA $D00F\n  LDA #' ':STA $D00F:LDA #'O':STA $D00F\n  LDA #'V':STA $D00F:LDA #'E':STA $D00F:LDA #'R':STA $D00F\n  BRK\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 0,
+          "failMsg": "Le programme doit terminer sur BRK (GAME OVER). SEC avant SBC et ORA pour tester les deux bytes."
+        }
+      ],
+      "maxCycles": 5000000,
+      "hints": [
+        {
+          "text": "BUG 1 : SEC avant SBC (pas CLC). SBC soustrait en tenant compte du borrow (complément du carry)."
+        },
+        {
+          "text": "BUG 2 : LDA TIMER_HI : ORA TIMER_LO : BEQ GAME_OVER. ORA combine les deux bytes : 0 seulement si les deux sont 0."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Timer 16-bit",
+          "SEC/SBC",
+          "ORA pour tester nul",
+          "GAME OVER"
+        ],
+        "estimatedMinutes": 20,
+        "zaks": {
+          "chapter": "Chapitre 5",
+          "page": 83,
+          "topic": "SBC et carry"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "arena": 5,
+      "arena_name": "Le Démiurge",
+      "title": "⚔️ BOSS FINAL — Le Mini-Jeu Complet",
+      "description": "## 📡 Le moteur de jeu Chuck-8\n\nUn jeu complet sur la plateforme Chuck-8 :\n- Init : mode gfx, variables\n- MAIN_LOOP : SYS_WAIT_VBLANK → UPDATE → DRAW → boucle\n- UPDATE : lire pad, déplacer, collision, score, timer\n- DRAW : clear, joueur, cible, HUD\n\n---\n\n## 🎯 Mission BOSS FINAL — 5 bugs, 1 jeu\n\nLe jeu complet est là mais **5 bugs critiques** le cassent. Trouve-les tous.\n\n```asm\n; VARIABLES ZP\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\nSCORE_LO=$20:SCORE_HI=$21:TIMER_LO=$30:TIMER_HI=$31\nLIVES=$40\n\n  .org $E000\n\n  ; INIT\n  LDA #1:JSR $F01B\n  LDA #0:JSR $F000\n\n  LDA #3:STA LIVES\n  LDA #0:STA SCORE_LO:STA SCORE_HI\n  LDA #$38:STA TIMER_LO:LDA #$1C:STA TIMER_HI   ; 7200 frames = 120s\n  LDA #60:STA JOUT_X:STA JOUT_Y\n  JSR NEW_CIBLE\n\n; MAIN LOOP\nMAIN:\n  JSR $F057         ; WAIT_VBLANK\n\n  ; Timer\n  SEC:LDA TIMER_LO:SBC #1:STA TIMER_LO\n  LDA TIMER_HI:SBC #0:STA TIMER_HI\n  LDA TIMER_HI:ORA TIMER_LO:BEQ GAME_OVER\n\n  ; Pad\n  LDA #0:JSR $F048:EOR #$FF\n  PHA:AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:PLA:PHA:AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X:NL:PLA:PHA:AND #$02:BEQ ND:LDA JOUT_Y:CLC:ADC #2:CMP #121:BCS ND:STA JOUT_Y\nND:PLA:AND #$01:BEQ NU:LDA JOUT_Y:SEC:SBC #2:BPL SY:LDA #0\nSY:STA JOUT_Y:NU:\n\n  ; Collision\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL PX:EOR #$FF:ADC #1\nPX:CMP #8:BCS NC\n  LDA JOUT_Y:SEC:SBC CIBLE_Y:BPL PY:EOR #$FF:ADC #1\nPY:CMP #8:BCS NC  ; BUG 1 : après la collision, CMP doit être BCS (OK ici ✓)\n  CLC:LDA SCORE_LO:ADC #10:STA SCORE_LO\n  LDA SCORE_HI:ADC #0:STA SCORE_HI        ; BUG 2 : SCORE_LO pas mis à jour (✓ ici)\n  JSR NEW_CIBLE\nNC:\n\n  ; Draw\n  LDA #0:JSR $F000  ; BUG 3 : JSR $F000 (CLEAR) sans LDA couleur — efface en couleur A (0=ok ✓)\n                    ; mais on appelle SYS_CLEAR sans avoir rechargé A=0 si collision\n\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83\n  LDA #6:JSR $F00C   ; joueur bleu\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83\n  LDA #2:JSR $F00C   ; cible rouge\n\n  ; HUD texte\n  LDA #0:JSR $F01B   ; texte\n  LDA #$10:JSR $F030\n  LDA #0:STA $D00B:STA $D00C\n  LDA #'P':STA $D00F:LDA #'T':STA $D00F:LDA #'S':STA $D00F:LDA #':':STA $D00F\n  LDA SCORE_HI:JSR $F027:LDA SCORE_LO:JSR $F027\n  LDA #$F0:JSR $F030 ; BUG 4 : $F0 = ink=F(15) paper=0. Devrait être vies en jaune=$70\n  LDA #20:STA $D00B\n  LDA #'V':STA $D00F:LDA LIVES:JSR $F024\n\n  LDA #1:JSR $F01B   ; retour gfx ✓\n\n  ; BUG 5 : manque JMP MAIN (boucle principale !)\n\nGAME_OVER:\n  LDA #0:JSR $F01B\n  LDA #$20:JSR $F030\n  LDA #11:STA $D00B:LDA #14:STA $D00C\n  LDA #'G':STA $D00F:LDA #'A':STA $D00F:LDA #'M':STA $D00F\n  LDA #'E':STA $D00F:LDA #' ':STA $D00F:LDA #'O':STA $D00F\n  LDA #'V':STA $D00F:LDA #'E':STA $D00F:LDA #'R':STA $D00F\n  BRK\n\nNEW_CIBLE:\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n  RTS\n```\n\n_🏆 Quand les 5 bugs sont corrigés, tu as terminé l'Atelier 8-Bit. Tu es un vrai développeur Chuck-8._",
+      "template": "; ══════════════════════════════════════\n;  DÉMIURGE — BOSS FINAL\n;  Mini-jeu complet — 5 BUGS\n; ══════════════════════════════════════\n\nJOUT_X=$10:JOUT_Y=$11:CIBLE_X=$12:CIBLE_Y=$13\nSCORE_LO=$20:SCORE_HI=$21:TIMER_LO=$30:TIMER_HI=$31\nLIVES=$40\n\n  .org $E000\n\n  LDA #1:JSR $F01B:LDA #0:JSR $F000\n  LDA #3:STA LIVES\n  LDA #0:STA SCORE_LO:STA SCORE_HI\n  LDA #$38:STA TIMER_LO:LDA #$1C:STA TIMER_HI\n  LDA #60:STA JOUT_X:STA JOUT_Y\n  JSR NEW_CIBLE\n\nMAIN:\n  JSR $F057\n\n  SEC:LDA TIMER_LO:SBC #1:STA TIMER_LO\n  LDA TIMER_HI:SBC #0:STA TIMER_HI\n  LDA TIMER_HI:ORA TIMER_LO:BEQ GAME_OVER\n\n  LDA #0:JSR $F048:EOR #$FF:PHA\n  AND #$08:BEQ NR:LDA JOUT_X:CLC:ADC #2:CMP #121:BCS NR:STA JOUT_X\nNR:PLA:PHA:AND #$04:BEQ NL:LDA JOUT_X:SEC:SBC #2:BPL SL:LDA #0\nSL:STA JOUT_X:NL:PLA:PHA:AND #$02:BEQ ND:LDA JOUT_Y:CLC:ADC #2:CMP #121:BCS ND:STA JOUT_Y\nND:PLA:AND #$01:BEQ NU:LDA JOUT_Y:SEC:SBC #2:BPL SY:LDA #0\nSY:STA JOUT_Y:NU:\n\n  LDA JOUT_X:SEC:SBC CIBLE_X:BPL PX:EOR #$FF:ADC #1\nPX:CMP #8:BCS NC:LDA JOUT_Y:SEC:SBC CIBLE_Y:BPL PY:EOR #$FF:ADC #1\nPY:CMP #8:BCS NC\n\n  ; BUG 1 : score mal incrémenté (SEC manquant avant ADC — mais ADC utilise CLC)\n  CLC:LDA SCORE_LO:ADC #10:STA SCORE_LO\n  ; BUG 2 : carry pas propagé\n  ; Ajoute : LDA SCORE_HI:ADC #0:STA SCORE_HI\n  JSR NEW_CIBLE\nNC:\n\n  LDA #0:JSR $F000\n\n  LDA JOUT_X:STA $80:LDA JOUT_Y:STA $81:LDA #8:STA $82:STA $83:LDA #6:JSR $F00C\n  LDA CIBLE_X:STA $80:LDA CIBLE_Y:STA $81:LDA #8:STA $82:STA $83:LDA #2:JSR $F00C\n\n  LDA #0:JSR $F01B\n  LDA #$10:JSR $F030:LDA #0:STA $D00B:STA $D00C\n  LDA #'P':STA $D00F:LDA #'T':STA $D00F:LDA #'S':STA $D00F:LDA #':':STA $D00F\n  LDA SCORE_HI:JSR $F027:LDA SCORE_LO:JSR $F027\n  ; BUG 3 : couleur vies incorrecte\n  LDA #$F0:JSR $F030   ; BUG 3 : devrait être $70 (jaune sur noir)\n  LDA #20:STA $D00B:LDA #0:STA $D00C\n  LDA #'V':STA $D00F:LDA #':':STA $D00F:LDA LIVES:JSR $F024\n  LDA #1:JSR $F01B\n\n  ; BUG 4 : JMP MAIN manquant !\n\nGAME_OVER:\n  LDA #0:JSR $F01B:LDA #$20:JSR $F030\n  LDA #11:STA $D00B:LDA #14:STA $D00C\n  LDA #'G':STA $D00F:LDA #'A':STA $D00F:LDA #'M':STA $D00F\n  LDA #'E':STA $D00F:LDA #' ':STA $D00F:LDA #'O':STA $D00F\n  LDA #'V':STA $D00F:LDA #'E':STA $D00F:LDA #'R':STA $D00F\n  BRK\n\nNEW_CIBLE:\n  JSR $F05A:AND #$70:STA CIBLE_X\n  JSR $F05A:AND #$70:STA CIBLE_Y\n  RTS\n",
+      "assertions": [
+        {
+          "type": "register",
+          "register": "A",
+          "value": 0,
+          "failMsg": "Le jeu doit finir sur GAME OVER (BRK). 5 bugs : propagation carry score, couleur vies, JMP MAIN manquant, et deux autres."
+        }
+      ],
+      "maxCycles": 10000000,
+      "hints": [
+        {
+          "text": "BUG 2 : LDA SCORE_HI:ADC #0:STA SCORE_HI après l'incrément du score (propage carry)."
+        },
+        {
+          "text": "BUG 3 : LDA #$70:JSR $F030 pour jaune sur noir. BUG 4 : ajoute JMP MAIN avant GAME_OVER."
+        },
+        {
+          "text": "Il y a aussi BUG 1 : le score s'incrémente correctement avec CLC/ADC. Et BUG 5 : LDA #0 manquant avant JSR $F000 si la couleur A n'est pas 0 après la collision."
+        }
+      ],
+      "meta": {
+        "concepts": [
+          "Synthèse Arène 5",
+          "Mini-jeu complet",
+          "Moteur Chuck-8",
+          "MAIN_LOOP"
+        ],
+        "estimatedMinutes": 45,
+        "zaks": {
+          "chapter": "Chapitre 8",
+          "page": 150,
+          "topic": "Moteur de jeu complet"
+        }
+      }
+    }
+  ]
+}
