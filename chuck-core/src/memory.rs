@@ -25,10 +25,10 @@ pub const FRAMEBUF_A_END: u16 = 0x5FFF;
 pub const FRAMEBUF_B    : u16 = 0x6000;
 pub const FRAMEBUF_B_END: u16 = 0x7FFF;
 
-pub const VRAM_TEXT     : u16 = 0x4800; // mode texte 32×32
-pub const VRAM_TEXT_END : u16 = 0x4BFF;
-pub const VRAM_ATTR     : u16 = 0x4C00; // attributs couleur
-pub const VRAM_ATTR_END : u16 = 0x4FFF;
+pub const VRAM_TEXT     : u16 = 0x4800;
+pub const VRAM_TEXT_END : u16 = 0x48FF; // 256 octets
+pub const VRAM_ATTR     : u16 = 0x4900;
+pub const VRAM_ATTR_END : u16 = 0x49FF; // 256 octets
 pub const VRAM_SPRITES  : u16 = 0x5000; // 8 sprites × 256 octets
 pub const VRAM_SPR_END  : u16 = 0x5FFF;
 pub const VRAM_TILES    : u16 = 0x6000; // 256 tuiles 8×8
@@ -46,8 +46,8 @@ pub const ENTRY_POINT   : u16 = 0xE000;
 // ── Largeur et hauteur de l'écran ─────────────────────────────────────────────
 pub const SCREEN_W      : u16 = 128;
 pub const SCREEN_H      : u16 = 128;
-pub const TEXT_COLS     : u16 = 32;
-pub const TEXT_ROWS     : u16 = 32;
+pub const TEXT_COLS     : u16 = 16;
+pub const TEXT_ROWS     : u16 = 16;
 
 pub struct Memory {
     /// RAM principale 64 Ko (inclut VRAM, ROM mappée, tout)
