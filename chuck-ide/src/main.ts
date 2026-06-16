@@ -14,6 +14,7 @@ import './components/chuck-registers.js';
 import './components/chuck-memory-dump.js';
 import './components/chuck-challenge-panel.js';
 import './components/chuck-help-modal.js';
+import './components/chuck-email-gate.js';
 
 import { bus }              from './core/bus.js';
 import { Emulator }         from './core/emulator.js';
@@ -49,9 +50,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const titlebarFile = document.getElementById('titlebar-file')!;
 
-  // ── Enregistrer les listeners BUS avant init() ───────────
+  // ── Email gate — défis verrouillés (4+) ─────────────────────
+  const gateEl = document.getElementById('modal-email-gate') as
+    (HTMLElement & { open(id: number): void }) | null;
+
   // init() émet chuck:challenge-loaded de façon synchrone — les listeners
   // doivent exister avant l'appel.
+
+  bus.on('chuck:challenge-loaded', ({ challenge }) => {
+    // Email gate — bloque les défis verrouillés
+    const STORAGE_KEY = 'chuck8_email_unlocked';
+    const isUnlocked  = (() => { try { return !!localStorage.getItem(STORAGE_KEY); } catch { return false; } })();
+    if (challenge.locked && !isUnlocked) {
+      gateEl?.open(challenge.id);
+    }
+  });
 
   bus.on('chuck:challenge-loaded', ({ challenge }) => {
     const label = `Défi ${challenge.id} — ${challenge.title}`;

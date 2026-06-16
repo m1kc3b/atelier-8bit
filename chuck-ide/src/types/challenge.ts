@@ -69,16 +69,22 @@ export interface ChallengeMeta {
 export interface Challenge {
   /** Identifiant unique — correspond au paramètre URL ?challenge=X */
   id:          number;
+  /** Numéro d'arène */
+  arena?:      number;
+  /** Nom de l'arène */
+  arena_name?: string;
+  /** Défi verrouillé — nécessite email pour accéder */
+  locked?:     boolean;
   /** Titre court affiché dans le panneau */
   title:       string;
   /** Description Markdown de la consigne */
   description: string;
-  /** Code de départ injecté dans l'éditeur (template vide ou squelette) */
+  /** Code de départ injecté dans l'éditeur */
   template:    string;
-  /** Liste ordonnée des assertions à valider */
+  /** Assertions à valider */
   assertions:  Assertion[];
-  /** Nombre max de cycles CPU avant timeout (évite les boucles infinies) */
-  maxCycles?:  number;       // défaut : 10_000
+  /** Nombre max de cycles CPU avant timeout */
+  maxCycles?:  number;
   /** Indices progressifs */
   hints?:      ChallengeHint[];
   /** Métadonnées pédagogiques */
