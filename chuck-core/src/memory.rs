@@ -304,9 +304,9 @@ impl Memory {
 
     /// Affiche un caractère à (col, row) en mode texte
     pub fn put_char(&mut self, ch: u8, col: u8, row: u8, ink: u8, paper: u8) {
-        if col >= 32 || row >= 32 { return; }
-        let text_addr = VRAM_TEXT + (row as u16) * 32 + (col as u16);
-        let attr_addr = VRAM_ATTR + (row as u16) * 32 + (col as u16);
+        if col >= 16 || row >= 16 { return; }
+        let text_addr = VRAM_TEXT + (row as u16) * 16 + (col as u16);
+        let attr_addr = VRAM_ATTR + (row as u16) * 16 + (col as u16);
         self.ram[text_addr as usize] = ch;
         self.ram[attr_addr as usize] = (paper << 4) | (ink & 0x0F);
         self.mark_dirty(text_addr);
@@ -344,7 +344,7 @@ impl Memory {
                     // Newline : retour chariot + avance ligne
                     self.io.vpu.cursor_x = 0;
                     let next_row = row + 1;
-                    if next_row >= 32 {
+                    if next_row >= 16 {
                         self.scroll_text_up();
                         self.io.vpu.cursor_y = 31;
                     } else {
@@ -362,12 +362,12 @@ impl Memory {
                     self.put_char(ch, col, row, ink, paper);
                     // Avancer le curseur
                     let next_col = col + 1;
-                    if next_col >= 32 {
+                    if next_col >= 16 {
                         self.io.vpu.cursor_x = 0;
                         let next_row = row + 1;
-                        if next_row >= 32 {
+                        if next_row >= 16 {
                             self.scroll_text_up();
-                            self.io.vpu.cursor_y = 31;
+                            self.io.vpu.cursor_y = 15;
                         } else {
                             self.io.vpu.cursor_y = next_row;
                         }
@@ -468,10 +468,10 @@ impl Memory {
         // Copie lignes 1-31 → lignes 0-30
         for row in 0u16..31 {
             for col in 0u16..32 {
-                let src_t = VRAM_TEXT + (row + 1) * 32 + col;
-                let dst_t = VRAM_TEXT +  row      * 32 + col;
-                let src_a = VRAM_ATTR + (row + 1) * 32 + col;
-                let dst_a = VRAM_ATTR +  row      * 32 + col;
+                let src_t = VRAM_TEXT + (row + 1) * 16 + col;
+                let dst_t = VRAM_TEXT +  row      * 16 + col;
+                let src_a = VRAM_ATTR + (row + 1) * 16 + col;
+                let dst_a = VRAM_ATTR +  row      * 16 + col;
                 self.ram[dst_t as usize] = self.ram[src_t as usize];
                 self.ram[dst_a as usize] = self.ram[src_a as usize];
             }
@@ -480,8 +480,8 @@ impl Memory {
         let ink   = self.io.vpu.ink;
         let paper = self.io.vpu.paper;
         for col in 0u16..32 {
-            let t = VRAM_TEXT + 31 * 32 + col;
-            let a = VRAM_ATTR + 31 * 32 + col;
+            let t = VRAM_TEXT + 15 * 16 + col;
+            let a = VRAM_ATTR + 15 * 16 + col;
             self.ram[t as usize] = 0x20;
             self.ram[a as usize] = (paper << 4) | ink;
         }
