@@ -298,7 +298,7 @@ fn dispatch_api(cpu: &mut Cpu, mem: &mut Memory, addr: u16) {
 }
 
 /// Exécute l'opcode et retourne les cycles supplémentaires (page cross, branch taken).
-fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, mode: AddrMode, op: Operand) -> u64 {
+fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, _mode: AddrMode, op: Operand) -> u64 {
     match opcode {
 
         // ── LDA ─────────────────────────────────────────────────────────

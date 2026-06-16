@@ -11,7 +11,7 @@
 //   $E000–$EFFF   RAM haute (point d'entrée $E000)
 //   $F000–$FFFF   ROM système (lecture seule)
 
-use crate::io::{IoState, IoAction};
+use crate::io::IoState;
 use crate::rom::{build_rom, ROM_START, ROM_SIZE};
 
 pub const RAM_SIZE      : usize = 65536;
