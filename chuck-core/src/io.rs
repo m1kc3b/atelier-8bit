@@ -29,8 +29,12 @@ pub const VPU_CHAR_OUT  : u16 = 0xD00F;
 pub const SPU_V0_BASE   : u16 = 0xD100; // + 0..7 pour chaque voix
 pub const SPU_V1_BASE   : u16 = 0xD108;
 pub const SPU_V2_BASE   : u16 = 0xD110;
-pub const SPU_MASTER_VOL: u16 = 0xD118;
-pub const SPU_STATUS    : u16 = 0xD119;
+pub const SPU_MASTER_VOL: u16 = 0xD120;
+pub const SPU_STATUS    : u16 = 0xD121;
+pub const SPU_SAMPLE_LO : u16 = 0xD122;
+pub const SPU_SAMPLE_HI : u16 = 0xD123;
+pub const SPU_SAMPLE_LEN: u16 = 0xD124;
+pub const SPU_SAMPLE_CTRL: u16 = 0xD125;
 
 // INPUT $D200–$D2FF
 pub const KEY_ASCII     : u16 = 0xD200;
