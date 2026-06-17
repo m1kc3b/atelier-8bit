@@ -17,11 +17,24 @@ export default defineConfig({
     globals:     true,
     environment: 'jsdom',
     include:     ['src/tests/**/*.test.ts'],
+    // Couverture de code
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],
-      include:  ['src/core/**/*.ts'],
-      exclude:  ['src/core/emulator-bridge.ts'],
+      include: [
+        'core/bus.ts',
+        'core/memory.ts',
+        'core/assembler.ts',
+        'core/display.ts',
+        'core/challenge-manager.ts',
+        'core/storage/local-storage-adapter.ts',
+        'core/storage/api-storage-adapter.ts',
+        'core/storage/storage-service.ts',
+        'core/base-component.ts',
+      ],
+      reporter: ['text', 'lcov', 'html'],
     },
+ 
+    // Rapports
+    reporters: ['verbose'],
   },
 } as any);

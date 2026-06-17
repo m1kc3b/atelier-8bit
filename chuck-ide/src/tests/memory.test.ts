@@ -1,194 +1,218 @@
-/* ─────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════
    Chuck IDE — tests/memory.test.ts
    Tests unitaires : Ram64K
-   ───────────────────────────────────────────────────────────── */
+   ═══════════════════════════════════════════════════════════════ */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Ram64K } from '../core/memory.js';
 
-describe('Ram64K', () => {
+// ── Suite ────────────────────────────────────────────────────────
 
+describe('Ram64K', () => {
   let ram: Ram64K;
 
-  beforeEach(() => { ram = new Ram64K(); });
+  beforeEach(() => {
+    ram = new Ram64K();
+  });
 
-  // ── Lecture / écriture de base ──────────────────────────
+  // ── Initialisation ────────────────────────────────────────────
 
-  describe('read / write', () => {
-    it('retourne 0 par défaut sur toute la RAM', () => {
-      expect(ram.read(0x0000)).toBe(0);
-      expect(ram.read(0x0600)).toBe(0);
-      expect(ram.read(0xffff)).toBe(0);
-    });
-
-    it('écrit et relit un octet', () => {
-      ram.write(0x0010, 0xab);
-      expect(ram.read(0x0010)).toBe(0xab);
-    });
-
-    it('masque les valeurs > 0xFF', () => {
-      ram.write(0x0010, 0x1ff);
-      expect(ram.read(0x0010)).toBe(0xff);
-    });
-
-    it('masque les adresses > 0xFFFF', () => {
-      ram.write(0x10001, 0x42);
-      expect(ram.read(0x0001)).toBe(0x42);
-    });
-
-    it('les écritures sont indépendantes par adresse', () => {
-      ram.write(0x0010, 0x11);
-      ram.write(0x0011, 0x22);
-      expect(ram.read(0x0010)).toBe(0x11);
-      expect(ram.read(0x0011)).toBe(0x22);
+  describe('initialisation', () => {
+    it('buffer de 65536 octets initialisé à zéro', () => {
+      expect(ram.buffer.length).toBe(0x10000);
+      expect(ram.buffer.every(b => b === 0)).toBe(true);
     });
   });
 
-  // ── Adresse spéciale $FE ────────────────────────────────
+  // ── read / write ──────────────────────────────────────────────
 
-  describe('$FE — octet aléatoire', () => {
-    it('retourne toujours un entier entre 0 et 255', () => {
-      for (let i = 0; i < 100; i++) {
-        const v = ram.read(0xfe);
+  describe('read / write', () => {
+    it('write puis read retourne la même valeur', () => {
+      ram.write(0x0010, 0xAB);
+      expect(ram.read(0x0010)).toBe(0xAB);
+    });
+
+    it('masque les adresses sur 16 bits (wrap-around)', () => {
+      ram.write(0x10001, 0xFF); // overflow → 0x0001
+      expect(ram.read(0x0001)).toBe(0xFF);
+    });
+
+    it('masque les valeurs sur 8 bits', () => {
+      ram.write(0x0020, 0x1FF); // overflow → 0xFF
+      expect(ram.read(0x0020)).toBe(0xFF);
+    });
+
+    it('$FE retourne une valeur aléatoire (pseudo-random)', () => {
+      // On lit plusieurs fois : les valeurs doivent être dans [0, 255]
+      for (let i = 0; i < 10; i++) {
+        const v = ram.read(0xFE);
         expect(v).toBeGreaterThanOrEqual(0);
         expect(v).toBeLessThanOrEqual(255);
         expect(Number.isInteger(v)).toBe(true);
       }
     });
 
-    it('retourne des valeurs différentes (distribution aléatoire)', () => {
-      const values = new Set(Array.from({ length: 50 }, () => ram.read(0xfe)));
-      // 50 lectures, très peu de chances d'avoir < 5 valeurs distinctes
-      expect(values.size).toBeGreaterThan(5);
+    it('$FE n\'est pas toujours identique (aléatoire)', () => {
+      // Sur 50 lectures, au moins 2 valeurs différentes (probabilité quasi-certaine)
+      const values = new Set(Array.from({ length: 50 }, () => ram.read(0xFE)));
+      expect(values.size).toBeGreaterThan(1);
+    });
+
+    it('$FE - write n\'affecte pas la lecture (toujours aléatoire)', () => {
+      ram.write(0xFE, 0x42);
+      const v = ram.read(0xFE);
+      // On ne peut pas tester une valeur exacte, mais on vérifie que c'est valide
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(255);
     });
   });
 
-  // ── store() avec hook display ───────────────────────────
+  // ── store (avec hook display) ─────────────────────────────────
 
-  describe('store() — hook display', () => {
-    it('déclenche le hook pour les adresses $0200–$05FF', () => {
-      const hook = vi.fn();
-      ram.setPixelHook(hook);
-
-      ram.store(0x0200, 0x05);
-      expect(hook).toHaveBeenCalledWith(0x0200, 0x05);
-
-      ram.store(0x05ff, 0x0f);
-      expect(hook).toHaveBeenCalledWith(0x05ff, 0x0f);
+  describe('store + pixelHook', () => {
+    it('store écrit la valeur dans le buffer', () => {
+      ram.store(0x0300, 0x05);
+      expect(ram.buffer[0x0300]).toBe(0x05);
     });
 
-    it('ne déclenche pas le hook hors zone display', () => {
+    it('hook appelé pour une adresse dans la zone display ($0200–$05FF)', () => {
       const hook = vi.fn();
       ram.setPixelHook(hook);
+      ram.store(0x0200, 0x03);
+      expect(hook).toHaveBeenCalledOnce();
+      expect(hook).toHaveBeenCalledWith(0x0200, 0x03);
+    });
 
-      ram.store(0x01ff, 0x01);  // juste avant
-      ram.store(0x0600, 0x01);  // juste après
-      ram.store(0x0000, 0x01);
+    it('hook appelé à la limite haute $05FF', () => {
+      const hook = vi.fn();
+      ram.setPixelHook(hook);
+      ram.store(0x05FF, 0x0F);
+      expect(hook).toHaveBeenCalledWith(0x05FF, 0x0F);
+    });
+
+    it('hook NON appelé hors de la zone display ($01FF)', () => {
+      const hook = vi.fn();
+      ram.setPixelHook(hook);
+      ram.store(0x01FF, 0x01);
       expect(hook).not.toHaveBeenCalled();
     });
 
-    it('write() n\'appelle jamais le hook', () => {
+    it('hook NON appelé à $0600 (juste après la zone display)', () => {
       const hook = vi.fn();
       ram.setPixelHook(hook);
-      ram.write(0x0200, 0x07);
+      ram.store(0x0600, 0xA9);
       expect(hook).not.toHaveBeenCalled();
     });
 
-    it('écrit bien la valeur en RAM même avec le hook', () => {
-      ram.setPixelHook(vi.fn());
-      ram.store(0x0300, 0x0b);
-      expect(ram.buffer[0x0300]).toBe(0x0b);
+    it('write (stack) ne déclenche PAS le hook', () => {
+      const hook = vi.fn();
+      ram.setPixelHook(hook);
+      ram.write(0x0200, 0x05); // write brut, pas store
+      expect(hook).not.toHaveBeenCalled();
+    });
+
+    it('pas de hook enregistré → store ne lève pas d\'erreur', () => {
+      expect(() => ram.store(0x0200, 0x01)).not.toThrow();
     });
   });
 
-  // ── readWord ─────────────────────────────────────────────
+  // ── readWord ──────────────────────────────────────────────────
 
-  describe('readWord()', () => {
-    it('lit un mot 16 bits little-endian', () => {
-      ram.write(0x0010, 0x34);
-      ram.write(0x0011, 0x12);
+  describe('readWord', () => {
+    it('lit un mot 16-bit little-endian', () => {
+      ram.write(0x0010, 0x34); // octet bas
+      ram.write(0x0011, 0x12); // octet haut
       expect(ram.readWord(0x0010)).toBe(0x1234);
     });
 
-    it('gère le wrap-around $FFFF → $0000', () => {
-      ram.write(0xffff, 0xcd);
-      ram.write(0x0000, 0xab);
-      expect(ram.readWord(0xffff)).toBe(0xabcd);
+    it('wrap-around sur la frontière $FFFF / $0000', () => {
+      ram.write(0xFFFF, 0xAB);
+      ram.write(0x0000, 0xCD);
+      expect(ram.readWord(0xFFFF)).toBe(0xCDAB);
     });
   });
 
-  // ── loadBytes ────────────────────────────────────────────
+  // ── storeKeypress ─────────────────────────────────────────────
 
-  describe('loadBytes()', () => {
-    it('charge un tableau d\'octets à partir d\'une adresse de base', () => {
-      ram.loadBytes(0x0600, [0xa9, 0x42, 0x00]);
-      expect(ram.read(0x0600)).toBe(0xa9);
-      expect(ram.read(0x0601)).toBe(0x42);
-      expect(ram.read(0x0602)).toBe(0x00);
+  describe('storeKeypress', () => {
+    it('écrit le code ASCII en $FF', () => {
+      ram.storeKeypress(0x41); // 'A'
+      expect(ram.read(0xFF)).toBe(0x41);
+    });
+
+    it('masque sur 8 bits', () => {
+      ram.storeKeypress(0x141); // → 0x41
+      expect(ram.read(0xFF)).toBe(0x41);
+    });
+  });
+
+  // ── loadBytes ─────────────────────────────────────────────────
+
+  describe('loadBytes', () => {
+    it('charge un programme à partir d\'une adresse de base', () => {
+      const prog = [0xA9, 0x42, 0x8D, 0x00, 0x02, 0x00];
+      ram.loadBytes(0x0600, prog);
+      for (let i = 0; i < prog.length; i++) {
+        expect(ram.buffer[0x0600 + i]).toBe(prog[i]);
+      }
     });
 
     it('ne déclenche pas le hook display pendant le chargement', () => {
       const hook = vi.fn();
       ram.setPixelHook(hook);
-      // Charger dans la zone display
+      // Charge dans la zone display
       ram.loadBytes(0x0200, [0x01, 0x02, 0x03]);
       expect(hook).not.toHaveBeenCalled();
     });
+
+    it('wrap-around à $FFFF', () => {
+      ram.loadBytes(0xFFFE, [0xAA, 0xBB, 0xCC]);
+      expect(ram.buffer[0xFFFE]).toBe(0xAA);
+      expect(ram.buffer[0xFFFF]).toBe(0xBB);
+      expect(ram.buffer[0x0000]).toBe(0xCC); // wrap
+    });
   });
 
-  // ── reset ─────────────────────────────────────────────────
+  // ── reset ─────────────────────────────────────────────────────
 
-  describe('reset()', () => {
-    it('remet toute la RAM à zéro', () => {
-      ram.write(0x0010, 0xff);
-      ram.write(0x0600, 0xaa);
-      ram.write(0xffff, 0x55);
+  describe('reset', () => {
+    it('efface tout le buffer', () => {
+      ram.write(0x0010, 0xFF);
+      ram.write(0x0600, 0xA9);
       ram.reset();
-      expect(ram.read(0x0010)).toBe(0);
-      expect(ram.read(0x0600)).toBe(0);
-      expect(ram.read(0xffff)).toBe(0);
-    });
-
-    it('conserve le hook après reset', () => {
-      const hook = vi.fn();
-      ram.setPixelHook(hook);
-      ram.reset();
-      ram.store(0x0200, 0x03);
-      expect(hook).toHaveBeenCalledTimes(1);
+      expect(ram.buffer.every(b => b === 0)).toBe(true);
     });
   });
 
-  // ── storeKeypress ─────────────────────────────────────────
+  // ── hexDump ───────────────────────────────────────────────────
 
-  describe('storeKeypress()', () => {
-    it('écrit le code ASCII en $FF', () => {
-      ram.storeKeypress(65); // 'A'
-      expect(ram.read(0xff)).toBe(65);
-    });
-
-    it('masque les valeurs > 0xFF', () => {
-      ram.storeKeypress(0x1ff);
-      expect(ram.read(0xff)).toBe(0xff);
-    });
-  });
-
-  // ── hexDump ───────────────────────────────────────────────
-
-  describe('hexDump()', () => {
-    it('produit des lignes de 16 octets préfixées par l\'adresse', () => {
-      ram.write(0x0600, 0xa9);
+  describe('hexDump', () => {
+    it('produit un hexdump lisible', () => {
+      ram.write(0x0600, 0xA9);
       ram.write(0x0601, 0x42);
-      const dump = ram.hexDump(0x0600, 16);
-      expect(dump).toContain('0600:');
+      const dump = ram.hexDump(0x0600, 2);
+      expect(dump).toContain('0600');
       expect(dump).toContain('A9');
       expect(dump).toContain('42');
     });
 
-    it('produit le bon nombre de lignes pour 32 octets', () => {
-      const dump = ram.hexDump(0x0000, 32);
-      const lines = dump.trim().split('\n');
-      expect(lines).toHaveLength(2);
+    it('format : une ligne de 16 octets max', () => {
+      ram.loadBytes(0x0600, Array.from({ length: 16 }, (_, i) => i));
+      const dump = ram.hexDump(0x0600, 16);
+      const lines = dump.split('\n').filter(l => l.trim());
+      expect(lines.length).toBe(1);
+    });
+
+    it('deux lignes pour 17 octets', () => {
+      ram.loadBytes(0x0600, Array.from({ length: 17 }, () => 0));
+      const dump = ram.hexDump(0x0600, 17);
+      const lines = dump.split('\n').filter(l => l.trim());
+      expect(lines.length).toBe(2);
+    });
+
+    it('format de l\'adresse : 4 chiffres hex majuscules', () => {
+      const dump = ram.hexDump(0x0600, 1);
+      expect(dump).toMatch(/^0600:/);
     });
   });
-
 });

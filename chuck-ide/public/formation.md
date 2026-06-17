@@ -39,7 +39,8 @@ Voici ce qu'il contient :
 | Manette | 2 × 8 boutons (compatible NES) |
 | Souris | X/Y + 3 boutons + molette |
 
-Un seul mégahertz. Soixante-cinq mille cinq cent trente-six octets de RAM. À titre de comparaison, une image JPEG ordinaire pèse plus lourd que toute la mémoire de cette machine.
+
+Un seul mégahertz. 65.536 octets de RAM. À titre de comparaison, une image JPEG ordinaire pèse plus lourd que toute la mémoire de cette machine.
 
 Et pourtant, des milliers de jeux ont été écrits sur des machines comparables. Pac-Man. Space Invaders. Pitfall. Tout ça sur moins de mémoire que ce qu'occupe cet onglet dans votre navigateur.
 
@@ -51,22 +52,22 @@ Voici comment les composants sont reliés :
 ┌─────────────────────────────────────────────────────────────┐
 │              BUS DONNÉES 8-bit / BUS ADRESSES 16-bit        │
 │                                                             │
-│  ┌──────────┐   ┌──────────┐   ┌──────────────────────┐   │
-│  │  6502    │   │  64 Ko   │   │  Registres I/O        │   │
-│  │  CPU     │   │  RAM     │   │  $D000–$D3FF          │   │
-│  │  1 MHz   │   │          │   │  (VPU, SPU, Input)    │   │
-│  └──────────┘   └──────────┘   └──────────────────────┘   │
+│  ┌──────────┐   ┌──────────┐   ┌──────────────────────┐     │
+│  │  6502    │   │  64 Ko   │   │  Registres I/O       │     │
+│  │  CPU     │   │  RAM     │   │  $D000–$D3FF         │     │
+│  │  1 MHz   │   │          │   │  (VPU, SPU, Input)   │     │
+│  └──────────┘   └──────────┘   └──────────────────────┘     │
 │                                                             │
-│  ┌──────────────────────┐   ┌──────────────────────────┐   │
-│  │  VPU – Vidéo         │   │  SPU – Son               │   │
-│  │  $4000–$7FFF         │   │  3 voix + sample PCM     │   │
-│  │  Framebuffers A et B │   │                          │   │
-│  └──────────────────────┘   └──────────────────────────┘   │
+│  ┌──────────────────────┐   ┌──────────────────────────┐    │
+│  │  VPU – Vidéo         │   │  SPU – Son               │    │
+│  │  $4000–$7FFF         │   │  3 voix + sample PCM     │    │
+│  │  Framebuffers A et B │   │                          │    │
+│  └──────────────────────┘   └──────────────────────────┘    │
 │                                                             │
-│  ┌──────────────────────┐   ┌──────────────────────────┐   │
-│  │  ROM Cartouche       │   │  ROM Système             │   │
-│  │  $8000–$BFFF         │   │  $F000–$FFFF             │   │
-│  └──────────────────────┘   └──────────────────────────┘   │
+│  ┌──────────────────────┐   ┌──────────────────────────┐    │
+│  │  ROM Cartouche       │   │  ROM Système             │    │
+│  │  $8000–$BFFF         │   │  $F000–$FFFF             │    │
+│  └──────────────────────┘   └──────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -76,7 +77,9 @@ Voici comment les composants sont reliés :
 
 C'est la contrainte fondamentale de cette architecture : on ne déplace jamais plus d'un octet à la fois. Pas de `int`, pas de `float`, pas de `string`. Des octets. Toujours des octets.
 
-> **Pont avec le moderne :** En Python, `x = 42` crée un objet entier qui contient bien plus qu'un simple nombre — des métadonnées, un compteur de références, un type... Sur le 6502, `42` c'est l'octet `$2A`. Rien de plus.
+[note]
+**Pont avec le moderne :** En Python, `x = 42` crée un objet entier qui contient bien plus qu'un simple nombre — des métadonnées, un compteur de références, un type... Sur le 6502, `42` c'est l'octet `$2A`. Rien de plus.
+[/note]
 
 ### 0.3 La mémoire vue d'avion
 
@@ -96,7 +99,9 @@ $E000–$EFFF  ← RAM haute (point d'entrée : $E000)
 $F000–$FFFF  ← ROM Système (API, charset, vecteurs)
 ```
 
-> **Ce qu'il faut retenir maintenant :** Votre programme démarre toujours à `$E000`. C'est là que le CPU va chercher la première instruction au démarrage.
+[note]
+**Ce qu'il faut retenir maintenant :** Votre programme démarre toujours à `$E000`. C'est là que le CPU va chercher la première instruction au démarrage.
+[/note]
 
 ---
 
@@ -119,7 +124,9 @@ Un registre, c'est un emplacement de stockage *à l'intérieur même du CPU*. C'
 
 **Le grand enseignement :** Avec seulement A, X et Y pour calculer, vous jonglerez constamment entre mémoire et registres. C'est là que 90% de la complexité de l'assembleur réside — pas dans les instructions elles-mêmes, mais dans la *logistique* des données.
 
-> **Comment regarder les registres dans Chuck-IDE :** Le panneau de débogage affiche en permanence la valeur de A, X, Y, PC, SP et P. Observez A à chaque instruction : vous verrez exactement ce qui transite par l'accumulateur.
+[note]
+**Comment regarder les registres dans Chuck-IDE :** Le panneau "Registres" affiche en permanence la valeur de A, X, Y, PC, SP et P. Observez A à chaque instruction : vous verrez exactement ce qui transite par l'accumulateur.
+[/note]
 
 ### 1.2 Le registre P : les drapeaux
 
@@ -147,7 +154,9 @@ Les deux drapeaux que vous utiliserez le plus souvent :
 
 **N (Negative)** : passe à 1 si le bit 7 du résultat est à 1 (convention complément à deux). Utilisé par `BMI` (Branch if Minus) et `BPL` (Branch if Plus).
 
-> **Comment regarder P dans Chuck-IDE :** Le panneau affiche souvent P en hexadécimal ET sous forme de flags individuels. Après chaque `LDA`, `CMP` ou `ADC`, observez Z et N changer.
+[note]
+**Comment regarder P dans Chuck-IDE :** Le panneau affiche P sous forme de flags individuels. Après chaque `LDA`, `CMP` ou `ADC`, observez Z et N changer.
+[/note]
 
 ### 1.3 Les modes d'adressage : comment on dit au CPU où trouver les données
 
@@ -165,10 +174,12 @@ LDA $10,X      ; Zero Page indexé : A ← mémoire[$10 + X]
 
 Le `#` devant une valeur signifie *"cette valeur directement"*. Sans `#`, c'est une adresse.
 
-> **Analogie Python :**
-> - `LDA #42` → c'est comme `a = 42`
-> - `LDA $10` → c'est comme `a = memoire[0x10]` (lire ce qui est stocké à l'adresse $10)
-> - `LDA $0200,X` → c'est comme `a = memoire[0x0200 + x]` (accès indexé dans un tableau)
+[note] 
+**Analogie Python :**
+- `LDA #42` → c'est comme `a = 42`
+- `LDA $10` → c'est comme `a = memoire[0x10]` (lire ce qui est stocké à l'adresse $10)
+- `LDA $0200,X` → c'est comme `a = memoire[0x0200 + x]` (accès indexé dans un tableau)
+[/note]
 
 Les modes d'adressage les plus utiles, avec leur taille en mémoire :
 
@@ -186,7 +197,10 @@ Les modes d'adressage les plus utiles, avec leur taille en mémoire :
 
 **La Zero Page est spéciale.** Les adresses $00–$FF forment la "page zéro". Les instructions qui accèdent à la Zero Page ne nécessitent qu'un octet d'adresse (au lieu de deux pour les adresses complètes) — elles sont donc plus courtes et plus rapides. C'est votre zone de variables "premium".
 
-> **Pont avec le moderne :** Le mode `(Indirect),Y` est l'équivalent d'un pointeur en C : `*(ptr + y)`. Vous stockez une adresse 16 bits en Zero Page, puis vous lisez à cette adresse + un offset. Utile pour parcourir des tableaux dont l'adresse n'est connue qu'à l'exécution.
+[note]
+**Pont avec le moderne :** Le mode `(Indirect),Y` est l'équivalent d'un pointeur en C : `*(ptr + y)`. Vous stockez une adresse 16 bits en Zero Page, puis vous lisez à cette adresse + un offset. Utile pour parcourir des tableaux dont l'adresse n'est connue qu'à l'exécution.
+
+[/note]
 
 ### 1.4 Timing : tout se compte en cycles
 
@@ -203,7 +217,10 @@ Ce n'est pas un exercice académique. Sur les vraies machines de l'époque, les 
 | `JSR` (appel de routine) | 6 cycles |
 | `RTI` (retour d'interruption) | 6 cycles |
 
-> **Comment voir les cycles dans Chuck-IDE :** Le compteur de cycles s'affiche dans le panneau de debug. Vous pouvez mesurer combien de cycles prend votre boucle principale.
+[note]
+
+**Comment voir les cycles dans Chuck-IDE :** Le compteur de cycles s'affiche dans le panneau de debug. Vous pouvez mesurer combien de cycles prend votre boucle principale.
+[/note]
 
 ---
 
@@ -226,7 +243,10 @@ LDY #0      ; Load Y : Y ← 0
 STY $0202   ; Store Y : mémoire[$0202] ← Y
 ```
 
-> **À surveiller dans le débogueur :** Après `LDA #$42`, regardez le registre A — il vaut $42. Regardez aussi le flag Z : il passe à 0 (car $42 ≠ 0). Si vous faites `LDA #0`, Z passe à 1.
+[note]
+
+**À surveiller dans le débogueur :** Après `LDA #$42`, regardez le registre A — il vaut $42. Regardez aussi le flag Z : il passe à 0 (car $42 ≠ 0). Si vous faites `LDA #0`, Z passe à 1.
+[/note]
 
 **Les transferts entre registres :**
 
@@ -257,7 +277,10 @@ Pourquoi cette contrainte bizarre ? Parce que le 6502 n'a pas d'instruction "ajo
 
 Cette conception a une raison : elle permet facilement de faire des additions sur plusieurs octets (16 bits, 24 bits...). La retenue "cascade" automatiquement d'un octet à l'autre.
 
-> **Pont avec le moderne :** En C, `a + b` ne se soucie pas d'un flag carry externe. En assembleur, l'addition est toujours une opération 9 bits (8 bits de résultat + 1 bit de retenue). C'est déstabilisant au début, mais très puissant pour l'arithmétique multi-octets.
+[note]
+
+**Pont avec le moderne :** En C, `a + b` ne se soucie pas d'un flag carry externe. En assembleur, l'addition est toujours une opération 9 bits (8 bits de résultat + 1 bit de retenue). C'est déstabilisant au début, mais très puissant pour l'arithmétique multi-octets.
+[/note]
 
 ```asm
 ; Exemple : A = 10, on veut A + 7
@@ -277,16 +300,16 @@ Ces instructions travaillent bit à bit, comme en Python (`&`, `|`, `^`).
 
 ```asm
 ; AND : met à 0 les bits non masqués
-LDA #%11001010   ; A = 11001010
-AND #%00001111   ; A = 00001010  (on garde seulement les 4 bits bas)
+LDA #%11001010   ; A = 11001010 ($CA)
+AND #%00001111   ; A = 00001010  (on garde seulement les 4 bits bas: $0A)
 
 ; ORA : force certains bits à 1
-LDA #%11000000   ; A = 11000000
-ORA #%00000001   ; A = 11000001  (on allume le bit 0)
+LDA #%11000000   ; A = 11000000 ($C0)
+ORA #%00000001   ; A = 11000001  (on allume le bit 0: $C1)
 
 ; EOR : inverse certains bits (XOR)
-LDA #%10101010   ; A = 10101010
-EOR #%11111111   ; A = 01010101  (on inverse tout)
+LDA #%10101010   ; A = 10101010 ($AA)
+EOR #%11111111   ; A = 01010101  (on inverse tout: $55)
 ```
 
 Ces opérations sont essentielles pour manipuler les registres matériels. Par exemple, pour activer un bit sans toucher aux autres :
@@ -305,7 +328,10 @@ AND #%11111101  ; Éteindre le bit 1 (masque inverse)
 STA $D000     ; Réécrire
 ```
 
-> **Comment lire un masque binaire :** Le `%` devant un nombre indique la notation binaire en ca65. `%00000010` = 2 = bit 1 activé. Toujours écrire les masques en binaire dans vos programmes — c'est beaucoup plus lisible que l'hexadécimal quand on travaille bit à bit.
+[note]
+
+**Comment lire un masque binaire :** Le `%` devant un nombre indique la notation binaire en ca65. `%00000010` = 2 = bit 1 activé. Toujours écrire les masques en binaire dans vos programmes — c'est beaucoup plus lisible que l'hexadécimal quand on travaille bit à bit.
+[/note]
 
 ### 2.4 Les décalages : ASL et LSR
 
@@ -347,7 +373,10 @@ CMP #5      ; A = 10, valeur = 5  → Z=0, C=1 (10 > 5)
 CMP #20     ; A = 10, valeur = 20 → Z=0, C=0 (10 < 20)
 ```
 
-> **À surveiller dans le débogueur :** Placez un breakpoint juste après un `CMP`. Regardez les flags Z, C et N avant de regarder le branchement conditionnel qui suit. Vous comprendrez exactement pourquoi le programme prend telle ou telle direction.
+[note]
+
+**À surveiller dans le débogueur :** Placez un breakpoint juste après un `CMP`. Regardez les flags Z, C et N avant de regarder le branchement conditionnel qui suit. Vous comprendrez exactement pourquoi le programme prend telle ou telle direction.
+[/note]
 
 ### 2.6 Les sauts conditionnels : BEQ, BNE, BCC, BCS, BMI, BPL
 
@@ -402,7 +431,10 @@ Comment passer des paramètres ? Il n'y a pas de convention unique imposée — 
 
 **La pile (Stack)** : Quand `JSR` est exécuté, il pousse l'adresse de retour sur la pile à `$0100`–`$01FF`. Le Stack Pointer (SP) pointe vers l'emplacement libre suivant, et *descend* (de $FF vers $00). Si vous faites trop d'appels imbriqués sans `RTS`, vous débordez la pile — Stack Overflow, comme le site, mais en vrai.
 
-> **Comment suivre les appels dans Chuck-IDE :** Regardez SP diminuer à chaque `JSR` et remonter à chaque `RTS`. La pile est visible dans la zone mémoire $0100–$01FF.
+[note]
+
+**Comment suivre les appels dans Chuck-IDE :** Regardez SP diminuer à chaque `JSR` et remonter à chaque `RTS`. La pile est visible dans la zone mémoire $0100–$01FF.
+[/note]
 
 ### 2.8 La pile pour sauvegarder : PHA, PLA
 
@@ -503,13 +535,16 @@ RESET:
 
 `.org $FFFC` puis `.word RESET` : Les deux derniers octets du CPU 6502 ($FFFC–$FFFD) contiennent l'adresse du point de départ. On y place l'adresse de notre label `RESET`. Sans ça, la machine ne saurait pas où commencer.
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> 1. Au démarrage : PC = $E000 (point d'entrée)
-> 2. Après `LDA #0` : A = $00, Z = 1
-> 3. Après `JSR SYS_SET_MODE` : PC saute à $F01B, SP diminue de 2 (adresse de retour empilée)
-> 4. Après le retour : PC = $E004 (instruction suivante), SP revient
-> 5. Après `LDA #$48` : A = $48, Z = 0
-> 6. Après `STA $4800` : La mémoire à $4800 contient $48 — et 'H' apparaît à l'écran
+[note]
+
+**👁️ Ce qu'on observe dans le débogueur :**
+ 1. Au démarrage : PC = $E000 (point d'entrée)
+ 2. Après `LDA #0` : A = $00, Z = 1
+ 3. Après `JSR SYS_SET_MODE` : PC saute à $F01B, SP diminue de 2 (adresse de retour empilée)
+ 4. Après le retour : PC = $E004 (instruction suivante), SP revient
+ 5. Après `LDA #$48` : A = $48, Z = 0
+ 6. Après `STA $4800` : La mémoire à $4800 contient $48 — et 'H' apparaît à l'écran
+[/note]
 
 ---
 
@@ -642,12 +677,15 @@ La solution : `PHA` (Push A) empile le caractère *avant* le calcul. Après le c
 
 $32 = 2^5$. Un `ASL A` multiplie par 2. Cinq `ASL A` multiplient par $2^5 = 32$. C'est la façon classique de multiplier par une puissance de 2 sur un CPU sans instruction de multiplication.
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Lors du `JSR PRINT_CHAR`, regardez SP diminuer de 2 (adresse de retour)
-> - Lors du `PHA`, SP diminue encore de 1 (le caractère)
-> - Lors du `PLA`, SP remonte de 1
-> - Lors du `RTS`, SP remonte de 2
-> - Vérifiez la mémoire à $0010 après `STA $10` : vous verrez l'offset calculé
+[note]
+
+**👁️ Ce qu'on observe dans le débogueur :**
+- Lors du `JSR PRINT_CHAR`, regardez SP diminuer de 2 (adresse de retour)
+- Lors du `PHA`, SP diminue encore de 1 (le caractère)
+- Lors du `PLA`, SP remonte de 1
+- Lors du `RTS`, SP remonte de 2
+- Vérifiez la mémoire à $0010 après `STA $10` : vous verrez l'offset calculé
+[/note]
 
 ---
 
@@ -829,7 +867,10 @@ FIN_CHAINE:
 
 `<` extrait l'octet bas d'une adresse 16 bits, `>` extrait l'octet haut. Pour l'adresse `$4800` : `<$4800 = $00`, `>$4800 = $48`.
 
-> **Pont avec le moderne :** `(PTR_LO),Y` est strictement équivalent à `*(ptr + y)` en C. La paire PTR_LO/PTR_HI *est* un pointeur. La seule différence, c'est qu'on doit le gérer manuellement, octet par octet.
+[note]
+
+**Pont avec le moderne :** `(PTR_LO),Y` est strictement équivalent à `*(ptr + y)` en C. La paire PTR_LO/PTR_HI *est* un pointeur. La seule différence, c'est qu'on doit le gérer manuellement, octet par octet.
+[/note]
 
 ---
 
@@ -937,8 +978,11 @@ JSR SYS_DRAW_PIXEL
 
 **Utilisez toujours l'API sauf si vous avez une raison de performance de ne pas le faire.** Le code manuel du calcul d'adresse est fourni pour comprendre ce qui se passe dessous — pas comme modèle à copier.
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> Après `JSR SYS_DRAW_PIXEL`, regardez la mémoire à $4145. Vous devriez voir un octet dont le nibble haut vaut $7 (couleur jaune) et le nibble bas inchangé. En binaire : `0111xxxx`.
+[note]
+
+**👁️ Ce qu'on observe dans le débogueur :**
+Après `JSR SYS_DRAW_PIXEL`, regardez la mémoire à $4145. Vous devriez voir un octet dont le nibble haut vaut $7 (couleur jaune) et le nibble bas inchangé. En binaire : `0111xxxx`.
+[/note]
 
 ### 5.3 La palette de 16 couleurs
 
@@ -1054,10 +1098,13 @@ Bit 0 : mode (0 = texte, 1 = graphique)
 
 Quand on écrit `ORA #%00000010`, on allume le bit 1 sans toucher aux autres bits. C'est la manière standard de modifier un seul bit d'un registre matériel : lire, modifier, réécrire.
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Regardez $D000 avant et après le `ORA` : le bit 1 s'allume
-> - Après le VBlank, re-lisez $D000 : le bit 1 est revenu à 0 (auto-clear)
-> - Regardez $D004 (VPU_STATUS) : le bit 1 indique quel buffer est actif
+[note]
+
+ **👁️ Ce qu'on observe dans le débogueur :**
+ - Regardez $D000 avant et après le `ORA` : le bit 1 s'allume
+ - Après le VBlank, re-lisez $D000 : le bit 1 est revenu à 0 (auto-clear)
+ - Regardez $D004 (VPU_STATUS) : le bit 1 indique quel buffer est actif
+[/note]
 
 ### 5.6 Programme : dessin interactif
 
@@ -1110,11 +1157,13 @@ PAS_CLIC:
 .org $FFFC
 .word RESET
 ```
+[note]
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Lisez $D220 et $D221 : les valeurs changent en temps réel avec la souris
-> - Lisez $D224 : le bit 0 passe à 1 lors d'un clic gauche
-> - Regardez la VRAM à $4000 : les pixels s'accumulent (on ne clear pas, c'est voulu)
+**👁️ Ce qu'on observe dans le débogueur :**
+- Lisez $D220 et $D221 : les valeurs changent en temps réel avec la souris
+- Lisez $D224 : le bit 0 passe à 1 lors d'un clic gauche
+- Regardez la VRAM à $4000 : les pixels s'accumulent (on ne clear pas, c'est voulu)
+[/note]
 
 ---
 
@@ -1216,7 +1265,10 @@ Volume
 
 `Gate` (bit 7 de CTRL) : 1 = la note commence (ON), 0 = la note s'arrête et la phase Release commence.
 
-> **Analogie musicale :** Pianotez une touche de piano → bruit fort (A), légère chute (D), son stable (S). Relâchez → le son s'estompe (R). C'est l'ADSR.
+[note]
+
+**Analogie musicale :** Pianotez une touche de piano → bruit fort (A), légère chute (D), son stable (S). Relâchez → le son s'estompe (R). C'est l'ADSR.
+[/note]
 
 ### 6.3 Jouer une note manuellement
 
@@ -1283,10 +1335,13 @@ ATTENTE:
 
 La SPU utilise un registre de *période* sur 16 bits : `période = 1 000 000 / (freq_Hz + 1)`. Pour 440 Hz : `1 000 000 / 441 ≈ 2267`. En hexadécimal : `2267 = $08DB`. Donc `FREQ_LO = $DB`, `FREQ_HI = $08`.
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Regardez $D107 avant et après avoir écrit $81 : le bit 7 passe à 1 (gate ON)
-> - Regardez $D119 (SPU_STATUS) : le bit 0 passe à 1 quand la voix 0 joue
-> - Après avoir écrit $01 (gate OFF), le bit 0 de $D119 redescend à 0 après la phase Release
+[note]
+
+ **👁️ Ce qu'on observe dans le débogueur :**
+ - Regardez $D107 avant et après avoir écrit $81 : le bit 7 passe à 1 (gate ON)
+ - Regardez $D119 (SPU_STATUS) : le bit 0 passe à 1 quand la voix 0 joue
+ - Après avoir écrit $01 (gate OFF), le bit 0 de $D119 redescend à 0 après la phase Release
+[/note]
 
 ### 6.4 L'API sonore : plus simple pour les cas courants
 
@@ -1425,10 +1480,13 @@ FIN:
 .word RESET
 ```
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Suivez IDX_MELODIE ($10) : il avance de 2 en 2 après chaque note
-> - Regardez $D107 (SPU_V0_CTRL) : bit 7 s'allume à chaque note, s'éteint entre
-> - Regardez $80 : il contient la durée courante
+[note]
+
+ **👁️ Ce qu'on observe dans le débogueur :**
+ - Suivez IDX_MELODIE ($10) : il avance de 2 en 2 après chaque note
+ - Regardez $D107 (SPU_V0_CTRL) : bit 7 s'allume à chaque note, s'éteint entre
+ - Regardez $80 : il contient la durée courante
+[/note]
 
 ---
 
@@ -1556,12 +1614,18 @@ PAS_HAUT:
     RTS
 ```
 
-> **La subtilité du latch :** Sans écrire dans PAD_CTRL, `PAD1_STATE` peut refléter un état intermédiaire si la manette change pendant que vous la lisez. Le latch "photographie" l'état à un instant précis, garantissant une lecture cohérente.
+[note]
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Lisez $D210 sans latch : la valeur peut être instable
-> - Écrivez 1 dans $D212, puis relisez $D210 : valeur stable
-> - Comparez les bits avec vos pressions de boutons : chaque 0 correspond à un bouton enfoncé
+**La subtilité du latch :** Sans écrire dans PAD_CTRL, `PAD1_STATE` peut refléter un état intermédiaire si la manette change pendant que vous la lisez. Le latch "photographie" l'état à un instant précis, garantissant une lecture cohérente.
+[/note]
+
+[note]
+
+ **👁️ Ce qu'on observe dans le débogueur :**
+ - Lisez $D210 sans latch : la valeur peut être instable
+ - Écrivez 1 dans $D212, puis relisez $D210 : valeur stable
+ - Comparez les bits avec vos pressions de boutons : chaque 0 correspond à un bouton enfoncé
+[/note]
 
 ### 7.3 La souris
 
@@ -1736,12 +1800,19 @@ PROGRAMME_PRINCIPAL:
 
 Le programme principal peut être interrompu à n'importe quelle instruction. Si votre handler modifie A sans le restaurer, le programme principal reprend avec la mauvaise valeur dans A — comportement imprévisible garanti. Sauvegarder/restaurer les registres est une *loi fondamentale* de l'écriture de handlers d'interruption.
 
-> **Pont avec le moderne :** Les handlers d'interruption existent encore aujourd'hui dans chaque système d'exploitation. En C, les signal handlers (`SIGINT`, `SIGTERM`) ont les mêmes contraintes : ils ne peuvent pas modifier l'état global impunément.
+[note]
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Observez SP au moment où NMI se déclenche : il diminue de 3 (PC basse, PC haute, P)
-> - Les PHA ajoutent encore 3 (A, X, Y)
-> - Après RTI, SP remonte de 6 d'un coup
+ **Pont avec le moderne :** Les handlers d'interruption existent encore aujourd'hui dans chaque système d'exploitation. En C, les signal handlers (`SIGINT`, `SIGTERM`) ont les mêmes contraintes : ils ne peuvent pas modifier l'état global impunément.
+[/note]
+
+[note]
+
+ **👁️ Ce qu'on observe dans le débogueur :**
+ - Observez SP au moment où NMI se déclenche : il diminue de 3 (PC basse, PC haute, P)
+ - Les PHA ajoutent encore 3 (A, X, Y)
+ - Après RTI, SP remonte de 6 d'un coup
+[/note]
+
 
 ### 8.3 Pattern complet : boucle principale avec NMI
 
@@ -2246,11 +2317,14 @@ STA BALLE_DX
 
 Le complément à deux fait que `-x = 0 - x = (255 - x) + 1`. `0 - 1 = 255 = $FF`, et `0 - 255 = 1`. L'inversion d'une vitesse, c'est juste une soustraction à partir de zéro.
 
-> **👁️ Ce qu'on observe dans le débogueur :**
-> - Mettez un breakpoint dans `@collision_pad1`
-> - Vérifiez BALLE_X ($0200), BALLE_Y ($0201), PAD1_Y ($0204) à l'arrêt
-> - Lisez BALLE_DX avant et après la collision : $01 → $FF ou $FF → $01
-> - Regardez $D119 (SPU_STATUS) clignoter à chaque son de rebond
+[note]
+
+ **👁️ Ce qu'on observe dans le débogueur :**
+ - Mettez un breakpoint dans `@collision_pad1`
+ - Vérifiez BALLE_X ($0200), BALLE_Y ($0201), PAD1_Y ($0204) à l'arrêt
+ - Lisez BALLE_DX avant et après la collision : $01 → $FF ou $FF → $01
+ - Regardez $D119 (SPU_STATUS) clignoter à chaque son de rebond
+[/note]
 
 ---
 
