@@ -372,6 +372,18 @@ export class Emulator {
 
     this._lastOrg = result.org;
 
+    // Si le programme a défini un vecteur RESET valide ($FFFC/$FFFD),
+    // core.assemble() a déjà écrit les octets en mémoire mais a remis le
+    // CPU à un état par défaut sans relire ce vecteur. On fait un soft_reset()
+    // pour que le PC parte de la bonne adresse au prochain Run.
+    // (soft_reset() préserve la RAM programme, donc le code assemblé reste intact.)
+    const vecLo  = this.core.mem_peek(0xfffc);
+    const vecHi  = this.core.mem_peek(0xfffd);
+    const resetVec = vecLo | (vecHi << 8);
+    if (resetVec !== 0x0000 && resetVec !== 0xffff) {
+      this.core.soft_reset();
+    }
+
     bus.emit("chuck:assembled", {
       ok: true,
       bytes: result.bytes_written,
