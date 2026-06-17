@@ -1,0 +1,300 @@
+{
+  "version": "5.0.0",
+  "challenges": [
+    {
+      "id": 1,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Allumer la Machine",
+      "description": "Le Chuck-8 est éteint. Le VPU (Video Processing Unit) est à l'arrêt. Avant de pouvoir afficher quoi que ce soit, il faut l'activer.\n\nÉcris `LDA #$80 : STA VPU_CTRL` pour envoyer la commande d'activation. Le bit 7 de `VPU_CTRL` = 1 = VPU allumé.",
+      "meta": {
+        "concepts": [
+          "VPU_CTRL",
+          "LDA",
+          "STA",
+          "memory-mapped I/O",
+          ".org $E000"
+        ],
+        "estimatedMinutes": 5
+      },
+      "hints": [
+        {
+          "text": "VPU_CTRL = $D000. C'est une adresse I/O — écrire dedans envoie une commande au VPU."
+        },
+        {
+          "text": "$80 en binaire = 10000000. Le bit 7 allume le VPU en mode texte."
+        },
+        {
+          "text": "Structure : VPU_CTRL = $D000 / .org $E000 / LDA #$80 / STA VPU_CTRL / BRK"
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 1/6\n;  Objectif : allumer la machine\n; ══════════════════════════════════════\n\nVPU_CTRL = $D000\n\n  .org $0600     ; BUG 1 — mauvaise origine\n\n  LDA #$00       ; BUG 2 — mauvaise valeur\n  STA VPU_CTRL\n\n  BRK\n",
+      "maxCycles": 500,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 53248,
+          "value": 128,
+          "failMsg": "VPU_CTRL ($D000) doit valoir $80 (bit7=1 = VPU activé). LDA #$80 : STA VPU_CTRL."
+        },
+        {
+          "type": "memory",
+          "address": 57344,
+          "value": 169,
+          "failMsg": "Le programme doit commencer à $E000 (.org $E000). L'opcode LDA ($A9) devrait être à $E000."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Ton Nom en Couleur",
+      "description": "Le VPU est allumé. Maintenant fais-le parler.\n\nAffiche les 5 lettres `CHUCK` en **jaune sur fond bleu** en haut à gauche. Pour ça tu dois :\n1. Activer le VPU en mode texte (`LDA #$80 : STA $D000`)\n2. Positionner le curseur en (0,0)\n3. Définir la couleur avec `SYS_SET_COLOR` — `A = (ink<<4)|paper` = `$76` (jaune=7, bleu=6)\n4. Écrire chaque lettre via `VPU_CHAR_OUT` ($D00F)",
+      "meta": {
+        "concepts": [
+          "VPU_CHAR_OUT",
+          "SYS_SET_COLOR",
+          "VPU_CURSOR_X",
+          "VPU_CURSOR_Y",
+          "ASCII"
+        ],
+        "estimatedMinutes": 8
+      },
+      "hints": [
+        {
+          "text": "SYS_SET_COLOR = $F030. A = (ink << 4) | paper. Jaune=7, Bleu=6 → $76"
+        },
+        {
+          "text": "VPU_CURSOR_X = $D00B, VPU_CURSOR_Y = $D00C. Mets-les à 0 avant d'écrire."
+        },
+        {
+          "text": "Pour chaque lettre : LDA #'C' : STA $D00F puis LDA #'H' : STA $D00F etc."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 2/6\n;  Objectif : afficher CHUCK en couleur\n; ══════════════════════════════════════\n\nVPU_CTRL      = $D000\nVPU_CURSOR_X  = $D00B\nVPU_CURSOR_Y  = $D00C\nVPU_CHAR_OUT  = $D00F\nSYS_SET_COLOR = $F030\n\n  .org $E000\n\n  LDA #$80 : STA VPU_CTRL    ; active le VPU\n\n  ; BUG : le curseur n'est pas positionné en (0,0)\n  ; BUG : la couleur n'est pas définie\n  ; BUG : les lettres ne sont pas écrites\n\n  BRK\n",
+      "maxCycles": 1000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 18432,
+          "value": 67,
+          "failMsg": "La case texte (0,0) doit contenir 'C' (ASCII 67). Écris LDA #'C' : STA $D00F après avoir positionné le curseur."
+        },
+        {
+          "type": "memory",
+          "address": 18433,
+          "value": 72,
+          "failMsg": "La case texte (1,0) doit contenir 'H'."
+        },
+        {
+          "type": "memory",
+          "address": 18434,
+          "value": 85,
+          "failMsg": "La case texte (2,0) doit contenir 'U'."
+        },
+        {
+          "type": "memory",
+          "address": 19456,
+          "value": 118,
+          "failMsg": "L'attribut couleur (0,0) doit être $76 (jaune ink=7 sur fond bleu paper=6). Appelle SYS_SET_COLOR avec A=$76."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Le Premier Pixel",
+      "description": "Quitte le monde du texte. Passe en mode graphique et dessine une **croix blanche** (couleur 1) au centre de l'écran (64, 64).\n\nLa croix : 5 pixels horizontaux (x=62 à 66, y=64) et 5 pixels verticaux (x=64, y=62 à 66).\n\nUtilise `SYS_DRAW_PIXEL` ($F003) : A=couleur, X=px, Y=py.",
+      "meta": {
+        "concepts": [
+          "SYS_SET_MODE",
+          "SYS_DRAW_PIXEL",
+          "mode graphique",
+          "coordonnées pixel"
+        ],
+        "estimatedMinutes": 10
+      },
+      "hints": [
+        {
+          "text": "SYS_SET_MODE = $F01B. A=1 pour le mode graphique."
+        },
+        {
+          "text": "SYS_DRAW_PIXEL = $F003. A=couleur (1=blanc), X=px (0-127), Y=py (0-127)."
+        },
+        {
+          "text": "Centre de l'écran = (64, 64). La croix fait 5 pixels de long dans chaque direction."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 3/6\n;  Objectif : dessiner une croix blanche\n;  au centre de l'écran (64,64)\n; ══════════════════════════════════════\n\nSYS_SET_MODE   = $F01B\nSYS_DRAW_PIXEL = $F003\nSYS_CLEAR      = $F000\n\n  .org $E000\n\n  ; Passe en mode graphique\n  LDA #1 : JSR SYS_SET_MODE\n  ; Efface en noir\n  LDA #0 : JSR SYS_CLEAR\n\n  ; Dessine la barre horizontale (y=64, x de 62 à 66)\n  ; BUG : la couleur n'est pas blanche (1)\n  LDA #0            ; BUG — mauvaise couleur\n  LDX #62 : LDY #64 : JSR SYS_DRAW_PIXEL\n  LDA #0\n  LDX #63 : LDY #64 : JSR SYS_DRAW_PIXEL\n  ; ... complète les pixels manquants\n\n  BRK\n",
+      "maxCycles": 2000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 20512,
+          "value": 17,
+          "failMsg": "Pixel (64,64) doit être blanc. Nibble-packed $5020 = $11 (pixels 64 et 65 blancs car la barre horizontale passe par là)."
+        },
+        {
+          "type": "memory",
+          "address": 20384,
+          "value": 16,
+          "failMsg": "Pixel (64,62) doit être blanc. $4FA0 = $10 (pixel blanc à x=64 sur la barre verticale)."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "Pluie de Pixels",
+      "locked": true,
+      "description": "Ta première vraie boucle graphique. Remplis l'écran de **200 pixels aléatoires colorés** en une seule passe.\n\nLe générateur aléatoire du Chuck-8 est à `SYS_RAND` ($F05A) — il retourne un octet aléatoire dans A à chaque appel.\n\nStratégie :\n1. Mode graphique + écran noir\n2. Boucle 200 fois : couleur aléatoire (jamais 0), x aléatoire (0-127), y aléatoire (0-127)\n3. `SYS_DRAW_PIXEL`\n\nUtilise X comme compteur de boucle.",
+      "meta": {
+        "concepts": [
+          "SYS_RAND",
+          "boucle DEX/BNE",
+          "PHA/PLA",
+          "AND masque"
+        ],
+        "estimatedMinutes": 15
+      },
+      "hints": [
+        {
+          "text": "SYS_RAND ($F05A) → A = octet 0-255. AND #$0F pour une couleur 0-15. BEQ sur COULEUR pour éviter le noir."
+        },
+        {
+          "text": "AND #$7F force x et y dans 0-127. TAX pour x, TAY pour y."
+        },
+        {
+          "text": "LDX #200 en dehors de la boucle. DEX : BNE LOOP à la fin. PHA/PLA pour sauvegarder la couleur entre les deux JSR SYS_RAND."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 4/6\n;  Objectif : 200 pixels aléatoires\n; ══════════════════════════════════════\n\nSYS_SET_MODE   = $F01B\nSYS_CLEAR      = $F000\nSYS_DRAW_PIXEL = $F003\nSYS_RAND       = $F05A\n\nCOMPTEUR = $20\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #0 : JSR SYS_CLEAR\n\n  LDX #200       ; 200 pixels à dessiner\n\nLOOP:\n  STX COMPTEUR   ; sauvegarde le compteur\n\n  ; Couleur aléatoire (pas noire)\nCOULEUR:\n  JSR SYS_RAND\n  ; BUG : AND #$0F manque\n  ; BUG : BEQ COULEUR manque\n\n  PHA            ; sauvegarde couleur\n\n  ; X = position x aléatoire (0-127)\n  JSR SYS_RAND\n  ; BUG : AND #$7F manque\n  TAX\n\n  ; Y = position y aléatoire (0-127)\n  JSR SYS_RAND\n  ; BUG : AND #$7F manque\n  TAY\n\n  PLA            ; restaure couleur\n  JSR SYS_DRAW_PIXEL\n\n  LDX COMPTEUR   ; restaure compteur\n  DEX\n  BNE LOOP\n\n  BRK\n",
+      "maxCycles": 150000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 57344,
+          "value": 169,
+          "failMsg": "Le programme doit être à $E000 (.org $E000)."
+        },
+        {
+          "type": "register",
+          "register": "X",
+          "value": 0,
+          "failMsg": "Le compteur X doit atteindre 0 après 200 itérations. Vérifie que la boucle tourne bien 200 fois avec DEX : BNE LOOP."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "L'Arc-en-Ciel",
+      "locked": true,
+      "description": "16 couleurs, 16 bandes verticales. Chaque bande fait **8 pixels de large** et **128 pixels de haut**.\n\nRésultat : un dégradé arc-en-ciel spectaculaire qui couvre tout l'écran.\n\nStratégie : une table de 16 couleurs + une boucle de 16 itérations. Pour chaque couleur : `SYS_FILL_RECT` avec x=couleur×8, y=0, w=8, h=128.",
+      "meta": {
+        "concepts": [
+          "SYS_FILL_RECT",
+          "table .byte",
+          "LDA table,X",
+          "boucle",
+          "multiplication par 8"
+        ],
+        "estimatedMinutes": 15
+      },
+      "hints": [
+        {
+          "text": "SYS_FILL_RECT = $F00C. Paramètres dans $80=x, $81=y, $82=w, $83=h. Couleur dans A."
+        },
+        {
+          "text": "x = couleur_index × 8. Pour multiplier par 8 : ASL : ASL : ASL (3 fois)."
+        },
+        {
+          "text": "Table : COULEURS: .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15. LDA COULEURS,X pour lire."
+        }
+      ],
+      "template": "; ══════════════════════════════════════\n;  CHUCK-8 — Défi 5/6\n;  Objectif : 16 bandes de couleur\n;  8px de large × 128px de haut\n; ══════════════════════════════════════\n\nSYS_SET_MODE  = $F01B\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\n  LDA #1 : JSR SYS_SET_MODE\n\nCOULEURS: .byte 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15\n\n  LDX #0\n\nBANDE:\n  ; Couleur courante\n  LDA COULEURS,X\n  PHA                    ; sauvegarde\n\n  ; x = X * 8 (BUG : la multiplication est incorrecte)\n  TXA\n  ; BUG : 3 ASL manquent ici\n  STA $80                ; x\n\n  LDA #0   : STA $81     ; y = 0\n  LDA #8   : STA $82     ; w = 8\n  LDA #128 : STA $83     ; h = 128\n\n  PLA                    ; restaure couleur\n  JSR SYS_FILL_RECT\n\n  INX\n  CPX #16\n  BNE BANDE\n\n  BRK\n",
+      "maxCycles": 50000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 0,
+          "failMsg": "Pixel (0,0) = noir (couleur 0). La première bande doit être noire (couleur 0, x=0)."
+        },
+        {
+          "type": "memory",
+          "address": 16388,
+          "value": 17,
+          "failMsg": "Pixel (8,0) = blanc (couleur 1). La deuxième bande (x=8) doit être blanche. Nibble-packed : $11."
+        },
+        {
+          "type": "memory",
+          "address": 16440,
+          "value": 255,
+          "failMsg": "Pixel (112,0) = couleur 15 (gris clair). La dernière bande (x=112) doit valoir $FF en nibble-packed."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "arena": 1,
+      "arena_name": "Le Pionnier",
+      "title": "⚔️ BOSS — Écran de Titre",
+      "locked": true,
+      "description": "Le boss de l'arène. Crée un vrai écran de titre digne d'un jeu des années 80 :\n\n1. **Fond bleu** (couleur 6) sur tout l'écran\n2. **Cadre blanc** (contour 128×128)\n3. **Texte \"CHUCK-8\"** centré, jaune sur fond bleu (colonne 12, ligne 14)\n4. **Texte \"PRESS START\"** centré en dessous (colonne 10, ligne 17)\n\nTu vas combiner mode graphique (fond + cadre) et mode texte (les inscriptions). Le Chuck-8 permet de switcher entre les deux — le contenu de la VRAM est préservé.",
+      "meta": {
+        "concepts": [
+          "SYS_CLEAR",
+          "SYS_DRAW_RECT",
+          "SYS_SET_MODE",
+          "SYS_SET_CURSOR",
+          "mode mixte gfx+texte"
+        ],
+        "estimatedMinutes": 20
+      },
+      "hints": [
+        {
+          "text": "Ordre : 1) mode gfx → SYS_CLEAR couleur 6 → SYS_DRAW_RECT cadre blanc → 2) mode texte → positionner curseur → SYS_SET_COLOR $76 → écrire les lettres."
+        },
+        {
+          "text": "SYS_DRAW_RECT = $F009. $80=x=0, $81=y=0, $82=w=128, $83=h=128, A=1 (blanc)."
+        },
+        {
+          "text": "Pour 'CHUCK-8' : commencer à la colonne 12, ligne 14. Chaque STA $D00F avance le curseur automatiquement."
+        }
+      ],
+      "template": "; ══════════════════════════════════════════════════\n;  CHUCK-8 — Défi 6/6 — BOSS : Écran de titre\n; ══════════════════════════════════════════════════\n\nSYS_CLEAR      = $F000\nSYS_SET_MODE   = $F01B\nSYS_DRAW_RECT  = $F009\nSYS_SET_CURSOR = $F02A\nSYS_SET_COLOR  = $F030\nVPU_CHAR_OUT   = $D00F\n\n  .org $E000\n\n  ; === MODE GRAPHIQUE ===\n  LDA #1 : JSR SYS_SET_MODE\n  LDA #6 : JSR SYS_CLEAR       ; fond bleu\n\n  ; Cadre blanc 128×128\n  LDA #0   : STA $80            ; x=0\n  LDA #0   : STA $81            ; y=0\n  LDA #128 : STA $82            ; w=128\n  LDA #128 : STA $83            ; h=128\n  LDA #1   : JSR SYS_DRAW_RECT  ; BUG : mauvaise adresse ?\n\n  ; === MODE TEXTE ===\n  LDA #0 : JSR SYS_SET_MODE     ; passe en texte\n\n  ; Couleur jaune sur bleu\n  LDA #$76 : JSR SYS_SET_COLOR\n\n  ; Positionner curseur pour CHUCK-8 (col 12, ligne 14)\n  LDA #12 : TAX\n  LDA #14 : TAY\n  JSR SYS_SET_CURSOR\n\n  ; BUG : les lettres ne sont pas écrites\n  ; Écris CHUCK-8 ici...\n\n  BRK\n",
+      "maxCycles": 5000,
+      "assertions": [
+        {
+          "type": "memory",
+          "address": 16384,
+          "value": 102,
+          "failMsg": "Pixel (0,0) = bleu (couleur 6). Le fond doit être bleu. SYS_CLEAR avec A=6."
+        },
+        {
+          "type": "memory",
+          "address": 16447,
+          "value": 17,
+          "failMsg": "Pixel (127,0) = blanc. Le cadre doit atteindre x=127. SYS_DRAW_RECT avec w=128."
+        },
+        {
+          "type": "memory",
+          "address": 18892,
+          "value": 67,
+          "failMsg": "Case texte (12,14) = 'C'. CHUCK-8 doit commencer à la colonne 12, ligne 14."
+        },
+        {
+          "type": "memory",
+          "address": 19916,
+          "value": 118,
+          "failMsg": "Attribut (12,14) = $76 (jaune/bleu). Appelle SYS_SET_COLOR avec A=$76 avant d'écrire."
+        }
+      ]
+    }
+  ]
+}
