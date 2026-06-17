@@ -9,6 +9,45 @@
 
 import { bus } from './bus.js';
 
+/**
+ * Nettoie les messages d'erreur bruts venant de l'assembleur Rust/WASM.
+ * Les variants Rust comme `Some(Colon)` ou `Token::Ident` ne sont pas
+ * des messages utilisateur — on les remplace par des explications claires.
+ */
+function cleanAsmError(raw: string): string {
+  return raw
+    // Tokens Rust bruts → noms lisibles
+    .replace(/\bSome\(Colon\)/g,      '":"')
+    .replace(/\bSome\(Comma\)/g,      '","')
+    .replace(/\bSome\(Hash\)/g,       '"#"')
+    .replace(/\bSome\(LParen\)/g,     '"("')
+    .replace(/\bSome\(RParen\)/g,     '")"')
+    .replace(/\bSome\(Plus\)/g,       '"+"')
+    .replace(/\bSome\(Minus\)/g,      '"-"')
+    .replace(/\bSome\(Star\)/g,       '"*"')
+    .replace(/\bSome\(Slash\)/g,      '"/"')
+    .replace(/\bSome\(Dot\)/g,        '"."')
+    .replace(/\bSome\(Eq\)/g,         '"="')
+    .replace(/\bSome\(Lt\)/g,         '"<"')
+    .replace(/\bSome\(Gt\)/g,         '">"')
+    .replace(/\bSome\(Newline\)/g,    'fin de ligne')
+    .replace(/\bSome\(Eof\)/g,        'fin de fichier')
+    .replace(/\bSome\(Ident\(([^)]+)\)\)/g, '"$1"')
+    .replace(/\bSome\(Number\((\d+)\)\)/g,  '$1')
+    .replace(/\bSome\(Str\("([^"]+)"\)\)/g, '"$1"')
+    .replace(/\bSome\(([^)]+)\)/g,    '"$1"')  // fallback générique
+    .replace(/\bNone\b/g,             'fin de fichier')
+    // Reformulations de messages courants
+    .replace(/Unexpected token/gi,    'Élément inattendu')
+    .replace(/Unexpected end of/gi,   'Fin inattendue de')
+    .replace(/Expected ([^,]+), got/gi, 'Attendu $1, trouvé')
+    .replace(/Undefined label/gi,     'Label inconnu')
+    .replace(/Duplicate label/gi,     'Label déjà défini')
+    .replace(/Out of range/gi,        'Valeur hors plage')
+    .replace(/Invalid operand/gi,     'Opérande invalide')
+    .replace(/Unknown mnemonic/gi,    'Mnémonique inconnu');
+}
+
 // ── Types WASM ────────────────────────────────────────────────
 
 interface WasmCpuState {
@@ -261,11 +300,8 @@ export class Emulator {
     const result = this.core.assemble(source);
 
     if (!result.ok) {
-      bus.emit('chuck:assemble-err', { line: result.error_line, err: result.error_msg });
-      bus.emit('chuck:log', {
-        text:  `✗ Erreur L${result.error_line} : ${result.error_msg}`,
-        level: 'err',
-      });
+      const err = cleanAsmError(result.error_msg);
+      bus.emit('chuck:assemble-err', { line: result.error_line, err });
       return;
     }
 

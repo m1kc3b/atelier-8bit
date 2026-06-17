@@ -1151,18 +1151,15 @@ export class ChuckEditor extends ChuckComponent {
     this.sub(
       "chuck:assemble-err" as any,
       ({ line, err }: { line: number; err: string }) => {
-        this._log(`✗ Ligne ${line} : ${err}`, "err");
+        const location = line > 0 ? `Ligne ${line} — ` : "";
+        this._log(`✗ ${location}${err}`, "err");
 
-        // Surligner la ligne dans l'éditeur (Monaco)
+        // Décorations Monaco — inchangées
         const editor = (this as any)._editor;
         if (!editor) return;
-
-        // Supprimer les anciennes décorations d'erreur
         if ((this as any)._errDecorations) {
           editor.deltaDecorations((this as any)._errDecorations, []);
         }
-
-        // Ajouter la décoration sur la ligne fautive (Monaco est 1-indexed)
         if (line > 0) {
           (this as any)._errDecorations = editor.deltaDecorations(
             [],
