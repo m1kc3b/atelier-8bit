@@ -4,151 +4,200 @@
    le bridge émulateur, câble les contrôles globaux.
    ───────────────────────────────────────────────────────────── */
 
-import './styles/global.css';
+import "./styles/global.css";
 
 // ── Enregistrement des Web Components ────────────────────────
-import './components/chuck-toolbar.js';
-import './components/chuck-editor.js';
-import './components/chuck-display.js';
-import './components/chuck-registers.js';
-import './components/chuck-memory-dump.js';
-import './components/chuck-challenge-panel.js';
-import './components/chuck-help-modal.js';
-import './components/chuck-email-gate.js';
+import "./components/chuck-toolbar.js";
+import "./components/chuck-editor.js";
+import "./components/chuck-display.js";
+import "./components/chuck-registers.js";
+import "./components/chuck-memory-dump.js";
+import "./components/chuck-challenge-panel.js";
+import "./components/chuck-help-modal.js";
+import "./components/chuck-email-gate.js";
 
-import { bus }              from './core/bus.js';
-import { Emulator }         from './core/emulator.js';
-import { ChallengeManager } from './core/challenge-manager.js';
+import { bus } from "./core/bus.js";
+import { Emulator } from "./core/emulator.js";
+import { ChallengeManager } from "./core/challenge-manager.js";
+import { storage } from "./core/storage/storage-service.js";
 
-document.addEventListener('DOMContentLoaded', async () => {
-
+document.addEventListener("DOMContentLoaded", async () => {
   // ── Émulateur WASM ───────────────────────────────────────
   // Chargement async du module Rust/WASM
-  const displayEl = document.getElementById('modal-display') as
-    (HTMLElement & { show(): void; toggle(): void }) | null;
+  const displayEl = document.getElementById("modal-display") as
+    | (HTMLElement & { show(): void; toggle(): void })
+    | null;
 
   // ── Titlebar — toggles modales flottantes ────────────────
-  const registersEl  = document.getElementById('modal-registers')  as (HTMLElement & { toggle(): void }) | null;
-  const memoryEl     = document.getElementById('modal-memory')      as (HTMLElement & { toggle(): void }) | null;
-  const challengeAside = document.getElementById('challenge-aside') as HTMLElement | null;
+  const registersEl = document.getElementById("modal-registers") as
+    | (HTMLElement & { toggle(): void })
+    | null;
+  const memoryEl = document.getElementById("modal-memory") as
+    | (HTMLElement & { toggle(): void })
+    | null;
+  const challengeAside = document.getElementById(
+    "challenge-aside",
+  ) as HTMLElement | null;
 
-  document.getElementById('btn-show-display')
-    ?.addEventListener('click', () => displayEl?.toggle());
-  document.getElementById('btn-show-registers')
-    ?.addEventListener('click', () => registersEl?.toggle());
-  document.getElementById('btn-show-memory')
-    ?.addEventListener('click', () => memoryEl?.toggle());
-  document.getElementById('btn-show-help')
-    ?.addEventListener('click', () => {
-      const help = document.getElementById('modal-help') as
-        (HTMLElement & { toggle(): void }) | null;
-      help?.toggle();
-    });
+  document
+    .getElementById("btn-show-display")
+    ?.addEventListener("click", () => displayEl?.toggle());
+  document
+    .getElementById("btn-show-registers")
+    ?.addEventListener("click", () => registersEl?.toggle());
+  document
+    .getElementById("btn-show-memory")
+    ?.addEventListener("click", () => memoryEl?.toggle());
+  document.getElementById("btn-show-help")?.addEventListener("click", () => {
+    const help = document.getElementById("modal-help") as
+      | (HTMLElement & { toggle(): void })
+      | null;
+    help?.toggle();
+  });
 
-  function openChallengeAside(): void { challengeAside?.classList.add('panel-open'); }
-  function closeChallengeAside(): void { challengeAside?.classList.remove('panel-open'); }
+  function openChallengeAside(): void {
+    challengeAside?.classList.add("panel-open");
+  }
+  function closeChallengeAside(): void {
+    challengeAside?.classList.remove("panel-open");
+  }
 
-  const titlebarFile = document.getElementById('titlebar-file')!;
+  const titlebarFile = document.getElementById("titlebar-file")!;
 
   // ── Email gate — défis verrouillés (4+) ─────────────────────
-  const gateEl = document.getElementById('modal-email-gate') as
-    (HTMLElement & { open(id: number): void }) | null;
+  const gateEl = document.getElementById("modal-email-gate") as
+    | (HTMLElement & { open(id: number): void })
+    | null;
 
   // init() émet chuck:challenge-loaded de façon synchrone — les listeners
   // doivent exister avant l'appel.
 
-  bus.on('chuck:challenge-loaded', ({ challenge }) => {
-    // Email gate — bloque les défis verrouillés
-    const STORAGE_KEY = 'chuck8_email_unlocked';
-    const isUnlocked  = (() => { try { return !!localStorage.getItem(STORAGE_KEY); } catch { return false; } })();
-    if (challenge.locked && !isUnlocked) {
+  bus.on("chuck:challenge-loaded", ({ challenge }) => {
+    if (challenge.locked && !storage.isUnlocked()) {
       gateEl?.open(challenge.id);
     }
   });
 
-  bus.on('chuck:challenge-loaded', ({ challenge }) => {
+  bus.on("chuck:challenge-loaded", ({ challenge }) => {
     const label = `Défi ${challenge.id} — ${challenge.title}`;
     titlebarFile.textContent = label;
-    document.title           = `${label} — Chuck IDE`;
+    document.title = `${label} — Chuck IDE`;
     openChallengeAside();
   });
 
-  (bus as any).on('chuck:content-loaded', ({ item }: { item: { id: number; title: string } }) => {
-    titlebarFile.textContent = item.title;
-    document.title           = `${item.title} — Chuck IDE`;
-    openChallengeAside();
-  });
+  (bus as any).on(
+    "chuck:content-loaded",
+    ({ item }: { item: { id: number; title: string } }) => {
+      titlebarFile.textContent = item.title;
+      document.title = `${item.title} — Chuck IDE`;
+      openChallengeAside();
+    },
+  );
 
-  (bus as any).on('chuck:ide-free', () => {
-    titlebarFile.textContent = 'mode libre';
-    document.title           = "Chuck IDE — Chuck-8 Computer";
+  (bus as any).on("chuck:ide-free", () => {
+    titlebarFile.textContent = "mode libre";
+    document.title = "Chuck IDE — Chuck-8 Computer";
     closeChallengeAside();
   });
 
   // ── ChallengeManager ─────────────────────────────────────
   const challengeManager = new ChallengeManager();
   await challengeManager.init(await Emulator.create());
-  const sbState  = document.getElementById('sb-state')!;
-  const sbCursor = document.getElementById('sb-cursor')!;
-  const sbPc     = document.getElementById('sb-pc')!;
+  const sbState = document.getElementById("sb-state")!;
+  const sbCursor = document.getElementById("sb-cursor")!;
+  const sbPc = document.getElementById("sb-pc")!;
 
-  const addr2hex = (n: number) => n.toString(16).padStart(4, '0').toUpperCase();
+  const addr2hex = (n: number) => n.toString(16).padStart(4, "0").toUpperCase();
 
-  bus.on('chuck:assembled',    () => { sbState.textContent = 'Assemblé';     sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
-  bus.on('chuck:assemble-err', () => { sbState.textContent = 'Erreur';       sbState.className = 'sb-state error'; });
-  bus.on('chuck:stop',         () => { sbState.textContent = 'En pause';     sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'paused' }); });
-  bus.on('chuck:cpu-reset',    () => { sbState.textContent = 'Réinitialisé'; sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
-  bus.on('chuck:cpu-halted',   () => { sbState.textContent = 'Terminé';      sbState.className = 'sb-state';         bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
-  bus.on('chuck:cpu-error',    () => { sbState.textContent = 'Erreur CPU';   sbState.className = 'sb-state error';   bus.emit('chuck:toolbar-state', { state: 'assembled' }); });
-  bus.on('chuck:code-changed', () => { sbState.textContent = 'Prêt';         sbState.className = 'sb-state'; });
+  bus.on("chuck:assembled", () => {
+    sbState.textContent = "Assemblé";
+    sbState.className = "sb-state";
+    bus.emit("chuck:toolbar-state", { state: "assembled" });
+  });
+  bus.on("chuck:assemble-err", () => {
+    sbState.textContent = "Erreur";
+    sbState.className = "sb-state error";
+  });
+  bus.on("chuck:stop", () => {
+    sbState.textContent = "En pause";
+    sbState.className = "sb-state";
+    bus.emit("chuck:toolbar-state", { state: "paused" });
+  });
+  bus.on("chuck:cpu-reset", () => {
+    sbState.textContent = "Réinitialisé";
+    sbState.className = "sb-state";
+    bus.emit("chuck:toolbar-state", { state: "assembled" });
+  });
+  bus.on("chuck:cpu-halted", () => {
+    sbState.textContent = "Terminé";
+    sbState.className = "sb-state";
+    bus.emit("chuck:toolbar-state", { state: "assembled" });
+  });
+  bus.on("chuck:cpu-error", () => {
+    sbState.textContent = "Erreur CPU";
+    sbState.className = "sb-state error";
+    bus.emit("chuck:toolbar-state", { state: "assembled" });
+  });
+  bus.on("chuck:code-changed", () => {
+    sbState.textContent = "Prêt";
+    sbState.className = "sb-state";
+  });
 
   // ── Au Run : ouvrir les modales et gérer les z-index ─────
   // La modale aide reste en dessous (z-index 500)
   // Les modales runtime (écran, registres, mémoire) passent devant (z-index 1000)
-  const helpEl = document.getElementById('modal-help') as HTMLElement | null;
-  if (helpEl) helpEl.style.zIndex = '500';
+  const helpEl = document.getElementById("modal-help") as HTMLElement | null;
+  if (helpEl) helpEl.style.zIndex = "500";
 
   function ensureOpen(el: (HTMLElement & { show?(): void }) | null): void {
     if (!el) return;
-    const isOpen = el.classList.contains('visible') || el.classList.contains('open');
+    const isOpen =
+      el.classList.contains("visible") || el.classList.contains("open");
     if (isOpen) return;
     if (el.show) el.show();
-    else el.classList.add('visible');
-    el.style.zIndex = '1000';
+    else el.classList.add("visible");
+    el.style.zIndex = "1000";
   }
 
-  bus.on('chuck:run', () => {
-    sbState.textContent = 'En cours…';
-    sbState.className   = 'sb-state running';
-    ensureOpen(displayEl   as any);
+  bus.on("chuck:run", () => {
+    sbState.textContent = "En cours…";
+    sbState.className = "sb-state running";
+    ensureOpen(displayEl as any);
     ensureOpen(registersEl as any);
-    ensureOpen(memoryEl    as any);
+    ensureOpen(memoryEl as any);
   });
 
-  bus.on('chuck:cpu-updated', ({ PC }) => {
+  bus.on("chuck:cpu-updated", ({ PC }) => {
     sbPc.textContent = `$${addr2hex(PC)}`;
   });
-  bus.on('chuck:cursor-moved', ({ line, col }) => {
+  bus.on("chuck:cursor-moved", ({ line, col }) => {
     sbCursor.textContent = `Ln ${line}  Col ${col}`;
   });
 
   // Mode vidéo dans la status bar
-  const sbMode = document.getElementById('sb-mode');
-  (bus as any).on('chuck:vpu-mode', ({ mode }: { mode: number }) => {
-    if (sbMode) sbMode.textContent = mode === 0 ? 'TXT' : 'GFX';
+  const sbMode = document.getElementById("sb-mode");
+  (bus as any).on("chuck:vpu-mode", ({ mode }: { mode: number }) => {
+    if (sbMode) sbMode.textContent = mode === 0 ? "TXT" : "GFX";
   });
 
   // ── Keyboard shortcuts ───────────────────────────────────
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'B') {
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "B") {
       e.preventDefault();
-      const editorEl = document.getElementById('editor') as
-        (HTMLElement & { getSource?: () => string }) | null;
-      bus.emit('chuck:assemble', { source: editorEl?.getSource?.() ?? '' });
+      const editorEl = document.getElementById("editor") as
+        | (HTMLElement & { getSource?: () => string })
+        | null;
+      bus.emit("chuck:assemble", { source: editorEl?.getSource?.() ?? "" });
     }
-    if (e.key === 'F5') { e.preventDefault(); bus.emit('chuck:run', undefined); }
-    if (e.key === 'F10') { e.preventDefault(); bus.emit('chuck:step', undefined); }
+    if (e.key === "F5") {
+      e.preventDefault();
+      bus.emit("chuck:run", undefined);
+    }
+    if (e.key === "F10") {
+      e.preventDefault();
+      bus.emit("chuck:step", undefined);
+    }
   });
 
-  console.info('[Chuck IDE v0.2.0 — Rust/WASM core] Initialisé ✓');
+  console.info("[Chuck IDE v0.2.0 — Rust/WASM core] Initialisé ✓");
 });

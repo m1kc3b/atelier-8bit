@@ -10,6 +10,7 @@ import type {
   ChallengeItem,
 } from "../types/content.js";
 import { isChallenge } from "../types/content.js";
+import { storage } from '../core/storage/storage-service.js';
 
 const STYLES = /* css */ `
   @import '/src/styles/tokens.css';
@@ -167,6 +168,12 @@ export class ChuckChallengePanel extends ChuckComponent {
       const item = challengeToContentItem(challenge as any);
       this._loadItem(item);
     });
+    
+    this.sub("chuck:challenges-count" as any, ({ count }: { count: number }) => {
+      this._totalCount = count;
+      this._updateNav();
+    });
+
     this.sub(
       "chuck:content-loaded" as any,
       ({ item }: { item: ContentItem }) => {
@@ -475,9 +482,6 @@ export class ChuckChallengePanel extends ChuckComponent {
         setTimeout(() => next.classList.remove("success"), 600);
       }
 
-      // Sauvegarder le défi comme validé
-      this._saveValidatedChallenge(this._item!.id);
-
       this._celebrate();
     } else {
       const details = result.timeout
@@ -616,24 +620,7 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 
   private _isChallengeValidated(challengeId: number): boolean {
-    // Exemple : Récupérer depuis localStorage ou une variable globale
-    const validatedChallenges = JSON.parse(
-      localStorage.getItem("validatedChallenges") || "[]",
-    );
-    return validatedChallenges.includes(challengeId);
-  }
-
-  private _saveValidatedChallenge(challengeId: number): void {
-    const validatedChallenges = JSON.parse(
-      localStorage.getItem("validatedChallenges") || "[]",
-    );
-    if (!validatedChallenges.includes(challengeId)) {
-      validatedChallenges.push(challengeId);
-      localStorage.setItem(
-        "validatedChallenges",
-        JSON.stringify(validatedChallenges),
-      );
-    }
+    return storage.isCompleted(challengeId);
   }
 
   // ── Markdown ──────────────────────────────────────────────────

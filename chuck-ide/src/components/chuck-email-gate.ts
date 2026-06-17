@@ -5,8 +5,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from '../core/base-component.js';
-
-const STORAGE_KEY = 'chuck8_email_unlocked';
+import { storage } from '../core/storage/storage-service.js';
 
 const STYLES = /* css */`
   @import '/src/styles/tokens.css';
@@ -332,7 +331,7 @@ export class ChuckEmailGate extends ChuckComponent {
   close(): void { this.classList.remove('open'); }
 
   static isUnlocked(): boolean {
-    try { return !!localStorage.getItem(STORAGE_KEY); } catch { return false; }
+    return storage.isUnlocked();
   }
 
   // ── Validation ────────────────────────────────────────────────
@@ -349,7 +348,7 @@ export class ChuckEmailGate extends ChuckComponent {
     }
 
     // Sauvegarde locale
-    try { localStorage.setItem(STORAGE_KEY, email); } catch {}
+    try { storage.saveSession(email); } catch {}
 
     // TODO: envoyer l'email vers un backend / webhook
     // fetch('/api/subscribe', { method: 'POST', body: JSON.stringify({ email }) })
