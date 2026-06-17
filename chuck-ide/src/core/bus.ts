@@ -59,6 +59,7 @@ export interface ChuckEventMap {
   // ── Mémoire — lecture à la demande ──────────────────────
   'chuck:memory-read':   { address: number; length: number };
   'chuck:memory-data':   { address: number; bytes: Uint8Array };
+  'chuck:ram-snapshot':   { bytes: Uint8Array };
 
   // ── Aide / Formation ────────────────────────────────────
   'chuck:open-help':    { lessonId?: number };  // ouvre la modale aide
@@ -68,6 +69,8 @@ export interface ChuckEventMap {
   'chuck:validate':          { source: string; hintsUsed?: number };
   'chuck:goto-challenge':    { id: number };
   'chuck:autosave':          { id: number; code: string };
+
+  
 }
 
 export type ChuckEventName = keyof ChuckEventMap;
