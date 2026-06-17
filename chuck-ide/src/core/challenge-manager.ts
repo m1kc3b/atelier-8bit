@@ -21,7 +21,7 @@ import type { ChallengeProgress, Medal } from "./storage/types.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
-const FREE_CHALLENGES = 3; // défis 1-3 accessibles sans restriction
+// const FREE_CHALLENGES = 3; // défis 1-3 accessibles sans restriction
 
 const FLAGS: Record<string, number> = {
   N: 0b1000_0000,
