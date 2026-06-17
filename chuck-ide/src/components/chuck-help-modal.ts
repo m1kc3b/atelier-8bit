@@ -37,8 +37,11 @@ function renderMd(raw: string): string {
   // 5. Séparateur
   s = s.replace(/^---$/gm, '<hr>');
 
-  // 6. Blockquote
-  s = s.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  // 6. Notes [note]...[/note] → <blockquote>
+  //    Syntaxe custom, sans ambiguïté avec l'échappement HTML.
+  s = s.replace(/\[note\]([\s\S]*?)\[\/note\]/g, (_m: string, inner: string) => {
+    return `<blockquote>${inner.trim()}</blockquote>`;
+  });
 
   // 7. Gras / italique
   s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
@@ -382,13 +385,13 @@ const STYLES = /* css */`
     gap: 6px;
   }
   .content h4 {
-    font-size: 13px; font-weight: 600; color: var(--text-dim);
+    font-size: 13px; font-weight: 600; color: var(--text);
     margin: 14px 0 5px;
   }
-  .content p { color: var(--text-dim); margin: 0 0 10px; }
+  .content p { color: var(--text); margin: 0 0 10px; }
   .content p:last-child { margin-bottom: 0; }
   .content strong { color: var(--text); font-weight: 600; }
-  .content em     { color: var(--text-muted); font-style: italic; }
+  .content em     { color: var(--text); font-style: italic; }
   .content hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
   .content blockquote {
     margin: 12px 0; padding: 10px 16px;
@@ -412,29 +415,34 @@ const STYLES = /* css */`
   /* Tables */
   .content table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0; }
   .content th {
-    text-align: left; font-weight: 700; font-size: 10px;
+    text-align: left; font-weight: 700; font-size: 12px;
     text-transform: uppercase; letter-spacing: .06em;
-    color: var(--text-muted); padding: 7px 10px;
+    color: var(--text); padding: 7px 10px;
     border-bottom: 2px solid var(--border);
     background: var(--surface-2);
   }
   .content td {
     padding: 6px 10px; border-bottom: 1px solid var(--border);
-    color: var(--text-dim); font-family: var(--font-mono); font-size: 12px;
+    color: var(--text); font-size: 13px;
   }
   .content td strong { font-family: var(--font-ui); color: var(--text); }
   .content tr:last-child td { border-bottom: none; }
   .content tr:hover td { background: var(--surface-2); }
 
   /* Blocs de code */
-  .code-block { position: relative; margin: 14px 0; }
+  .code-block { 
+    position: relative; 
+    margin: 14px 0; 
+    font-size: 15px; 
+    line-height: 1.65;
+    }
   .copy-btn {
     position: absolute; top: 8px; right: 8px;
     display: flex; align-items: center; gap: 5px;
     padding: 4px 10px;
     background: var(--surface-4); border: 1px solid var(--border);
     border-radius: 5px; font-size: 11px; font-weight: 600;
-    color: var(--text-muted); cursor: pointer;
+    color: var(--text); cursor: pointer;
     transition: background var(--t-fast), color var(--t-fast);
     font-family: var(--font-ui); z-index: 1;
   }
@@ -451,7 +459,6 @@ const STYLES = /* css */`
     padding-right: 90px;
     overflow-x: auto; margin: 0;
     font-family: var(--font-mono);
-    font-size: 13px; line-height: 1.65;
     color: var(--text);
     white-space: pre;
   }
@@ -464,7 +471,7 @@ const STYLES = /* css */`
     padding: 12px 16px;
     overflow-x: auto; margin: 14px 0;
     font-family: var(--font-mono);
-    font-size: 12px; line-height: 1.6;
+    font-size: 14px; line-height: 1.6;
     color: var(--text-dim);
     white-space: pre;
   }
