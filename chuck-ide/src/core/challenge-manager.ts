@@ -17,7 +17,7 @@ import type {
   ContentBlock,
 } from "../types/content.js";
 import { storage } from "./storage/storage-service.js";
-import type { ChallengeProgress, Medal }  from './storage/types.js';
+import type { ChallengeProgress, Medal } from "./storage/types.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -48,9 +48,13 @@ export class ChallengeManager {
     await Promise.all([this._loadChallenges(), this._loadContent()]);
     this._bindBus();
 
-    const id = this._getIdFromUrl();
-    if (id !== null) {
-      this._loadById(id);
+    const urlId = this._getIdFromUrl();
+    if (urlId !== null) {
+      // _loadById redirige automatiquement si l'id est inaccessible
+      this._loadById(urlId, false);
+    } else if (new URLSearchParams(window.location.search).has("challenge")) {
+      // ?challenge sans valeur valide → challenge courant
+      this._loadById(this.currentChallenge(), false);
     } else {
       bus.emit("chuck:log", {
         text: "Mode libre — ?challenge=1 pour les défis, ?lesson=100 pour la formation.",
@@ -117,31 +121,52 @@ export class ChallengeManager {
     return isNaN(id) ? null : id;
   }
 
-  private _loadById(id: number): void {
-    const challenge = this._challenges.get(id);
-    if (challenge) {
-      // Vérifie l'accessibilité — redirige vers le dernier accessible si besoin
-      if (!this.isAccessible(id)) {
-        const last = this.lastAccessible();
-        bus.emit("chuck:log", {
-          text: `🔒 Défi ${id} verrouillé — valide d'abord le défi ${id - 1}.`,
-          level: "err",
-        });
-        this._loadChallenge(last);
-        const url = new URL(window.location.href);
-        url.searchParams.set("challenge", String(last));
-        window.history.replaceState({}, "", url.toString());
+  private _loadById(id: number, pushHistory = false): void {
+    // ── Leçons / contenu (id ≥ 100) — pas de garde séquentielle ──
+    if (id >= 100) {
+      const item = this._contentItems.get(id);
+      if (item) {
+        this._loadContentItem(item);
         return;
       }
-      this._loadChallenge(id);
+      bus.emit("chuck:log", { text: `Item #${id} introuvable.`, level: "err" });
       return;
     }
-    const item = this._contentItems.get(id);
-    if (item) {
-      this._loadContentItem(item);
+
+    // ── Challenges : vérification séquentielle ────────────────────
+    if (!this._challenges.has(id)) {
+      bus.emit("chuck:log", { text: `Défi #${id} introuvable.`, level: "err" });
       return;
     }
-    bus.emit("chuck:log", { text: `Item #${id} introuvable.`, level: "err" });
+
+    if (!this.isAccessible(id)) {
+      // Redirection silencieuse vers le challenge courant
+      const current = this.currentChallenge();
+      bus.emit("chuck:log", {
+        text: `🔒 Défi ${id} verrouillé — valide d'abord le défi ${id - 1}.`,
+        level: "err",
+      });
+      this._loadChallenge(current);
+      this._syncUrl(current, false); // replaceState — pas de nouvelle entrée historique
+      return;
+    }
+
+    this._loadChallenge(id);
+    this._syncUrl(id, pushHistory);
+  }
+
+  // Méthode utilitaire — centralise la mise à jour de l'URL
+  private _syncUrl(id: number, push: boolean): void {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("challenge");
+    url.searchParams.delete("lesson");
+    url.searchParams.delete("learn");
+    url.searchParams.set("challenge", String(id));
+    if (push) {
+      window.history.pushState({}, "", url.toString());
+    } else {
+      window.history.replaceState({}, "", url.toString());
+    }
   }
 
   private _loadChallenge(id: number): void {
@@ -156,7 +181,7 @@ export class ChallengeManager {
       challenge,
       code: saved ?? challenge.template,
       fromStorage: saved !== null,
-      medal:       medal ?? undefined,
+      medal: medal ?? undefined,
     });
   }
 
@@ -181,14 +206,21 @@ export class ChallengeManager {
 
   /** Dernier défi accessible */
   isAccessible(id: number): boolean {
-    if (id <= FREE_CHALLENGES) return true;
+    if (id <= 1) return true;
     return storage.isCompleted(id - 1);
   }
 
-  lastAccessible(): number {
-    let last = FREE_CHALLENGES;
-    while (storage.isCompleted(last) && last < 30) last++;
-    return last;
+  /**
+   * Retourne l'id du challenge courant à afficher :
+   * le premier challenge non encore complété.
+   * Si tout est complété, retourne le dernier challenge disponible.
+   */
+  currentChallenge(): number {
+    const maxId = Math.max(...Array.from(this._challenges.keys()), 1);
+    for (let id = 1; id <= maxId; id++) {
+      if (!storage.isCompleted(id)) return id;
+    }
+    return maxId; // tous complétés → afficher le dernier
   }
 
   saveCompleted(id: number, hintsUsed: number): void {
@@ -340,14 +372,7 @@ export class ChallengeManager {
         this.validate(source, hintsUsed ?? 0),
       ),
       bus.on("chuck:goto-challenge", ({ id }) => {
-        this._loadById(id);
-        const url = new URL(window.location.href);
-        const key = id >= 100 ? "learn" : "challenge";
-        url.searchParams.delete("challenge");
-        url.searchParams.delete("lesson");
-        url.searchParams.delete("learn");
-        url.searchParams.set(key, String(id));
-        window.history.pushState({}, "", url.toString());
+        this._loadById(id, true);
       }),
     );
   }
