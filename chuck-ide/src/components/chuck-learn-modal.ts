@@ -117,13 +117,21 @@ interface TocEntry {
 }
 
 // Chapitres de premier niveau — construits depuis les h2 du Markdown
-// (reflète exactement la structure réelle de docs.md)
-const CHAPTERS = [
-  { label: '✦ Intro',    match: /chuck\s*ide/i },
-  { label: 'Éditeur',    match: /l.éditeur/i },
-  { label: 'Assembleur', match: /l.assembleur/i },
-  { label: 'Émulateur',  match: /l.émulateur/i },
-  { label: 'Défis',      match: /les\s+défis/i },
+// (reflète exactement la structure réelle de formation.md)
+const TOP_LEVEL = [
+  { label: 'Intro',        match: /^Avant de commencer/i },
+  { label: 'Chap. 0',      match: /^Chapitre 0/i },
+  { label: 'Chap. 1',      match: /^Chapitre 1/i },
+  { label: 'Chap. 2',      match: /^Chapitre 2/i },
+  { label: 'Chap. 3',      match: /^Chapitre 3/i },
+  { label: 'Chap. 4',      match: /^Chapitre 4/i },
+  { label: 'Chap. 5',      match: /^Chapitre 5/i },
+  { label: 'Chap. 6',      match: /^Chapitre 6/i },
+  { label: 'Chap. 7',      match: /^Chapitre 7/i },
+  { label: 'Chap. 8',      match: /^Chapitre 8/i },
+  { label: 'Chap. 9',      match: /^Chapitre 9/i },
+  { label: 'Chap. 10',     match: /^Chapitre 10/i },
+  { label: 'Annexes',      match: /^Annexe/i },
 ];
 
 // ── Styles ────────────────────────────────────────────────────
@@ -516,7 +524,7 @@ export class ChuckHelpModal extends ChuckComponent {
       <!-- Titlebar -->
       <div class="titlebar" id="titlebar">
         <span class="tb-icon">📖</span>
-        <span class="tb-title">Documentation - Chuck IDE</span>
+        <span class="tb-title">Formation — Assembleur 6502</span>
 
         <div class="search-wrap">
           <span class="search-icon">
@@ -540,7 +548,7 @@ export class ChuckHelpModal extends ChuckComponent {
 
       <!-- Navigation chapitres rapide -->
       <nav class="chapter-bar" id="chapter-bar">
-        ${CHAPTERS.map((c, i) =>
+        ${TOP_LEVEL.map((c, i) =>
           `<button class="ch-btn${i === 0 ? ' active' : ''}" data-idx="${i}">${c.label}</button>`
         ).join('')}
       </nav>
@@ -647,7 +655,7 @@ export class ChuckHelpModal extends ChuckComponent {
 
   private async _loadMd(): Promise<void> {
     try {
-      const res  = await fetch('/docs.md');
+      const res  = await fetch('/formation.md');
       const text = await res.text();
       const html = renderMd(text);
 
@@ -678,7 +686,7 @@ export class ChuckHelpModal extends ChuckComponent {
 
     } catch {
       this.shadow.getElementById('content')!.innerHTML =
-        `<p style="color:var(--red);padding:20px">Erreur de chargement de la documentation.</p>`;
+        `<p style="color:var(--red);padding:20px">Erreur de chargement de la formation.</p>`;
     }
   }
 
@@ -796,7 +804,7 @@ export class ChuckHelpModal extends ChuckComponent {
     if (!link) return;
 
     const label = link.textContent?.trim() ?? '';
-    const idx   = CHAPTERS.findIndex(c => c.match.test(label));
+    const idx   = TOP_LEVEL.findIndex(c => c.match.test(label));
     if (idx >= 0) this._setActiveChapterBtn(idx);
   }
 
@@ -809,7 +817,7 @@ export class ChuckHelpModal extends ChuckComponent {
   }
 
   private _jumpToChapter(idx: number): void {
-    const pattern = CHAPTERS[idx]?.match;
+    const pattern = TOP_LEVEL[idx]?.match;
     if (!pattern) return;
 
     const content = this.shadow.getElementById('content')!;
@@ -1006,4 +1014,4 @@ export class ChuckHelpModal extends ChuckComponent {
   }
 }
 
-customElements.define('chuck-help-modal', ChuckHelpModal);
+customElements.define('chuck-learn-modal', ChuckHelpModal);
