@@ -134,7 +134,9 @@ Pour activer le mode graphique :
   JSR $F01B         ; SYS_SET_MODE
 ```
 
-> `SYS_SET_MODE` modifie `VPU_CTRL` et efface la VRAM. À appeler une seule fois en début de programme, avant tout dessin.
+[note]
+ ⚠️ `SYS_SET_MODE` modifie `VPU_CTRL` et efface la VRAM. À appeler une seule fois en début de programme, avant tout dessin.
+[/note]
 
 ### API système (ROM `$F000`)
 
@@ -217,4 +219,6 @@ Chaque défi propose des indices progressifs. Les révéler réduit la médaille
 
 ---
 
-> La formation complète (10 chapitres, du 6502 à Pong) est accessible via `?lesson=100`. Elle couvre la théorie, les patterns d'assembleur, et un projet Pong commenté pas à pas.
+[note]
+ 🪄 La formation complète (10 chapitres, du 6502 à Pong) est accessible via `?learn`. Elle couvre la théorie, les patterns d'assembleur, et un projet Pong commenté pas à pas.
+[/note]
