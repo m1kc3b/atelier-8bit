@@ -11,7 +11,7 @@ import "./components/chuck-toolbar.js";
 import "./components/chuck-editor.js";
 import "./components/chuck-display.js";
 import "./components/chuck-registers.js";
-import "./components/chuck-memory-dump.js";
+// import "./components/chuck-memory-dump.js";
 import "./components/chuck-challenge-panel.js";
 import "./components/chuck-help-modal.js";
 import "./components/chuck-email-gate.js";
