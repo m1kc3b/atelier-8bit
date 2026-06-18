@@ -538,12 +538,12 @@ RESET:
 [note]
 
 **👁️ Ce qu'on observe dans le débogueur :**
- 1. Au démarrage : PC = $E000 (point d'entrée)
- 2. Après `LDA #0` : A = $00, Z = 1
- 3. Après `JSR SYS_SET_MODE` : PC saute à $F01B, SP diminue de 2 (adresse de retour empilée)
- 4. Après le retour : PC = $E004 (instruction suivante), SP revient
- 5. Après `LDA #$48` : A = $48, Z = 0
- 6. Après `STA $4800` : La mémoire à $4800 contient $48 — et 'H' apparaît à l'écran
+- Au démarrage : PC = $E000 (point d'entrée)
+- Après `LDA #0` : A = $00, Z = 1
+- Après `JSR SYS_SET_MODE` : PC saute à $F01B, SP diminue de 2 (adresse de retour empilée)
+- Après le retour : PC = $E004 (instruction suivante), SP revient
+- Après `LDA #$48` : A = $48, Z = 0
+- Après `STA $4800` : La mémoire à $4800 contient $48 — et 'H' apparaît à l'écran
 [/note]
 
 ---
