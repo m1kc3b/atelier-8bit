@@ -4,10 +4,10 @@
    Non fermable sans valider l'email.
    ───────────────────────────────────────────────────────────── */
 
-import { ChuckComponent } from '../core/base-component.js';
-import { storage } from '../core/storage/storage-service.js';
+import { ChuckComponent } from "../core/base-component.js";
+import { storage } from "../core/storage/storage-service.js";
 
-const STYLES = /* css */`
+const STYLES = /* css */ `
   @import '/src/styles/tokens.css';
 
   :host {
@@ -285,35 +285,43 @@ export class ChuckEmailGate extends ChuckComponent {
   }
 
   protected setup(): void {
-    const input      = this.shadow.getElementById('email-input')  as HTMLInputElement;
-    const submitBtn  = this.shadow.getElementById('submit-btn')   as HTMLButtonElement;
-    const errorMsg   = this.shadow.getElementById('error-msg')!;
-    const continueBtn = this.shadow.getElementById('continue-btn') as HTMLButtonElement;
+    const input = this.shadow.getElementById("email-input") as HTMLInputElement;
+    const submitBtn = this.shadow.getElementById(
+      "submit-btn",
+    ) as HTMLButtonElement;
+    const errorMsg = this.shadow.getElementById("error-msg")!;
+    const continueBtn = this.shadow.getElementById(
+      "continue-btn",
+    ) as HTMLButtonElement;
 
     // Valider au clic
-    submitBtn.addEventListener('click', () => this._submit());
+    submitBtn.addEventListener("click", () => this._submit());
 
     // Valider à l'entrée
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this._submit();
-      errorMsg.textContent = '';
-      input.classList.remove('error');
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") this._submit();
+      errorMsg.textContent = "";
+      input.classList.remove("error");
     });
 
     // Continuer après succès
-    continueBtn.addEventListener('click', () => {
+    continueBtn.addEventListener("click", () => {
       this.close();
-      this.emit('chuck:goto-challenge', { id: this._pendingChallengeId });
+      this.emit("chuck:goto-challenge", { id: this._pendingChallengeId });
     });
 
     // Empêcher la fermeture avec Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.classList.contains('open')) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        this._shake();
-      }
-    }, { capture: true });
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key === "Escape" && this.classList.contains("open")) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          this._shake();
+        }
+      },
+      { capture: true },
+    );
 
     // Empêcher la fermeture en cliquant en dehors
     // (le fond est dans :host, pas dans .modal)
@@ -322,44 +330,80 @@ export class ChuckEmailGate extends ChuckComponent {
   // ── API publique ──────────────────────────────────────────────
   open(pendingChallengeId = 4): void {
     this._pendingChallengeId = pendingChallengeId;
-    this.classList.add('open');
+    this.classList.add("open");
     setTimeout(() => {
-      (this.shadow.getElementById('email-input') as HTMLInputElement)?.focus();
+      (this.shadow.getElementById("email-input") as HTMLInputElement)?.focus();
     }, 300);
   }
 
-  close(): void { this.classList.remove('open'); }
+  close(): void {
+    this.classList.remove("open");
+  }
 
   static isUnlocked(): boolean {
     return storage.isUnlocked();
   }
 
   // ── Validation ────────────────────────────────────────────────
-  private _submit(): void {
-    const input    = this.shadow.getElementById('email-input') as HTMLInputElement;
-    const errorMsg = this.shadow.getElementById('error-msg')!;
-    const email    = input.value.trim();
+  private async _submit(): Promise<void> {
+    const input = this.shadow.getElementById("email-input") as HTMLInputElement;
+    const submitBtn = this.shadow.getElementById(
+      "submit-btn",
+    ) as HTMLButtonElement;
+    const errorMsg = this.shadow.getElementById("error-msg")!;
+    const email = input.value.trim();
 
     if (!email || !this._validEmail(email)) {
-      errorMsg.textContent = 'Entre une adresse email valide pour continuer.';
-      input.classList.add('error');
+      errorMsg.textContent = "Entre une adresse email valide pour continuer.";
+      input.classList.add("error");
       this._shake();
       return;
     }
 
-    // Sauvegarde locale
-    try { storage.saveSession(email); } catch {}
+    // Désactiver pendant l'envoi
+    submitBtn.disabled = true;
+    submitBtn.textContent = "...";
+    errorMsg.textContent = "";
 
-    // TODO: envoyer l'email vers un backend / webhook
-    // fetch('/api/subscribe', { method: 'POST', body: JSON.stringify({ email }) })
+    // Envoi Buttondown
+    try {
+      const body = new FormData();
+      body.append("email", email);
+      body.append("embed", "1");
+
+      const res = await fetch(
+        "https://buttondown.com/api/emails/embed-subscribe/atelier-8bit",
+        { method: "POST", body },
+      );
+
+      // Buttondown renvoie 200 même pour "déjà inscrit" → on accepte les deux
+      if (!res.ok && res.status !== 400) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch {
+      // Échec réseau : on laisse passer quand même (sauvegarde locale suffisante)
+      // L'utilisateur ne doit pas être bloqué par un problème réseau
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Continuer →";
+    }
+
+    // Sauvegarde locale (après l'envoi pour ne pas bloquer)
+    try {
+      storage.saveSession(email);
+    } catch {}
 
     // Afficher l'état succès
-    this.shadow.getElementById('main-state')!.style.display = 'none';
-    const success = this.shadow.getElementById('success-state')!;
-    success.classList.add('visible');
-    setTimeout(() =>
-      (this.shadow.getElementById('continue-btn') as HTMLButtonElement)?.focus()
-    , 100);
+    this.shadow.getElementById("main-state")!.style.display = "none";
+    const success = this.shadow.getElementById("success-state")!;
+    success.classList.add("visible");
+    setTimeout(
+      () =>
+        (
+          this.shadow.getElementById("continue-btn") as HTMLButtonElement
+        )?.focus(),
+      100,
+    );
   }
 
   private _validEmail(email: string): boolean {
@@ -367,15 +411,15 @@ export class ChuckEmailGate extends ChuckComponent {
   }
 
   private _shake(): void {
-    const modal = this.shadow.querySelector('.modal') as HTMLElement | null;
+    const modal = this.shadow.querySelector(".modal") as HTMLElement | null;
     if (!modal) return;
-    modal.style.animation = 'none';
+    modal.style.animation = "none";
     modal.offsetHeight; // reflow
-    modal.style.animation = 'shake .3s ease';
+    modal.style.animation = "shake .3s ease";
     // On ajoute l'animation shake si elle n'existe pas encore dans le CSS
-    if (!this.shadow.querySelector('#shake-style')) {
-      const s = document.createElement('style');
-      s.id = 'shake-style';
+    if (!this.shadow.querySelector("#shake-style")) {
+      const s = document.createElement("style");
+      s.id = "shake-style";
       s.textContent = `@keyframes shake {
         0%,100%{transform:translateX(0)}
         20%{transform:translateX(-8px)}
@@ -388,4 +432,4 @@ export class ChuckEmailGate extends ChuckComponent {
   }
 }
 
-customElements.define('chuck-email-gate', ChuckEmailGate);
+customElements.define("chuck-email-gate", ChuckEmailGate);
