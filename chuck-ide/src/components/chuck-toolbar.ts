@@ -134,7 +134,7 @@ const TEMPLATE = /* html */`
       <polyline points="13 17 18 12 13 7"/>
       <line x1="6" y1="12" x2="18" y2="12"/>
     </svg>
-    <span>Étape</span>
+    <span>Step</span>
   </button>
 
   <div class="tb-sep"></div>
