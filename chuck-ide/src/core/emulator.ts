@@ -322,7 +322,7 @@ export class Emulator {
       const result = this.core.run(CYCLES_PER_FRAME);
 
       // 3. Rendu écran si VRAM a changé
-      this._flushDisplay();
+      this._flushDisplay(true);
 
       // 4. Émettre état CPU (pour le panneau registres)
       bus.emit("chuck:cpu-updated", toBusState(result.state));
@@ -380,8 +380,8 @@ export class Emulator {
     // CPU à un état par défaut sans relire ce vecteur. On fait un soft_reset()
     // pour que le PC parte de la bonne adresse au prochain Run.
     // (soft_reset() préserve la RAM programme, donc le code assemblé reste intact.)
-    const vecLo  = this.core.mem_peek(0xfffc);
-    const vecHi  = this.core.mem_peek(0xfffd);
+    const vecLo = this.core.mem_peek(0xfffc);
+    const vecHi = this.core.mem_peek(0xfffd);
     const resetVec = vecLo | (vecHi << 8);
     if (resetVec !== 0x0000 && resetVec !== 0xffff) {
       this.core.soft_reset();
@@ -557,9 +557,15 @@ export class Emulator {
     const ram = this.core.memory_view();
     const mode = this.core.video_mode();
 
-    const vram = new Uint8Array(ram.subarray(0x4000, 0x8000));
-    bus.emit("chuck:memory-data", { address: 0x4000, bytes: vram });
     bus.emit("chuck:vpu-mode" as any, { mode });
+
+    const vram = new Uint8Array(
+      ram.buffer,
+      ram.byteOffset + 0x4000,
+      0x4000,
+    ).slice(); // ← slice() = vraie copie
+
+    bus.emit("chuck:memory-data", { address: 0x4000, bytes: vram });
   }
 
   private _emitVpuState(): void {
