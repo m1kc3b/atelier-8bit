@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Chuck IDE — components/chuck-help-modal.ts
+   Chuck IDE — components/chuck-learn-modal.ts
    Modale de formation : layout deux colonnes (sidebar TOC + contenu).
    TOC généré automatiquement depuis les h1/h2/h3 du Markdown.
    Recherche plein-texte. IntersectionObserver pour suivi de position.
@@ -237,6 +237,35 @@ const STYLES = /* css */`
     flex-shrink: 0;
   }
   .tb-close:hover { background: var(--red); color: #fff; }
+
+  .tb-minimize {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background var(--t-fast), color var(--t-fast);
+    flex-shrink: 0;
+  }
+  .tb-minimize:hover { background: var(--accent-dim); color: var(--accent); }
+
+  /* État minimisé : seul le header visible, ancré en bas */
+  :host(.minimized) {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    height: 38px !important;
+    min-height: 0 !important;
+    resize: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.4);
+  }
+  :host(.minimized) .chapter-bar,
+  :host(.minimized) .challenge-ctx,
+  :host(.minimized) .body { display: none !important; }
+  :host(.minimized) .titlebar { border-bottom: none; border-radius: 8px 8px 0 0; cursor: default; }
 
   /* ── Navigation rapide (chapitres) ───────────────────────── */
   .chapter-bar {
@@ -508,7 +537,7 @@ const STYLES = /* css */`
 
 // ── Classe principale ─────────────────────────────────────────
 
-export class ChuckHelpModal extends ChuckComponent {
+export class ChuckLearnModal extends ChuckComponent {
   private _ready        = false;
   private _tocEntries: TocEntry[] = [];
   private _observer:   IntersectionObserver | null = null;
@@ -536,6 +565,7 @@ export class ChuckHelpModal extends ChuckComponent {
         </div>
         <span class="search-count" id="search-count"></span>
 
+        <button class="tb-minimize" id="minimize-btn" title="Réduire">─</button>
         <button class="tb-close" id="close-btn" title="Fermer (Échap)">✕</button>
       </div>
 
@@ -573,6 +603,10 @@ export class ChuckHelpModal extends ChuckComponent {
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && this.classList.contains('open')) this.close();
     });
+
+    // Réduire / restaurer
+    this.shadow.getElementById('minimize-btn')!
+      .addEventListener('click', () => this._toggleMinimize());
 
     // Navigation chapitres rapide
     this.shadow.getElementById('chapter-bar')!
@@ -615,16 +649,6 @@ export class ChuckHelpModal extends ChuckComponent {
         this.shadow.getElementById('challenge-ctx')!.classList.remove('visible');
       });
 
-    // Bus
-    this.sub('chuck:open-help' as any, ({ lessonId }: { lessonId?: number }) => {
-      this.open(lessonId);
-    });
-
-    // Quand un défi est chargé, mémoriser le contexte pour le bandeau
-    this.sub('chuck:challenge-loaded' as any, ({ challenge }: { challenge: { id: number; title: string } }) => {
-      this._ctxChallengeId = challenge.id;
-    });
-
     // Draggable
     this._makeDraggable(
       this.shadow.getElementById('titlebar')!,
@@ -649,6 +673,13 @@ export class ChuckHelpModal extends ChuckComponent {
   toggle(): void {
     if (this.classList.contains('open')) this.close();
     else this.open();
+  }
+
+  private _toggleMinimize(): void {
+    const minimized = this.classList.toggle('minimized');
+    const btn = this.shadow.getElementById('minimize-btn')!;
+    btn.textContent = minimized ? '▲' : '─';
+    btn.title       = minimized ? 'Restaurer' : 'Réduire';
   }
 
   // ── Chargement Markdown ───────────────────────────────────
@@ -986,6 +1017,8 @@ export class ChuckHelpModal extends ChuckComponent {
     handle.addEventListener('mousedown', e => {
       // Ne pas dragger si on clique sur la recherche ou le bouton fermer
       if ((e.target as HTMLElement).closest('input,button')) return;
+      // Ne pas dragger si minimisé
+      if (target.classList.contains('minimized')) return;
       e.preventDefault();
       const r = target.getBoundingClientRect();
       target.style.left = `${r.left}px`;
@@ -1014,4 +1047,4 @@ export class ChuckHelpModal extends ChuckComponent {
   }
 }
 
-customElements.define('chuck-learn-modal', ChuckHelpModal);
+customElements.define('chuck-learn-modal', ChuckLearnModal);

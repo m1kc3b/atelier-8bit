@@ -110,13 +110,8 @@ export class ChallengeManager {
 
   private _getIdFromUrl(): number | null {
     const params = new URLSearchParams(window.location.search);
-    const raw =
-      params.get("challenge") ?? params.get("lesson") ?? params.get("learn");
-    if (!raw) {
-      // ?learn sans valeur → leçon 100 (intro)
-      if (params.has("learn")) return 100;
-      return null;
-    }
+    const raw = params.get("challenge") ?? params.get("lesson");
+    if (!raw) return null;
     const id = parseInt(raw, 10);
     return isNaN(id) ? null : id;
   }
@@ -160,7 +155,6 @@ export class ChallengeManager {
     const url = new URL(window.location.href);
     url.searchParams.delete("challenge");
     url.searchParams.delete("lesson");
-    url.searchParams.delete("learn");
     url.searchParams.set("challenge", String(id));
     if (push) {
       window.history.pushState({}, "", url.toString());

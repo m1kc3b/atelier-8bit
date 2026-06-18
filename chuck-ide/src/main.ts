@@ -203,12 +203,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.info("[Chuck IDE v0.2.0 — Rust/WASM core] Initialisé ✓");
 
   // ── ?learn → ouvre la modale de formation ────────────────
-  const params = new URLSearchParams(window.location.search);
-  if (params.has('learn')) {
+  if (new URLSearchParams(window.location.search).has('learn')) {
     const learnEl = document.getElementById('modal-learn') as
-      | (HTMLElement & { open(lessonId?: number): void })
+      | (HTMLElement & { open(): void })
       | null;
-    const lessonId = parseInt(params.get('learn') ?? '', 10);
-    learnEl?.open(isNaN(lessonId) ? undefined : lessonId);
+    learnEl?.open();
   }
+  
 });
