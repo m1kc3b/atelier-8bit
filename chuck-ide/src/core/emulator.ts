@@ -331,11 +331,14 @@ export class Emulator {
       const mode = this.core.video_mode();
       bus.emit("chuck:vpu-mode" as any, { mode });
 
+      this._emitRamSnapshot();
+
       // 6. BRK → arrêter
       if (result.halted) {
         this._running = false;
         this._rafId = null;
         this._flushDisplay(true); // force rendu final même sans dirty
+        this._emitRamSnapshot();
         bus.emit("chuck:cpu-halted", toBusState(result.state));
         bus.emit("chuck:log", {
           text: `● BRK — PC=$${hex4(result.state.pc)} — frame #${this.core.frame_count()}`,
@@ -474,8 +477,8 @@ export class Emulator {
   }
 
   private _memRead(address: number, length: number): void {
-    const mem = this.core.memory_view();
-    const bytes = new Uint8Array(mem.subarray(address, address + length));
+    const mem = this.core.memory_snapshot();
+    const bytes = mem.slice(address, address + length);
     bus.emit("chuck:memory-data", { address, bytes });
   }
 
