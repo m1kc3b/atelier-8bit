@@ -704,21 +704,71 @@ Paramètres d'entrée (à convenir) :
 - X = colonne de départ
 - Y = ligne
 
-Structure de la routine :
+**Deux problèmes à résoudre avant de coder**
+
+*Problème 1 — Comment stocker une adresse sur 16 bits ?*
+
+Le 6502 a des registres de 8 bits. Une adresse comme `$0300` ne tient pas dans A, X ou Y. La convention du Chuck-8 est de l'écrire en deux octets en zero page :
+
+```asm
+; Stocker l'adresse $0300 dans $80/$81
+LDA #<MESSAGE    ; octet bas  de l'adresse (ex : $00)
+STA $80
+LDA #>MESSAGE    ; octet haut de l'adresse (ex : $03)
+STA $81
+```
+
+`<` et `>` sont des opérateurs ca65 qui extraient l'octet bas et l'octet haut d'une adresse. Ainsi `$80` contient `$00` et `$81` contient `$03`.
+
+*Problème 2 — Comment lire un octet à une adresse inconnue au moment de l'assemblage ?*
+
+On ne peut pas écrire `LDA $0300` si on ne connaît pas l'adresse à l'avance. C'est pour ça qu'il existe le mode **indirect indexé** : `($80),Y`.
+
+```
+($80),Y  →  lit l'octet à l'adresse [ $80/$81 + Y ]
+```
+
+Concrètement : si $80 = $00 et $81 = $03, alors l'adresse de base est $0300.
+- Y=0 → lit $0300
+- Y=1 → lit $0301
+- Y=2 → lit $0302
+
+C'est exactement ce qu'il faut pour parcourir une chaîne caractère par caractère.
+
+**Structure de la routine**
 
 ```asm
 PRINT_STR:
-    ; $80/$81 contient l'adresse de la chaîne
-    ; Utiliser l'adressage ($80),Y avec Y=0,1,2...
-    ; Boucler jusqu'à lire $00
-    ; Pour chaque caractère, appeler PRINT_CHAR et incrémenter X
+    ; $80/$81 = adresse de la chaîne
+    ; X = colonne de départ, Y = ligne de départ
+    ; → on va utiliser Y pour deux choses différentes :
+    ;   d'abord comme ligne (pour SET_CURSOR), puis comme index dans la chaîne.
+    ;   Il faut donc sauvegarder la ligne avant de l'écraser.
+
+    STX $82         ; sauvegarder colonne
+    STY $83         ; sauvegarder ligne
+
+    LDY #0          ; Y = index dans la chaîne (commence à 0)
+BOUCLE:
+    LDA ($80),Y     ; lire le caractère à adresse[$80/$81 + Y]
+    BEQ FIN         ; si c'est $00, on a fini
+    ; ... appeler SET_CURSOR puis PRINT_CHAR ...
+    ; ... incrémenter X et Y ...
+    JMP BOUCLE
+FIN:
     RTS
 
 ; La chaîne dans les données :
-MESSAGE: .byte "HELLO", 0   ; ca65 encode les guillemets en ASCII + ajoute $00
+MESSAGE: .byte "HELLO", 0   ; $48 $45 $4C $4C $4F $00
 ```
 
-Indice : l'adressage `($80),Y` lit l'octet à l'adresse stockée en $80/$81, décalée de Y. Si $80 = $00 et $81 = $02 (adresse $0200), alors `($80),Y` avec Y=3 lit `mémoire[$0200 + 3]`.
+[note]
+**👁️ Ce qu'on observe dans le débogueur :**
+- Avant la boucle : $80=$00, $81=$03 (par exemple), Y=$00
+- Premier tour : `LDA ($80),Y` lit $0300 → A=$48 ('H'), Z=0
+- Cinquième tour : A=$4F ('O'), Z=0
+- Sixième tour : A=$00, Z=1 → `BEQ FIN` branche → la routine s'arrête
+[/note]
 
 **C. (Bonus) Afficher un compteur**
 
