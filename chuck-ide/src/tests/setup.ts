@@ -23,7 +23,7 @@ vi.mock('../core/storage/storage-service.js', () => ({
 vi.mock('../core/base-component.js', () => ({
   ChuckComponent: class ChuckComponent extends HTMLElement {
     protected shadow: ShadowRoot;
-    private _unsubs: Array<() => void> = [];
+    // private _unsubs: Array<() => void> = [];
 
     constructor() {
       super();

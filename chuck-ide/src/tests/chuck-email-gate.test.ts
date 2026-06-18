@@ -9,7 +9,7 @@
    - isUnlocked()
    ───────────────────────────────────────────────────────────── */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // ── Logique pure extraite du composant ────────────────────────
 // On teste la logique sans instancier le Web Component (jsdom +

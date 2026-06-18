@@ -232,9 +232,9 @@ export class ChuckRegisters extends ChuckComponent {
   // Initialisée à $0000 (Zero Page), modifiable via le champ "Go"
   private _monitorAddr = 0x0000;
   // Cache des derniers octets lus
-  private _monitorBytes = new Uint8Array(16) as Uint8Array;
+  // private _monitorBytes = new Uint8Array(16) as Uint8Array;
   // buffer local complet de 64 Ko (RAM Chuck-8)
-  private _localRam = new Uint8Array(65536);
+  // private _localRam = new Uint8Array(65536);
   private _fullRam = new Uint8Array(65536);
 
   protected render(): void {

@@ -4,7 +4,6 @@
    émission d'événements Bus typés.
    ───────────────────────────────────────────────────────────── */
 
-import { vi } from 'vitest';
 
 // ── Bus simulé ────────────────────────────────────────────────
 // Reproduit l'API de EventBus sans dépendance externe.

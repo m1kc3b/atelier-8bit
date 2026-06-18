@@ -5,7 +5,7 @@
    comportement des boutons selon l'état courant.
    ───────────────────────────────────────────────────────────── */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ── Machine à états inline (découplée du Web Component) ───────
 // On teste la logique pure de applyState() sans DOM Shadow.

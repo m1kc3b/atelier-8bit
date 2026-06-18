@@ -3,7 +3,7 @@
    Tests unitaires : Assembler6502
    ═══════════════════════════════════════════════════════════════ */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { Assembler6502 } from '../core/assembler.js';
 import { Ram64K } from '../core/memory.js';
 

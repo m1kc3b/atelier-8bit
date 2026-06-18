@@ -71,7 +71,7 @@ describe('Display6502', () => {
       const { canvas } = makeMockCanvas();
       display.init(canvas, ram);
       // Écriture via store → le hook display doit être appelé
-      const { ctx } = makeMockCanvas();
+      // const { ctx } = makeMockCanvas();
       // On vérifie indirectement : après init, store() sur $0200 redessine
       // (ctx.fillRect appelé dans clear() lors de l'init, puis sur store)
       // On va utiliser un spy sur ctx pour valider
