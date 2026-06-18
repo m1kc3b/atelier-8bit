@@ -219,7 +219,7 @@ const chuckTheme = EditorView.theme(
       background: "var(--bg, #0f0f0f)",
       color: "var(--text, #e2e2e2)",
       fontFamily:
-        "'JetBrains Mono','Fira Code','Cascadia Code','Consolas',monospace",
+        "'Hack','Fira Code','Cascadia Code','Consolas',monospace",
     },
     ".cm-content": {
       caretColor: "var(--accent, #7c6af7)",

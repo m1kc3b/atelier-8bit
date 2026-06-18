@@ -91,6 +91,7 @@ const STYLES = /* css */ `
     border-radius: 6px;
     padding: 7px 9px;
     transition: background var(--t-fast);
+    font-family: var(--font-mono);
   }
   .reg-card.flash { background: rgba(251,191,36,.18); }
   .reg-card.wide  { grid-column: span 2; }
@@ -152,15 +153,17 @@ const STYLES = /* css */ `
     text-align: left;
     padding: 2px 6px;
     border-bottom: 1px solid var(--border);
-    font-size: 9px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: .06em;
-    font-family: var(--font-ui);
+    font-family: var(--font-mono);
   }
   .monitor-table td {
     padding: 2px 6px;
     border-bottom: 1px solid var(--surface-3);
     color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
   }
   .monitor-table td:first-child { color: var(--text-muted); }
   .monitor-table td:last-child   { color: var(--amber); }

@@ -33,7 +33,7 @@
 
   /* ── Typographie ──────────────────────────────────────── */
   --font-ui:     'Inter', 'Segoe UI', sans-serif;
-  --font-mono:   'Cascadia Mono', 'Consolas', monospace;
+  --font-mono:   'Hack', monospace;
 
   /* ── Dimensions layout ────────────────────────────────── */
   --titlebar-h:  36px;
