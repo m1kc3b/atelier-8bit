@@ -2,6 +2,7 @@ import { ChuckComponent } from '../core/base-component.js';
 import { authService } from '../core/auth/auth-service.js';
 import { storage } from '../core/storage/storage-service.js';
 import { challengesService } from '../core/challenges/challenges-service.js';
+import { ChuckOnboardingTour } from './chuck-onboarding-tour.js';
 
 type View = 'choice' | 'list';
 
@@ -180,7 +181,12 @@ export class ChuckWelcomeModal extends ChuckComponent {
 
   private _bindChoiceEvents(): void {
     const body = this.shadow.getElementById('body')!;
-    body.querySelector('[data-choice="free"]')?.addEventListener('click', () => this.close());
+    body.querySelector('[data-choice="free"]')?.addEventListener('click', () => {
+      this.close();
+      if (!ChuckOnboardingTour.hasBeenSeen()) {
+        this.emit('chuck:start-tour', undefined);
+      }
+    });
     body.querySelector('[data-choice="challenges"]')?.addEventListener('click', () => this._showView('list'));
     body.querySelector('[data-choice="pong"]')?.addEventListener('click', () => {
       this.close();

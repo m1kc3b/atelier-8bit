@@ -18,6 +18,7 @@ import "./components/chuck-learn-modal.js";
 import "./components/chuck-auth-gate.js";
 import "./components/chuck-account-modal.js";
 import "./components/chuck-welcome-modal.js";
+import "./components/chuck-onboarding-tour.js";
 
 import { authService } from "./core/auth/auth-service.js";
 
