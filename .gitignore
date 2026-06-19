@@ -7,6 +7,9 @@ chuck-core/pkg/
 chuck-ide/node_modules/
 chuck-ide/.wrangler/
 chuck-ide/dist
+chuck-ide/scripts
+
+.env
 
 # Artefacts WASM dans public/ (générés par build-core.yml)
 # On les commit pour que le dev clone et `npm run dev` sans build Rust

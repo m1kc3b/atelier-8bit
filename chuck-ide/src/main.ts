@@ -15,7 +15,11 @@ import "./components/chuck-registers.js";
 import "./components/chuck-challenge-panel.js";
 import "./components/chuck-help-modal.js";
 import "./components/chuck-learn-modal.js";
-import "./components/chuck-email-gate.js";
+import "./components/chuck-auth-gate.js";
+import "./components/chuck-account-modal.js";
+import "./components/chuck-welcome-modal.js";
+
+import { authService } from "./core/auth/auth-service.js";
 
 import { bus } from "./core/bus.js";
 import { Emulator } from "./core/emulator.js";
@@ -66,9 +70,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   const titlebarFile = document.getElementById("titlebar-file")!;
 
   // ── Email gate — défis verrouillés (4+) ─────────────────────
-  const gateEl = document.getElementById("modal-email-gate") as
+  const gateEl = document.getElementById("modal-auth-gate") as
     | (HTMLElement & { open(id: number): void })
     | null;
+
+  const accountModal = document.getElementById("modal-account") as
+    | (HTMLElement & { open(): void })
+    | null;
+
+  authService.onPasswordRecovery(() => {
+    accountModal?.open();
+  });
+
+  bus.on("chuck:open-account", () => {
+    if (authService.isAuthenticated()) {
+      accountModal?.open();
+    } else {
+      gateEl?.open(0);
+    }
+  });
 
   // init() émet chuck:challenge-loaded de façon synchrone — les listeners
   // doivent exister avant l'appel.
@@ -84,6 +104,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     titlebarFile.textContent = label;
     document.title = `${label} — Chuck IDE`;
     openChallengeAside();
+  });
+
+  bus.on("chuck:require-auth" as any, () => {
+    gateEl?.open(0); // 0 = pas de défi en attente, juste sauvegarde/nouveau projet
   });
 
   (bus as any).on(
@@ -104,6 +128,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ── ChallengeManager ─────────────────────────────────────
   const challengeManager = new ChallengeManager();
   await challengeManager.init(await Emulator.create());
+
+  // ── Modale de bienvenue ──────────────────────────────────
+  const welcomeModal = document.getElementById("modal-welcome") as
+    | (HTMLElement & { open(view?: "choice" | "list"): void })
+    | null;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const rawChallenge = urlParams.get("challenge") ?? urlParams.get("lesson");
+  const isNumericChallenge =
+    rawChallenge !== null && /^\d+$/.test(rawChallenge);
+  const isBareChallenge = urlParams.has("challenge") && !isNumericChallenge;
+
+  if (!isNumericChallenge) {
+    welcomeModal?.open(isBareChallenge ? "list" : "choice");
+  }
+
   const sbState = document.getElementById("sb-state")!;
   const sbCursor = document.getElementById("sb-cursor")!;
   const sbPc = document.getElementById("sb-pc")!;
@@ -203,11 +243,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.info("[Chuck IDE v0.2.0 — Rust/WASM core] Initialisé ✓");
 
   // ── ?learn → ouvre la modale de formation ────────────────
-  if (new URLSearchParams(window.location.search).has('learn')) {
-    const learnEl = document.getElementById('modal-learn') as
+  if (new URLSearchParams(window.location.search).has("learn")) {
+    const learnEl = document.getElementById("modal-learn") as
       | (HTMLElement & { open(): void })
       | null;
     learnEl?.open();
   }
-  
 });

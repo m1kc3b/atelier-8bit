@@ -18,6 +18,7 @@ import type {
 } from "../types/content.js";
 import { storage } from "./storage/storage-service.js";
 import type { ChallengeProgress, Medal } from "./storage/types.js";
+import { challengesService } from './challenges/challenges-service.js';
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -78,33 +79,31 @@ export class ChallengeManager {
   // ── Chargement ────────────────────────────────────────────
 
   private async _loadChallenges(): Promise<void> {
-    try {
-      const res = await fetch("/challenges.json");
-      const data = (await res.json()) as ChallengesFile;
-      for (const c of data.challenges) this._challenges.set(c.id, c);
-    } catch (e) {
-      bus.emit("chuck:log", {
-        text: `challenges.json : ${(e as Error).message}`,
-        level: "err",
-      });
-    }
+  try {
+    const list = await challengesService.getAll();
+    for (const c of list) this._challenges.set(c.id, c);
+  } catch (e) {
+    bus.emit("chuck:log", {
+      text: `Chargement des défis : ${(e as Error).message}`,
+      level: "err",
+    });
   }
+}
 
   private async _loadContent(): Promise<void> {
-    try {
-      const res = await fetch("/challenges.json");
-      const data = (await res.json()) as ChallengesFile;
-      for (const c of data.challenges) this._challenges.set(c.id, c);
-      bus.emit("chuck:challenges-count" as any, {
-        count: data.challenges.length,
-      });
-    } catch (e) {
-      bus.emit("chuck:log", {
-        text: `challenges.json : ${(e as Error).message}`,
-        level: "err",
-      });
-    }
+  try {
+    const list = await challengesService.getAll();
+    for (const c of list) this._challenges.set(c.id, c);
+    bus.emit("chuck:challenges-count" as any, {
+      count: list.length,
+    });
+  } catch (e) {
+    bus.emit("chuck:log", {
+      text: `Chargement des défis : ${(e as Error).message}`,
+      level: "err",
+    });
   }
+}
 
   // ── Navigation ────────────────────────────────────────────
 

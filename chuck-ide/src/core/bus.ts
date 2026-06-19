@@ -70,6 +70,11 @@ export interface ChuckEventMap {
   'chuck:goto-challenge':    { id: number };
   'chuck:autosave':          { id: number; code: string };
 
+  // ── Auth ────────────────────────────────────
+  'chuck:require-auth': { reason: 'save' | 'new-project' | 'challenge' };
+  'chuck:load-project':  { id: string; name: string; code: string };
+  'chuck:signed-out':    undefined;
+  'chuck:open-account': undefined;
   
 }
 

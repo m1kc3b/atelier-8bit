@@ -7,6 +7,8 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
+import { authService } from "../core/auth/auth-service.js";
+import { projectsService } from "../core/projects/projects-service.js";
 
 // ── CodeMirror 6 ─────────────────────────────────────────────
 import { EditorState } from "@codemirror/state";
@@ -218,8 +220,7 @@ const chuckTheme = EditorView.theme(
       height: "100%",
       background: "var(--bg, #0f0f0f)",
       color: "var(--text, #e2e2e2)",
-      fontFamily:
-        "'Hack','Fira Code','Cascadia Code','Consolas',monospace",
+      fontFamily: "'Hack','Fira Code','Cascadia Code','Consolas',monospace",
     },
     ".cm-content": {
       caretColor: "var(--accent, #7c6af7)",
@@ -964,6 +965,60 @@ const STYLES = /* css */ `
   .log-hex  { color: var(--amber); }
   .log-dim  { color: var(--text-muted); }
 
+  .tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  }
+
+  .tab-save {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    border-radius: 5px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast);
+    flex-shrink: 0;
+  }
+  .tab-save:hover {
+    color: var(--green);
+    background: var(--green-dim);
+  }
+  .tab-save:active {
+    transform: scale(.92);
+  }
+
+  .tab-new {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+    flex-shrink: 0;
+  }
+  .tab-new:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .tab-new:active {
+    transform: scale(.92);
+  }
+
   ::-webkit-scrollbar       { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
@@ -1058,8 +1113,15 @@ export class ChuckEditor extends ChuckComponent {
       <div class="tab active">
         <span class="tab-dot"></span>
         <span id="tab-label">untitled.asm</span>
-        <button class="tab-export" id="export-btn" title="Télécharger .asm">↓ .asm</button>
+        <button class="tab-save" id="save-btn" title="Sauvegarder le projet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
       </div>
+      <button class="tab-new" id="new-project-btn" title="Nouveau projet">+</button>
     </div>
     <div id="cm-host"></div>
     <div class="console-strip">
@@ -1133,8 +1195,12 @@ export class ChuckEditor extends ChuckComponent {
     });
 
     this.shadow
-      .getElementById("export-btn")
-      ?.addEventListener("click", () => this._exportAsm());
+      .getElementById("save-btn")
+      ?.addEventListener("click", () => this._saveProject());
+
+    this.shadow
+      .getElementById("new-project-btn")
+      ?.addEventListener("click", () => this._newProject());
 
     // ── Bus ───────────────────────────────────────────────
     this.sub("chuck:log", ({ text, level }) => this._log(text, level));
@@ -1188,6 +1254,13 @@ export class ChuckEditor extends ChuckComponent {
       }
     });
 
+    this.sub('chuck:load-project', ({ id, name, code }) => {
+      this._currentProjectId = id;
+      this._tabLabel.textContent = `${name}.asm`;
+      this.setSource(code);
+      this._log(`Projet "${name}" chargé.`, 'info');
+    });
+
     // Mettre le focus sur l'éditeur au chargement
     requestAnimationFrame(() => this._view.focus());
   }
@@ -1206,21 +1279,36 @@ export class ChuckEditor extends ChuckComponent {
   }
 
   // ── Export .asm (Tâche 6.2) ─────────────────────────────
-  private _exportAsm(): void {
-    const code = this.getSource();
-    const filename =
-      this._currentId > 0
-        ? `chuck_day_${this._currentId}.asm`
-        : "programme.asm";
-    const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    this._log(`"${filename}" téléchargé.`, "ok");
+  private async _saveProject(): Promise<void> {
+  if (!authService.isAuthenticated()) {
+    this.emit("chuck:require-auth" as any, { reason: "save" });
+    return;
   }
+  const code = this.getSource();
+  if (!this._currentProjectId) {
+    const name = prompt("Nom du projet :", "Sans titre") ?? "Sans titre";
+    const project = await projectsService.create(name, code);
+    if (project) {
+      this._currentProjectId = project.id;
+      this._tabLabel.textContent = `${project.name}.asm`;
+      this._log(`Projet "${project.name}" sauvegardé.`, "ok");
+    }
+  } else {
+    await projectsService.save(this._currentProjectId, code);
+    this._log("Projet sauvegardé.", "ok");
+  }
+}
+
+private _newProject(): void {
+  if (!authService.isAuthenticated()) {
+    this.emit("chuck:require-auth" as any, { reason: "new-project" });
+    return;
+  }
+  this._currentProjectId = null;
+  this._tabLabel.textContent = "untitled.asm";
+  this.setSource("; Nouveau programme\n\n");
+  this._log("Nouveau projet.", "info");
+}
 
   // ── Helpers ──────────────────────────────────────────────
   private _emitCursor(): void {
@@ -1251,6 +1339,8 @@ export class ChuckEditor extends ChuckComponent {
     if (this._autosaveTimer) clearTimeout(this._autosaveTimer);
     this._view?.destroy();
   }
+
+  private _currentProjectId: string | null = null;
 }
 
 customElements.define("chuck-editor", ChuckEditor);

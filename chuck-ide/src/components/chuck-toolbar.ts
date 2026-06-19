@@ -5,6 +5,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent }          from '../core/base-component.js';
+import { authService } from '../core/auth/auth-service.js';
 import { type ToolbarState }  from '../core/bus.js';
 
 const STYLES = /* css */`
@@ -91,7 +92,6 @@ const STYLES = /* css */`
     font-size: 9px;
     color: var(--text-muted);
     width: 42px;
-    margin-top: auto;
   }
   .tb-speed-val {
     font-family: var(--font-mono);
@@ -105,6 +105,47 @@ const STYLES = /* css */`
     height: 60px;
     accent-color: var(--accent);
     cursor: pointer;
+  }
+  .tb-account {
+    margin-top: auto;
+    margin-bottom: 14px;
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .tb-account svg {
+    width: 20px;
+    height: 20px;
+  }
+  .tb-account span:last-child {
+    display: none; /* on masque le label texte, l'icône suffit dans un bouton rond */
+  }
+  .tb-account:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .tb-account.signed-in {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .account-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--green);
+    border: 2px solid var(--surface);
+    display: none;
+  }
+  .tb-account.signed-in .account-dot {
+    display: block;
   }
 `;
 
@@ -182,6 +223,15 @@ const TEMPLATE = /* html */`
     <input type="range" id="speed-slider" min="1" max="100" value="50">
     <span class="tb-speed-val" id="speed-val">50%</span>
   </div>
+
+  <button class="tb-btn tb-account" data-action="account" id="btn-account" title="Mon compte">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>
+    </svg>
+    <span class="account-dot" id="account-dot"></span>
+    
+  </button>
 `;
 
 export class ChuckToolbar extends ChuckComponent {
@@ -218,6 +268,12 @@ export class ChuckToolbar extends ChuckComponent {
     this.sub('chuck:assemble-err',  () => this.applyState('idle'));
     this.sub('chuck:cpu-halted',    () => this.applyState('assembled'));
     this.sub('chuck:code-changed',  () => this.applyState('idle'));
+
+    const accountBtn = this.shadow.getElementById('btn-account')!;
+    accountBtn.classList.toggle('signed-in', authService.isAuthenticated());
+    authService.onChange((user) => {
+      accountBtn.classList.toggle('signed-in', !!user);
+    });
   }
 
   private dispatchAction(action: string): void {
@@ -266,6 +322,10 @@ export class ChuckToolbar extends ChuckComponent {
       }
       case 'hexdump':     this.emit('chuck:hexdump',     undefined); break;
       case 'disassemble': this.emit('chuck:disassemble', undefined); break;
+      case 'account': {
+        this.emit('chuck:open-account', undefined);
+        break;
+      }
     }
   }
 

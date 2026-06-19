@@ -11,7 +11,7 @@
 
 import type { IStorageService } from './types.js';
 import { LocalStorageAdapter }  from './local-storage-adapter.js';
-// import { ApiStorageAdapter } from './api-storage-adapter.js'; // décommenter pour la Phase 2
+import { SupabaseStorageAdapter } from './supabase-storage-adapter.js'; // décommenter pour la Phase 2
 
 // ── Configuration ─────────────────────────────────────────────
 
@@ -19,14 +19,13 @@ import { LocalStorageAdapter }  from './local-storage-adapter.js';
  * 'local' : tout en localStorage (Phase 1, aujourd'hui)
  * 'api'   : localStorage + API REST (Phase 2, backend prêt)
  */
-const STORAGE_MODE: 'local' | 'api' = 'local';
+const STORAGE_MODE: 'local' | 'api' = 'api';
 
 // ── Singleton ─────────────────────────────────────────────────
 
 function createStorage(): IStorageService {
   if (STORAGE_MODE === 'api') {
-    // return new ApiStorageAdapter();
-    console.warn('[StorageService] Mode API non encore activé, fallback local.');
+    return new SupabaseStorageAdapter();
   }
   return new LocalStorageAdapter();
 }
