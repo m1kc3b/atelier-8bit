@@ -12,7 +12,6 @@ interface ChallengeRow {
 }
 
 export class ChuckWelcomeModal extends ChuckComponent {
-  private _view: View = 'choice';
   private _challenges: ChallengeRow[] = [];
 
   protected render(): void {
@@ -123,7 +122,6 @@ export class ChuckWelcomeModal extends ChuckComponent {
   }
 
   private _showView(view: View): void {
-    this._view = view;
     const backBtn = this.shadow.getElementById('back-btn')!;
     const body = this.shadow.getElementById('body')!;
     backBtn.classList.toggle('visible', view === 'list');
