@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
 export default defineConfig({
-  root: '.',
-  base: './',
+  root: resolve(__dirname, '.'),
+  base: '/editor/',
   build: {
-    outDir:    'dist',
+    outDir: resolve(__dirname, "../dist/editor"),
     sourcemap: true,
     target:    'es2022',
   },

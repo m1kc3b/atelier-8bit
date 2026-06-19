@@ -4,21 +4,28 @@
   "description": "L'Atelier 8-Bit — IDE for 6502",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "ide:dev": "vite ide",
+    "ide:build": "tsc && vite build --config ide/vite.config.js ide/",
+    "ide:preview": "vite preview",
+    "learn:dev": "vuepress dev learn",
+    "learn:build": "vuepress build learn",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "build": "yarn ide:build && yarn learn:build",
     "deploy": "wrangler pages deploy"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.1.8",
+    "@vuepress/bundler-vite": "^2.0.0-rc.30",
+    "@vuepress/theme-default": "^2.0.0-rc.130",
     "jsdom": "29.1.1",
+    "sass-embedded": "^1.100.0",
     "typescript": "^6.0.3",
     "vite": "^8.0",
-    "vitest": "^4.1"
+    "vitest": "^4.1",
+    "vuepress": "^2.0.0-rc.30"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.16.0",
