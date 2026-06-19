@@ -47,7 +47,6 @@ export class ChuckWelcomeModal extends ChuckComponent {
       .hero h1 { font-size:30px; font-weight:800; color:var(--text); margin:0 0 14px; line-height:1.25; }
       .hero p { font-size:15px; color:var(--text); line-height:1.65; max-width:560px; margin:0 auto 34px; }
       .cta-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:0 40px; margin-bottom:34px; }
-      .cta-grid.two-cols { grid-template-columns:repeat(2,1fr); max-width:600px; margin:0 auto 34px; }
       .cta-card { display:flex; flex-direction:column; align-items:flex-start; gap:9px;
                   padding:22px 18px; background:var(--surface-3); border:1px solid var(--border);
                   border-radius:14px; cursor:pointer; text-align:left;
@@ -82,8 +81,13 @@ export class ChuckWelcomeModal extends ChuckComponent {
                                overflow:hidden; text-overflow:ellipsis; }
       .challenge-card-id { font-size:10px; color:var(--text-muted); }
 
+      .cta-card.locked-hint { position:relative; }
+      .lock-pill { font-size:10px; font-weight:700; color:var(--text-muted);
+                   background:var(--surface-4); padding:2px 8px; border-radius:20px;
+                   margin-left:auto; }
+
       @media (max-width: 640px) {
-        .cta-grid, .cta-grid.two-cols { grid-template-columns:1fr; max-width:none; }
+        .cta-grid { grid-template-columns:1fr; max-width:none; }
         .hero h1 { font-size:24px; }
         .hero { padding:32px 24px 8px; }
       }
@@ -136,52 +140,57 @@ export class ChuckWelcomeModal extends ChuckComponent {
   }
 
   private _renderChoices(): string {
-  const showLogin = !authService.isAuthenticated();
-  const gridClass = showLogin ? 'cta-grid' : 'cta-grid two-cols';
-  return `
-    <div class="choice-view">
-      <div class="hero">
-        <span class="hero-badge">🕹️ L'Atelier 8-bit</span>
-        <h1>Apprends à programmer comme en 1980.</h1>
-        <p>La rétro-informatique est le chemin le plus rapide pour comprendre comment les machines fonctionnent vraiment. Écris de l'assembleur 6502 pour un ordinateur 8-bit fictif, directement dans ton navigateur.</p>
-      </div>
-      <div class="${gridClass}">
-        <button class="cta-card" data-choice="free">
-          <span class="cta-icon">🖥️</span>
-          <strong>Mode libre</strong>
-          <span>Programme sans contrainte, explore l'éditeur et l'émulateur à ton rythme.</span>
-          <span class="cta-arrow">Commencer →</span>
-        </button>
-        ${showLogin ? `
-        <button class="cta-card" data-choice="login">
-          <span class="cta-icon">🔑</span>
-          <strong>Se connecter</strong>
-          <span>Sauvegarde tes projets et ta progression sur tous tes appareils.</span>
-          <span class="cta-arrow">Se connecter →</span>
-        </button>` : ''}
-        <button class="cta-card" data-choice="challenges">
-          <span class="cta-icon">🏆</span>
-          <strong>Voir les défis</strong>
-          <span>${this._challenges.length} défis progressifs, du premier LDA au pixel à l'écran.</span>
-          <span class="cta-arrow">Explorer →</span>
-        </button>
-      </div>
-      <div class="stats-strip">
-        <span><strong>${this._challenges.length}</strong> défis</span>
-        <span><strong>MOS 6502</strong> émulé en Rust/WASM</span>
-        <span><strong>🥇🥈🥉</strong> système de médailles</span>
-      </div>
-    </div>`;
-}
+    const authed = authService.isAuthenticated();
+    const pongCta = authed ? 'Commencer →' : 'Créer un compte →';
+    const pongLock = authed ? '' : `<span class="lock-pill">🔒 Compte requis</span>`;
+    return `
+      <div class="choice-view">
+        <div class="hero">
+          <span class="hero-badge">🕹️ L'Atelier 8-bit</span>
+          <h1>Apprends à programmer comme en 1980.</h1>
+          <p>La rétro-informatique est le chemin le plus rapide pour comprendre comment les machines fonctionnent vraiment. Écris de l'assembleur 6502 pour un ordinateur 8-bit fictif, directement dans ton navigateur.</p>
+        </div>
+        <div class="cta-grid">
+          <button class="cta-card" data-choice="free">
+            <span class="cta-icon">🖥️</span>
+            <strong>Mode libre</strong>
+            <span>Programme sans contrainte, explore l'éditeur et l'émulateur à ton rythme.</span>
+            <span class="cta-arrow">Commencer →</span>
+          </button>
+          <button class="cta-card" data-choice="challenges">
+            <span class="cta-icon">🏆</span>
+            <strong>Les Challenges</strong>
+            <span>${this._challenges.length} défis progressifs, du premier LDA au pixel à l'écran.</span>
+            <span class="cta-arrow">Explorer →</span>
+          </button>
+          <button class="cta-card locked-hint" data-choice="pong">
+            <span class="cta-icon">🏓</span>
+            <strong>Coder Pong ${pongLock}</strong>
+            <span>Construis ton premier jeu vidéo en assembleur, étape par étape.</span>
+            <span class="cta-arrow">${pongCta}</span>
+          </button>
+        </div>
+        <div class="stats-strip">
+          <span><strong>${this._challenges.length}</strong> défis</span>
+          <span><strong>MOS 6502</strong> émulé en Rust/WASM</span>
+          <span><strong>🥇🥈🥉</strong> système de médailles</span>
+        </div>
+      </div>`;
+  }
 
   private _bindChoiceEvents(): void {
     const body = this.shadow.getElementById('body')!;
     body.querySelector('[data-choice="free"]')?.addEventListener('click', () => this.close());
-    body.querySelector('[data-choice="login"]')?.addEventListener('click', () => {
-      this.close();
-      this.emit('chuck:require-auth', { reason: 'challenge' });
-    });
     body.querySelector('[data-choice="challenges"]')?.addEventListener('click', () => this._showView('list'));
+    body.querySelector('[data-choice="pong"]')?.addEventListener('click', () => {
+      this.close();
+      if (!authService.isAuthenticated()) {
+        this.emit('chuck:require-auth', { reason: 'challenge' });
+        return;
+      }
+      // TODO (étape 3 du plan) : remplacer par l'id réel du premier défi
+      // de l'arène Pong une fois créée côté Supabase.
+    });
   }
 
   private _renderList(): string {
