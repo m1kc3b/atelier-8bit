@@ -1,0 +1,173 @@
+{
+  "version": "1.0.0",
+  "items": [
+    {
+      "type": "lesson",
+      "id": 200,
+      "title": "Le plan de ton Pong",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 1/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## 🕹️ Tu vas construire Pong, brique par brique\n\nPas en une fois — neuf étapes, chacune un petit bout du jeu final :\n\n1. Le terrain\n2. Une raquette\n3. La raquette qui bouge\n4. La physique de la balle (théorie)\n5. La balle qui rebondit\n6. La collision balle/raquette\n7. Le score\n8. *(cette leçon)*\n\nChaque étape réutilise exactement ce que tu as appris dans les défis 1 à 6. Rien de nouveau à apprendre d'un coup — juste à assembler les pièces."
+        },
+        {
+          "kind": "concepts",
+          "items": ["Boucle principale", "VPU", "Collision", "Score"]
+        }
+      ]
+    },
+    {
+      "type": "challenge",
+      "id": 201,
+      "title": "Dessine le terrain de jeu",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 2/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## Objectif\n\nEfface l'écran en noir, puis trace une **ligne blanche verticale** au centre de l'écran (de `(64,0)` à `(64,127)`) — la ligne médiane classique de Pong."
+        }
+      ],
+      "template": "; ── Étape 2 — Dessine le terrain de jeu ────────────────────\n; Objectif : une ligne verticale blanche au centre de l'écran\n\nVPU_CTRL      = $D000\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_DRAW_LINE = $F006\n\n  .org $E000\n\nSTART:\n  LDA #1\n  JSR SYS_SET_MODE\n\n  LDA #0\n  JSR SYS_CLEAR         ; fond noir\n\n  ; Position de la ligne : du haut (64,0) au bas (64,127)\n  LDA #64  : STA $80     ; x0\n  LDA #0   : STA $81     ; y0\n  LDA #64  : STA $82     ; x1\n  LDA #127 : STA $83     ; y1\n\n  ; TODO : charge la couleur blanche (1) dans A et appelle SYS_DRAW_LINE\n\n  BRK\n",
+      "assertions": [
+        { "type": "memory", "address": 20512, "value": 16, "failMsg": "La ligne médiane n'apparaît pas — vérifie A=couleur avant JSR SYS_DRAW_LINE." }
+      ],
+      "maxCycles": 200000,
+      "meta": { "concepts": ["SYS_DRAW_LINE"], "estimatedMinutes": 6 }
+    },
+    {
+      "type": "challenge",
+      "id": 202,
+      "title": "Dessine ta raquette",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 3/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## Objectif\n\nDessine la raquette gauche : un rectangle blanc plein, en `x=4, y=56`, large de `4` pixels et haut de `16` pixels."
+        }
+      ],
+      "template": "; ── Étape 3 — Dessine ta raquette ──────────────────────────\n; Objectif : un rectangle blanc plein, raquette gauche\n\nVPU_CTRL      = $D000\nSYS_SET_MODE  = $F01B\nSYS_CLEAR     = $F000\nSYS_FILL_RECT = $F00C\n\n  .org $E000\n\nSTART:\n  LDA #1\n  JSR SYS_SET_MODE\n\n  LDA #0\n  JSR SYS_CLEAR\n\n  ; Raquette : x=4, y=56, largeur=4, hauteur=16\n  LDA #4  : STA $80     ; x\n  LDA #56 : STA $81     ; y\n  LDA #4  : STA $82     ; largeur\n  LDA #16 : STA $83     ; hauteur\n\n  ; TODO : charge la couleur blanche (1) dans A et appelle SYS_FILL_RECT\n\n  BRK\n",
+      "assertions": [
+        { "type": "memory", "address": 20226, "value": 17, "failMsg": "La raquette n'apparaît pas — vérifie A=couleur avant JSR SYS_FILL_RECT." }
+      ],
+      "maxCycles": 200000,
+      "meta": { "concepts": ["SYS_FILL_RECT"], "estimatedMinutes": 6 }
+    },
+    {
+      "type": "challenge",
+      "id": 203,
+      "title": "Fais bouger la raquette",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 4/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## Objectif\n\nUne touche est déjà simulée dans `KEY_ASCII` (`'w'`). Si `'w'` est pressé, la raquette doit **monter** : décrémente `PAD_Y`."
+        }
+      ],
+      "template": "; ── Étape 4 — Fais bouger la raquette ──────────────────────\n; Objectif : si la touche 'w' est pressée, PAD_Y doit diminuer de 1\n\nKEY_ASCII = $D200\nPAD_Y     = $20\n\n  .org $E000\n\nSTART:\n  LDA #64\n  STA PAD_Y\n\n  LDA #'w'\n  STA KEY_ASCII         ; simule l'appui sur 'w' (monter)\n\n  LDA KEY_ASCII\n  CMP #'w'\n  BEQ MOVE_UP\n  CMP #'s'\n  BEQ MOVE_DOWN\n  JMP DONE\n\nMOVE_UP:\n  ; TODO : la raquette monte — décrémente PAD_Y\n  JMP DONE\n\nMOVE_DOWN:\n  INC PAD_Y\n\nDONE:\n  BRK\n",
+      "assertions": [
+        { "type": "memory", "address": 32, "value": 63, "failMsg": "PAD_Y devrait valoir 63 (64-1) — la raquette doit monter quand 'w' est pressé." }
+      ],
+      "maxCycles": 20000,
+      "meta": { "concepts": ["DEC", "clavier"], "estimatedMinutes": 5 }
+    },
+    {
+      "type": "lesson",
+      "id": 204,
+      "title": "La balle qui rebondit",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 5/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## La vitesse, version 6502\n\nUne balle a une position (`BALL_X`, `BALL_Y`) et une **vitesse** (`BALL_DX`, `BALL_DY`). À chaque frame : `BALL_X = BALL_X + BALL_DX`.\n\nQuand la balle touche un bord, il faut **inverser sa direction**. Tu as déjà fait ça au défi 2 — sauf qu'ici, au lieu d'un `EOR #$FF`, on bascule simplement entre `1` (droite) et `$FF` (gauche, soit -1 en complément à 2)."
+        },
+        {
+          "kind": "concepts",
+          "items": ["Complément à 2", "Vitesse", "Nombres signés 8-bit"]
+        }
+      ]
+    },
+    {
+      "type": "challenge",
+      "id": 205,
+      "title": "Fais rebondir la balle sur le bord",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 6/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## Objectif\n\n`BALL_X` vaut `127` (bord droit) et `BALL_DX` vaut `1` (la balle va vers la droite). Inverse `BALL_DX` pour qu'elle reparte vers la gauche : il doit valoir `$FF`."
+        }
+      ],
+      "template": "; ── Étape 6 — La balle rebondit sur le bord droit ──────────\n; BALL_X a atteint 127 → BALL_DX doit s'inverser ($FF)\n\nBALL_X  = $10\nBALL_DX = $11\n\n  .org $E000\n\nSTART:\n  LDA #127\n  STA BALL_X\n  LDA #1\n  STA BALL_DX           ; la balle va vers la droite (+1)\n\n  LDA BALL_X\n  CMP #127\n  BNE DONE\n\n  ; TODO : la balle a touché le bord — remplace BALL_DX par $FF\n\nDONE:\n  BRK\n",
+      "assertions": [
+        { "type": "memory", "address": 17, "value": 255, "failMsg": "BALL_DX devrait valoir $FF (-1) après le rebond." }
+      ],
+      "maxCycles": 20000,
+      "meta": { "concepts": ["complément à 2", "rebond"], "estimatedMinutes": 6 }
+    },
+    {
+      "type": "challenge",
+      "id": 206,
+      "title": "Détecte la collision balle/raquette",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 7/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## Objectif\n\nLa raquette va de `PAD_L_Y` à `PAD_L_Y + 16`. Si `BALL_Y` (`64`) tombe dans cette zone (`PAD_L_Y`=`58`), `HIT` doit passer à `1`."
+        }
+      ],
+      "template": "; ── Étape 7 — Détecte la collision balle/raquette ──────────\n; Objectif : la balle touche la raquette → HIT doit valoir 1\n\nBALL_Y   = $12\nPAD_L_Y  = $15\nHIT      = $13\n\n  .org $E000\n\nSTART:\n  LDA #64\n  STA BALL_Y\n  LDA #58\n  STA PAD_L_Y\n  LDA #0\n  STA HIT\n\n  LDA BALL_Y\n  CMP PAD_L_Y\n  BCC DONE              ; balle au-dessus de la raquette → pas de collision\n\n  LDA PAD_L_Y\n  CLC\n  ADC #16                ; bas de la raquette = PAD_L_Y + 16\n  CMP BALL_Y\n  BCC DONE               ; balle en-dessous de la raquette → pas de collision\n\n  ; TODO : la balle est dans la zone de la raquette — mets HIT à 1\n\nDONE:\n  BRK\n",
+      "assertions": [
+        { "type": "memory", "address": 19, "value": 1, "failMsg": "HIT devrait valoir 1 — la balle est dans la zone de la raquette." }
+      ],
+      "maxCycles": 20000,
+      "meta": { "concepts": ["CMP", "ADC", "collision"], "estimatedMinutes": 8 }
+    },
+    {
+      "type": "challenge",
+      "id": 207,
+      "title": "Incrémente le score au bon moment",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 8/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## Objectif\n\n`HIT` vaut `1`. Quand c'est le cas, `SCORE` doit être incrémenté."
+        }
+      ],
+      "template": "; ── Étape 8 — Incrémente le score au bon moment ────────────\n; Objectif : si HIT=1, SCORE doit être incrémenté\n\nHIT   = $13\nSCORE = $14\n\n  .org $E000\n\nSTART:\n  LDA #1\n  STA HIT\n  LDA #0\n  STA SCORE\n\n  LDA HIT\n  BEQ DONE               ; HIT=0 → pas de point\n\n  ; TODO : incrémente SCORE\n\nDONE:\n  BRK\n",
+      "assertions": [
+        { "type": "memory", "address": 20, "value": 1, "failMsg": "SCORE devrait valoir 1." }
+      ],
+      "maxCycles": 20000,
+      "meta": { "concepts": ["INC", "BEQ", "score"], "estimatedMinutes": 5 }
+    },
+    {
+      "type": "lesson",
+      "id": 208,
+      "title": "Tu as terminé le parcours guidé !",
+      "subtitle": "Projet Pong",
+      "stepLabel": "Étape 9/9",
+      "blocks": [
+        {
+          "kind": "theory",
+          "content": "## 🕹️ Félicitations, tu as codé ton Pong !\n\nTerrain, raquette, mouvement, balle, rebond, collision, score — tu viens de construire, brique par brique, exactement les pièces du Pong complet. Le code assemblé est dans la formation, chapitre 5.\n\nTu as survécu à tes premiers octets en assembleur. Ne t'arrête pas en si bon chemin. Si tu as aimé cette sensation de maîtriser la machine à l'état pur, rejoins le **Club Atelier 8-Bit** :\n\n- 🎯 Chaque mois — un défi d'optimisation ou de création de jeu, en collectif.\n- 🔴 Chaque semaine — 2 sessions de Live Coding & Q&A sur Discord.\n- 🤝 Tout le temps — une communauté de devs qui s'entraident, loin du bruit des frameworks."
+        },
+        {
+          "kind": "ref",
+          "icon": "👉",
+          "label": "Rejoindre le Club Atelier 8-Bit",
+          "detail": "Lives hebdo + défis collectifs + communauté",
+          "url": "https://atelier8bit.com/club"
+        }
+      ]
+    }
+  ]
+}

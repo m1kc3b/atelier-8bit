@@ -1,245 +1,112 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "challenges": [
     {
       "id": 1,
       "arena": 1,
-      "arena_name": "Chirurgie de Code",
-      "title": "Le Pong qui triche",
-      "description": "Un Pong complet tourne devant toi. La balle bouge, les raquettes répondent aux touches.\n\nMais **3 bugs** se cachent dans le code :\n- La balle traverse parfois la raquette gauche sans déclencher de rebond\n- Le score ne se remet jamais à zéro après un point\n- La vitesse de la balle augmente sans jamais se plafonner\n\n**Ta mission** : corriger les 3 bugs. Le code doit terminer avec `SCORE` en mémoire à `$00` après un reset de point, la collision raquette gauche doit fonctionner dans les deux sens, et `BALL_SPEED` ne doit jamais dépasser `$04`.\n\n> Lis l'intégralité du code avant de toucher quoi que ce soit.",
-      "template": "; ── PONG Chuck-8 ── ~130 lignes\n; Commandes : haut=W bas=S | balle part au centre\n\n; ── Constantes ────────────────────────────────────────\nVPU_CTRL      = $D000\nVPU_STATUS    = $D004\nKEY_ASCII     = $D200\nKEY_STATUS    = $D201\nSYS_CLEAR     = $F000\nSYS_DRAW_PIXEL= $F003\nSYS_WAIT_VBLANK= $F057\n\nCOLOR_BLACK   = 0\nCOLOR_WHITE   = 1\nCOLOR_RED     = 2\nCOLOR_YELLOW  = 7\n\n; ── Variables Zero Page ───────────────────────────────\nBALL_X        = $10\nBALL_Y        = $11\nBALL_DX       = $12   ; vitesse X (signé, stocké en complément)\nBALL_DY       = $13   ; vitesse Y\nBALL_SPEED    = $14   ; vitesse absolue courante\nPAD_L_Y       = $15   ; raquette gauche (joueur)\nPAD_R_Y       = $16   ; raquette droite (IA)\nSCORE_L       = $17   ; points joueur gauche\nSCORE_R       = $18   ; points joueur droite\nTEMP          = $19\n\n; ── Init ──────────────────────────────────────────────\n  .org $0600\nSTART:\n  LDA #%10000001\n  STA VPU_CTRL\n\n  LDA #64 : STA BALL_X\n  LDA #64 : STA BALL_Y\n  LDA #1  : STA BALL_DX\n  LDA #1  : STA BALL_DY\n  LDA #1  : STA BALL_SPEED\n  LDA #58 : STA PAD_L_Y\n  LDA #58 : STA PAD_R_Y\n  LDA #0  : STA SCORE_L\n  LDA #0  : STA SCORE_R\n\n; ── Boucle principale ─────────────────────────────────\nMAIN_LOOP:\n  JSR SYS_WAIT_VBLANK\n  JSR SYS_CLEAR\n\n  ; ── INPUT ─────────────────────────────────────────\n  LDA KEY_ASCII\n  CMP #'w' : BEQ @pad_up\n  CMP #'s' : BEQ @pad_down\n  JMP @no_input\n@pad_up:\n  LDA PAD_L_Y : BEQ @no_input\n  DEC PAD_L_Y : JMP @no_input\n@pad_down:\n  LDA PAD_L_Y : CMP #117 : BCS @no_input\n  INC PAD_L_Y\n@no_input:\n\n  ; ── IA raquette droite (suit la balle) ───────────\n  LDA BALL_Y\n  CMP PAD_R_Y : BEQ @ai_done\n  BCC @ai_up\n  INC PAD_R_Y : JMP @ai_done\n@ai_up:\n  DEC PAD_R_Y\n@ai_done:\n\n  ; ── PHYSIQUE BALLE ────────────────────────────────\n  LDA BALL_X : CLC : ADC BALL_DX : STA BALL_X\n  LDA BALL_Y : CLC : ADC BALL_DY : STA BALL_Y\n\n  ; Rebond bords haut (Y=0)\n  LDA BALL_Y : BNE @no_top\n  LDA #0 : SEC : SBC BALL_DY : STA BALL_DY\n@no_top:\n\n  ; Rebond bord bas (Y=127)\n  LDA BALL_Y : CMP #127 : BNE @no_bot\n  LDA #0 : SEC : SBC BALL_DY : STA BALL_DY\n@no_bot:\n\n  ; ── Collision raquette GAUCHE (x=8) ──────────────\n  ; BUG 1 : la collision ne vérifie que BALL_X=8\n  ; mais pas si la balle vient de gauche (DX négatif)\n  ; → la balle peut traverser la raquette par la gauche\n  LDA BALL_X : CMP #8 : BNE @no_pad_l\n  LDA BALL_Y : CMP PAD_L_Y : BCC @no_pad_l\n  LDA PAD_L_Y : CLC : ADC #10 : CMP BALL_Y : BCC @no_pad_l\n  LDA #0 : SEC : SBC BALL_DX : STA BALL_DX\n  ; Augmenter la vitesse\n  INC BALL_SPEED\n  ; BUG 2 : pas de plafonnement de vitesse\n  ; BALL_SPEED peut dépasser $04 indéfiniment\n@no_pad_l:\n\n  ; ── Collision raquette DROITE (x=119) ────────────\n  LDA BALL_X : CMP #119 : BNE @no_pad_r\n  LDA BALL_Y : CMP PAD_R_Y : BCC @no_pad_r\n  LDA PAD_R_Y : CLC : ADC #10 : CMP BALL_Y : BCC @no_pad_r\n  LDA #0 : SEC : SBC BALL_DX : STA BALL_DX\n  INC BALL_SPEED\n  LDA BALL_SPEED : CMP #5 : BCC @no_pad_r\n  LDA #4 : STA BALL_SPEED   ; plafond correct côté droit\n@no_pad_r:\n\n  ; ── Point gauche perdu (balle sort à droite x>120) ─\n  LDA BALL_X : CMP #121 : BCC @no_point_r\n  INC SCORE_R\n  ; BUG 3 : on incrémente SCORE_R mais on ne remet pas\n  ; la balle au centre NI on ne remet BALL_SPEED à 1\n  ; NI SCORE_L à $00 si on voulait tester la victoire\n  LDA #64 : STA BALL_X\n  LDA #64 : STA BALL_Y\n  LDA #1  : STA BALL_DX\n  LDA #1  : STA BALL_DY\n  ; BALL_SPEED reste à sa valeur élevée → balle repart trop vite\n@no_point_r:\n\n  ; Point droit perdu (balle sort à gauche x<4)\n  LDA BALL_X : CMP #4 : BCS @no_point_l\n  INC SCORE_L\n  LDA #64 : STA BALL_X\n  LDA #64 : STA BALL_Y\n  LDA #1  : STA BALL_DX\n  LDA #1  : STA BALL_DY\n  LDA #1  : STA BALL_SPEED  ; ICI le reset est correct\n@no_point_l:\n\n  ; ── DRAW ──────────────────────────────────────────\n  ; Balle\n  LDA #COLOR_WHITE\n  LDX BALL_X : LDY BALL_Y\n  JSR SYS_DRAW_PIXEL\n\n  ; Raquette gauche\n  LDA #COLOR_YELLOW\n  LDX #8\n  LDY PAD_L_Y\n@draw_pad_l:\n  JSR SYS_DRAW_PIXEL\n  INY\n  TYA : SEC : SBC PAD_L_Y : CMP #10 : BCC @draw_pad_l\n\n  ; Raquette droite\n  LDA #COLOR_RED\n  LDX #119\n  LDY PAD_R_Y\n@draw_pad_r:\n  JSR SYS_DRAW_PIXEL\n  INY\n  TYA : SEC : SBC PAD_R_Y : CMP #10 : BCC @draw_pad_r\n\n  JMP MAIN_LOOP",
+      "arena_name": "Premiers pas",
+      "title": "Change la couleur de l'écran",
+      "description": "## Objectif\n\nTon Chuck-8 démarre toujours en mode texte, écran noir. Passe en **mode graphique** et remplis tout l'écran de **rouge** (couleur `2`).\n\n> Deux appels système suffisent : un pour changer de mode, un pour effacer l'écran avec une couleur.",
+      "template": "; ── Défi 1 — Change la couleur de l'écran ──────────────────\n; Objectif : remplir l'écran de rouge (couleur 2)\n\nVPU_CTRL     = $D000\nSYS_SET_MODE = $F01B\nSYS_CLEAR    = $F000\n\n  .org $E000\n\nSTART:\n  LDA #1\n  JSR SYS_SET_MODE     ; passe en mode graphique\n\n  ; TODO : charge la couleur rouge ($02) dans A\n  ; TODO : appelle SYS_CLEAR pour remplir l'écran\n\n  BRK\n",
       "assertions": [
-        {
-          "type": "memory",
-          "address": 20,
-          "value": 1,
-          "failMsg": "BALL_SPEED ($14) doit être remis à $01 après un point côté droit aussi"
-        },
-        {
-          "type": "memory",
-          "address": 23,
-          "value": 0,
-          "failMsg": "SCORE_L ($17) doit rester à $00 (aucun point marqué dans ce test)"
-        }
+        { "type": "memory", "address": 16384, "value": 34, "failMsg": "L'écran n'est pas entièrement rouge — vérifie l'appel à SYS_CLEAR avec A=2." },
+        { "type": "memory", "address": 24575, "value": 34, "failMsg": "Le bas de l'écran n'est pas rouge — SYS_CLEAR doit remplir tout le framebuffer." }
       ],
-      "maxCycles": 500000,
+      "maxCycles": 200000,
       "hints": [
-        {
-          "text": "Bug 1 : la balle peut venir de droite (DX>0) et toucher x=8 par rebond — il faut aussi vérifier que BALL_DX est positif avant de rebondir, sinon tu inverses deux fois.",
-          "cost": 5
-        },
-        {
-          "text": "Bug 2 : après `INC BALL_SPEED` côté gauche, tu n'as pas la vérification CMP #5 / LDA #4 que tu as côté droit. Copie ce pattern.",
-          "cost": 5
-        },
-        {
-          "text": "Bug 3 : après `INC SCORE_R`, `BALL_SPEED` n'est jamais remis à `#1`. Ajoute `LDA #1 : STA BALL_SPEED` comme tu le fais côté gauche.",
-          "cost": 5
-        }
+        { "text": "LDA #$02 charge le rouge, puis JSR SYS_CLEAR ($F000) remplit l'écran avec cette couleur." },
+        { "text": "N'oublie pas : SYS_CLEAR doit être appelé APRÈS SYS_SET_MODE, sinon l'écran reste en mode texte." }
       ],
-      "meta": {
-        "concepts": [
-          "Collision AABB",
-          "Complément à 2 signé 8-bit",
-          "Plafonnement valeur",
-          "Reset d'état"
-        ],
-        "estimatedMinutes": 25
-      }
+      "meta": { "concepts": ["LDA", "JSR", "mode graphique", "SYS_CLEAR"], "estimatedMinutes": 5 }
     },
     {
       "id": 2,
       "arena": 1,
-      "arena_name": "Chirurgie de Code",
-      "title": "Le Plasma qui clignote",
-      "description": "Une démo plasma classique utilise une table de sinus précalculée pour générer un effet ondoyant sur tout l'écran 128×128.\n\nLe code tourne — mais l'écran **clignote toutes les 2-3 frames**.\n\nLe double-buffer est là, le flip est demandé... mais dans le mauvais ordre.\n\n**Ta mission** : corriger l'ordre des opérations VPU pour que le plasma soit fluide. La séquence correcte est : attendre VBlank → dessiner dans le backbuffer → demander le flip → recommencer.\n\n> Cherche où `VPU_CTRL` est modifié par rapport à `SYS_WAIT_VBLANK`.",
-      "template": "; ── PLASMA Chuck-8 ── effet sinus 2D avec double-buffer\n\nVPU_CTRL      = $D000\nVPU_STATUS    = $D004\nSYS_CLEAR     = $F000\nSYS_DRAW_PIXEL= $F003\nSYS_WAIT_VBLANK= $F057\n\nCOLOR_RED     = 2\nCOLOR_CYAN    = 3\nCOLOR_PURPLE  = 4\nCOLOR_GREEN   = 5\nCOLOR_YELLOW  = 7\nCOLOR_ORANGE  = 8\n\n; Variables\nPX            = $10   ; pixel X courant\nPY            = $11   ; pixel Y courant\nTIME          = $12   ; compteur de frame (phase de l'animation)\nCOLOR_IDX     = $13   ; couleur calculée\nSIN_IDX       = $14   ; index dans la table sinus\nTEMP1         = $15\nTEMP2         = $16\n\n; ── Table sinus 64 valeurs (0-255, une période) ──────\n  .org $0700\nSIN_TABLE:\n  .byte 128,140,152,164,176,186,196,205\n  .byte 212,219,224,229,232,234,235,235\n  .byte 234,232,229,224,219,212,205,196\n  .byte 186,176,164,152,140,128,116,104\n  .byte  92, 80, 70, 60, 51, 44, 37, 32\n  .byte  27, 24, 22, 21, 21, 22, 24, 27\n  .byte  32, 37, 44, 51, 60, 70, 80, 92\n  .byte 104,116,128,140,152,164,176,186\n\n  .org $0600\nSTART:\n  ; Activer mode gfx + double buffer\n  LDA #%10000001\n  STA VPU_CTRL\n  LDA #0 : STA TIME\n\n; ── Boucle principale ─────────────────────────────────\nMAIN_LOOP:\n\n  ; BUG : le flip est demandé ICI, avant de dessiner\n  ; → on affiche le buffer en cours d'écriture\n  LDA VPU_CTRL\n  ORA #%00000010\n  STA VPU_CTRL\n\n  JSR SYS_WAIT_VBLANK   ; attend le VBlank\n  JSR SYS_CLEAR         ; efface le backbuffer courant\n\n  ; ── Rendu plasma ────────────────────────────────\n  LDA #0 : STA PY\n@loop_y:\n  LDA #0 : STA PX\n@loop_x:\n  ; sin(X + TIME) → index dans table\n  LDA PX : CLC : ADC TIME\n  AND #$3F : TAX\n  LDA SIN_TABLE,X : STA TEMP1\n\n  ; sin(Y + TIME/2)\n  LDA PY : LSR : CLC : ADC TIME\n  AND #$3F : TAX\n  LDA SIN_TABLE,X : STA TEMP2\n\n  ; Additionner les deux sinus → couleur 0-15\n  LDA TEMP1 : CLC : ADC TEMP2\n  LSR : LSR : LSR : LSR   ; >> 4 → 0-15\n  AND #$0F : STA COLOR_IDX\n\n  ; Dessiner le pixel\n  LDA COLOR_IDX\n  LDX PX : LDY PY\n  JSR SYS_DRAW_PIXEL\n\n  INC PX\n  LDA PX : CMP #128 : BCC @loop_x\n\n  INC PY\n  LDA PY : CMP #128 : BCC @loop_y\n\n  ; Incrémenter phase\n  INC TIME\n\n  JMP MAIN_LOOP",
+      "arena_name": "Premiers pas",
+      "title": "Inverse les bits d'un registre",
+      "description": "## Objectif\n\nCharge `$0F` dans l'accumulateur `A`, puis **inverse chaque bit** (complément à 1) pour obtenir `$F0`. Stocke le résultat en mémoire à l'adresse `$10`.\n\n> Une seule instruction permet d'inverser tous les bits d'un coup : c'est un XOR avec `$FF`.",
+      "template": "; ── Défi 2 — Inverse les bits d'un registre ────────────────\n; Objectif : A doit valoir $F0 (l'inverse bit à bit de $0F)\n\n  .org $E000\n\nSTART:\n  LDA #$0F\n\n  ; TODO : inverse tous les bits de A\n\n  STA $10\n  BRK\n",
       "assertions": [
-        {
-          "type": "memory",
-          "address": 53248,
-          "value": 129,
-          "failMsg": "VPU_CTRL ($D000) doit être à $81 (enable + mode gfx, sans flip_request actif en fin de boucle)"
-        }
+        { "type": "register", "register": "A", "value": 240, "failMsg": "A devrait valoir $F0 après l'inversion des bits de $0F." },
+        { "type": "memory", "address": 16, "value": 240 }
       ],
-      "maxCycles": 800000,
+      "maxCycles": 10000,
       "hints": [
-        {
-          "text": "Le flip_request doit être posé APRÈS avoir fini de dessiner, pas avant. Déplace le bloc `LDA VPU_CTRL / ORA #%00000010 / STA VPU_CTRL` à la fin de la boucle, après le rendu.",
-          "cost": 5
-        },
-        {
-          "text": "L'ordre correct est : (1) JSR SYS_WAIT_VBLANK (2) JSR SYS_CLEAR (3) ... rendu ... (4) demande flip (5) JMP MAIN_LOOP.",
-          "cost": 3
-        }
+        { "text": "EOR #$FF effectue un XOR bit à bit avec $FF : chaque bit à 1 devient 0, chaque bit à 0 devient 1." },
+        { "text": "EOR (Exclusive OR) est l'instruction 6502 pour inverser des bits — pense à un masque." }
       ],
-      "meta": {
-        "concepts": [
-          "Double buffering",
-          "VPU flip_request",
-          "Ordre des opérations VBlank",
-          "Table sinus"
-        ],
-        "estimatedMinutes": 15
-      }
+      "meta": { "concepts": ["LDA", "EOR", "STA", "complément à 1"], "estimatedMinutes": 5 }
     },
     {
       "id": 3,
       "arena": 1,
-      "arena_name": "Chirurgie de Code",
-      "title": "Le Snake qui s'étrangle",
-      "description": "Un Snake jouable : le serpent se déplace, pousse sur les murs (wraparound), mange des pommes et grandit.\n\nProblème : **il ne meurt jamais quand il se mord lui-même**.\n\nLa routine `CHECK_SELF_COLLISION` existe dans le code. Elle parcourt le tableau de segments. Mais elle compare le mauvais octet — un bug de pointeur zero page fait qu'elle lit la position précédente au lieu de la position courante.\n\n**Ta mission** : trouver et corriger le bug dans `CHECK_SELF_COLLISION`. La mort doit être déclenchée quand la tête occupe la même case qu'un segment du corps.\n\n> Le corps est stocké comme un tableau de paires (X,Y) à partir de `$0300`.",
-      "template": "; ── SNAKE Chuck-8 ── serpent avec wraparound\n\nVPU_CTRL      = $D000\nSYS_CLEAR     = $F000\nSYS_DRAW_PIXEL= $F003\nSYS_WAIT_VBLANK= $F057\nSYS_GET_RAND  = $F05A\n\nKEY_ASCII     = $D200\n\nCOLOR_BLACK   = 0\nCOLOR_GREEN   = 5\nCOLOR_RED     = 2\nCOLOR_WHITE   = 1\nCOLOR_YELLOW  = 7\n\n; Variables ZP\nHEAD_X        = $10\nHEAD_Y        = $11\nDIR_X         = $12   ; direction X (-1, 0, +1)\nDIR_Y         = $13   ; direction Y\nSNAKE_LEN     = $14   ; longueur actuelle (en segments)\nAPPLE_X       = $15\nAPPLE_Y       = $16\nGAME_OVER     = $17   ; $FF = mort\nTEMP          = $18\nSEG_PTR_LO    = $F0   ; pointeur bas vers tableau segments\nSEG_PTR_HI    = $F1   ; pointeur haut\n\n; Corps du serpent : tableau (X,Y) à $0300\n; Segment 0 = tête, segment 1 = cou, etc.\nSNAKE_BODY    = $0300\n\n  .org $0600\nSTART:\n  LDA #%10000001 : STA VPU_CTRL\n\n  ; Init serpent : 3 segments, direction droite\n  LDA #64 : STA HEAD_X : STA SNAKE_BODY+0\n  LDA #64 : STA HEAD_Y : STA SNAKE_BODY+1\n  LDA #63 : STA SNAKE_BODY+2    ; segment 1 X\n  LDA #64 : STA SNAKE_BODY+3    ; segment 1 Y\n  LDA #62 : STA SNAKE_BODY+4    ; segment 2 X\n  LDA #64 : STA SNAKE_BODY+5    ; segment 2 Y\n  LDA #3  : STA SNAKE_LEN\n\n  LDA #1  : STA DIR_X\n  LDA #0  : STA DIR_Y\n  LDA #0  : STA GAME_OVER\n\n  ; Pomme initiale\n  LDA #100 : STA APPLE_X\n  LDA #40  : STA APPLE_Y\n\nMAIN_LOOP:\n  JSR SYS_WAIT_VBLANK\n  LDA GAME_OVER : BEQ @alive\n  JMP MAIN_LOOP   ; si mort, boucle infinie (écran de mort déjà affiché)\n@alive:\n\n  ; ── Input ─────────────────────────────────────────\n  LDA KEY_ASCII\n  CMP #'w' : BNE @ck_s\n  LDA DIR_Y : BEQ @set_up   ; ignorer si déjà vertical\n  JMP @input_done\n@set_up:\n  LDA #0 : STA DIR_X : LDA #$FF : STA DIR_Y : JMP @input_done\n@ck_s:\n  CMP #'s' : BNE @ck_a\n  LDA DIR_Y : BEQ @set_dn\n  JMP @input_done\n@set_dn:\n  LDA #0 : STA DIR_X : LDA #1 : STA DIR_Y : JMP @input_done\n@ck_a:\n  CMP #'a' : BNE @ck_d\n  LDA DIR_X : BEQ @set_lt\n  JMP @input_done\n@set_lt:\n  LDA #$FF : STA DIR_X : LDA #0 : STA DIR_Y : JMP @input_done\n@ck_d:\n  CMP #'d' : BNE @input_done\n  LDA DIR_X : BEQ @set_rt\n  JMP @input_done\n@set_rt:\n  LDA #1 : STA DIR_X : LDA #0 : STA DIR_Y\n@input_done:\n\n  ; ── Déplacer le corps (de la queue vers la tête) ──\n  LDX SNAKE_LEN\n  DEX          ; dernier segment index\n@shift_loop:\n  CPX #0 : BEQ @shift_done\n  ; segment[i].X = segment[i-1].X\n  TXA : ASL : TAY          ; Y = i*2\n  LDA SNAKE_BODY-2,Y       ; X du segment précédent\n  STA SNAKE_BODY,Y\n  LDA SNAKE_BODY-1,Y       ; Y du segment précédent\n  STA SNAKE_BODY+1,Y\n  DEX : JMP @shift_loop\n@shift_done:\n\n  ; ── Avancer la tête ───────────────────────────────\n  LDA HEAD_X : CLC : ADC DIR_X : AND #$7F : STA HEAD_X\n  LDA HEAD_Y : CLC : ADC DIR_Y : AND #$7F : STA HEAD_Y\n  ; Mettre à jour segment 0\n  LDA HEAD_X : STA SNAKE_BODY+0\n  LDA HEAD_Y : STA SNAKE_BODY+1\n\n  ; ── Détection collision avec soi-même ────────────\nCHECK_SELF_COLLISION:\n  LDA #<SNAKE_BODY : STA SEG_PTR_LO\n  LDA #>SNAKE_BODY : STA SEG_PTR_HI\n  LDX #1          ; on commence au segment 1 (pas la tête elle-même)\n@self_loop:\n  CPX SNAKE_LEN : BCS @self_done\n  TXA : ASL : TAY          ; Y = i*2 (offset dans le tableau)\n  ; BUG : on lit (SEG_PTR_LO),Y mais SEG_PTR pointe sur SNAKE_BODY[0]\n  ; → Y pointe bien sur segment i... mais on compare avec HEAD_X/HEAD_Y\n  ; OR WAIT — le vrai bug est ici : on charge SEG_PTR,Y\n  ; mais on OUBLIE de recharger le pointeur de base,\n  ; donc après le premier tour Y s'accumule et on lit le mauvais octet\n  LDA (SEG_PTR_LO),Y       ; charge X du segment i\n  CMP HEAD_X : BNE @self_next\n  INY\n  LDA (SEG_PTR_LO),Y       ; charge Y du segment i\n  CMP HEAD_Y : BNE @self_next\n  ; Collision ! → mort\n  LDA #$FF : STA GAME_OVER\n  JMP @self_done\n@self_next:\n  INX\n  ; BUG : Y n'est pas remis à i*2 avant la prochaine itération\n  ; INX puis TXA:ASL:TAY recalculerait correctement... sauf qu'on\n  ; a déjà fait INY ci-dessus, donc Y = i*2+1 → prochain calcul\n  ; sera faux. Il faut supprimer le INY ou réinitialiser Y.\n  JMP @self_loop\n@self_done:\n\n  ; ── Collision pomme ───────────────────────────────\n  LDA HEAD_X : CMP APPLE_X : BNE @no_apple\n  LDA HEAD_Y : CMP APPLE_Y : BNE @no_apple\n  ; Manger la pomme : grandir\n  LDA SNAKE_LEN : CMP #40 : BCS @no_apple  ; max 40 segments\n  INC SNAKE_LEN\n  ; Nouvelle pomme aléatoire\n  JSR SYS_GET_RAND : AND #$7F : STA APPLE_X\n  JSR SYS_GET_RAND : AND #$7F : STA APPLE_Y\n@no_apple:\n\n  ; ── Dessin ────────────────────────────────────────\n  JSR SYS_CLEAR\n\n  ; Pomme\n  LDA #COLOR_RED : LDX APPLE_X : LDY APPLE_Y : JSR SYS_DRAW_PIXEL\n\n  ; Corps\n  LDX #0\n@draw_body:\n  CPX SNAKE_LEN : BCS @draw_done\n  TXA : ASL : TAY\n  LDA #COLOR_GREEN\n  LDA SNAKE_BODY,Y   ; X\n  TAX\n  INY\n  LDA SNAKE_BODY,Y   ; Y\n  TAY\n  LDA #COLOR_GREEN\n  JSR SYS_DRAW_PIXEL\n  ; Attention : X et Y sont corrompus après JSR\n  ; besoin de recharger l'index — déjà géré par la boucle via SNAKE_LEN\n  LDX TEMP : INX : STX TEMP  ; TEMP utilisé comme compteur externe\n  JMP @draw_body\n@draw_done:\n\n  ; Tête en blanc\n  LDA #COLOR_WHITE : LDX HEAD_X : LDY HEAD_Y : JSR SYS_DRAW_PIXEL\n\n  LDA #0 : STA TEMP\n  JMP MAIN_LOOP",
+      "arena_name": "Premiers pas",
+      "title": "Boucle qui compte jusqu'à 10",
+      "description": "## Objectif\n\nLe registre `X` doit valoir `10` à la fin du programme — mais interdiction de faire `LDX #10` directement. Utilise une **vraie boucle** : incrémente `X` un par un jusqu'à atteindre 10.\n\n> C'est le premier bloc de construction de toute boucle de jeu : compter, tester, recommencer.",
+      "template": "; ── Défi 3 — Boucle qui compte jusqu'à 10 ──────────────────\n; Objectif : X doit valoir 10 à la fin, obtenu via une boucle\n\n  .org $E000\n\nSTART:\n  LDX #$00\n\nLOOP:\n  ; TODO : incrémente X\n\n  ; TODO : compare X à 10 — si ce n'est pas encore atteint, retourne à LOOP\n\n  BRK\n",
       "assertions": [
-        {
-          "type": "memory",
-          "address": 23,
-          "value": 255,
-          "failMsg": "GAME_OVER ($17) doit être $FF quand la tête touche le corps — la collision ne fonctionne pas encore"
-        }
+        { "type": "register", "register": "X", "value": 10, "failMsg": "X devrait valoir 10 — vérifie ta condition de sortie de boucle." }
       ],
-      "maxCycles": 300000,
+      "maxCycles": 20000,
       "hints": [
-        {
-          "text": "Le vrai bug est subtil : après `INY` (pour lire la coordonnée Y du segment), on fait `INX` puis `JMP @self_loop`. Mais en haut de la boucle on recalcule `Y = X*2` avec `TXA:ASL:TAY`. Sauf qu'on ne remet jamais Y à `i*2` : on a déjà consommé un INY supplémentaire. La correction : supprimer le `INY` avant `LDA (SEG_PTR_LO),Y` pour la deuxième coordonnée, et lire l'offset correct directement.",
-          "cost": 8
-        },
-        {
-          "text": "Alternative plus propre : au lieu de `INY`, calcule l'offset complet Y = i*2+1 explicitement : `TXA : ASL : CLC : ADC #1 : TAY` avant la lecture du Y du segment.",
-          "cost": 5
-        }
+        { "text": "INX incrémente X de 1 à chaque tour." },
+        { "text": "CPX #10 compare X à 10, puis BNE LOOP retourne en haut de la boucle si la comparaison n'est pas égale." }
       ],
-      "meta": {
-        "concepts": [
-          "Adressage indirect indexé (ZP),Y",
-          "Tableau de structures",
-          "Bug d'index accumulé",
-          "Détection de collision"
-        ],
-        "estimatedMinutes": 30
-      }
+      "meta": { "concepts": ["INX", "CPX", "BNE", "boucle"], "estimatedMinutes": 5 }
     },
     {
       "id": 4,
       "arena": 2,
-      "arena_name": "Optimisation Sauvage",
-      "title": "Le Starfield à 12 fps",
-      "description": "Un champ d'étoiles en parallaxe sur **3 couches** de vitesse. Chaque couche déplace ses étoiles à une vitesse différente pour donner l'illusion de profondeur.\n\nLe rendu est correct... mais il tourne à environ **12 fps** au lieu des 50 Hz visés.\n\n**Profil du problème** :\n- La boucle de mise à jour recalcule chaque multiplication par la vitesse via des additions répétées (boucle interne)\n- Des `LDA`/`STA` redondants en zero page rechargent la même valeur plusieurs fois de suite\n- `CPX` suivi de `BNE` au lieu de `DEX`/`BNE` dans les boucles à décompte\n\n**Ta mission** : optimiser le code pour passer sous **5 000 cycles par frame** (mesuré par l'émulateur). La logique et le résultat visuel ne doivent pas changer.\n\n> L'émulateur affiche le compteur de cycles après chaque BRK.",
-      "template": "; ── STARFIELD 3 couches ── parallaxe Chuck-8\n; 8 étoiles par couche = 24 étoiles total\n; Couche 0 : vitesse 1 (lointaine), Couche 1 : vitesse 2, Couche 2 : vitesse 3\n\nVPU_CTRL      = $D000\nSYS_CLEAR     = $F000\nSYS_DRAW_PIXEL= $F003\nSYS_WAIT_VBLANK= $F057\n\nCOLOR_DKGRAY  = 11\nCOLOR_MDGRAY  = 12\nCOLOR_WHITE   = 1\n\n; ── Données étoiles en mémoire ────────────────────\n; Format : STAR_X (8 oct) puis STAR_Y (8 oct) par couche\n; Couche 0 ($0300-$030F), Couche 1 ($0310-$031F), Couche 2 ($0320-$032F)\n  .org $0600\nSTART:\n  LDA #%10000001 : STA VPU_CTRL\n\n  ; Init étoiles couche 0 (lointaine)\n  LDA #10  : STA $0300\n  LDA #5   : STA $0308\n  LDA #25  : STA $0301\n  LDA #40  : STA $0309\n  LDA #45  : STA $0302\n  LDA #90  : STA $030A\n  LDA #60  : STA $0303\n  LDA #15  : STA $030B\n  LDA #80  : STA $0304\n  LDA #55  : STA $030C\n  LDA #100 : STA $0305\n  LDA #70  : STA $030D\n  LDA #115 : STA $0306\n  LDA #30  : STA $030E\n  LDA #5   : STA $0307\n  LDA #110 : STA $030F\n\n  ; Init étoiles couche 1 (milieu)\n  LDA #20  : STA $0310\n  LDA #8   : STA $0318\n  LDA #50  : STA $0311\n  LDA #35  : STA $0319\n  LDA #75  : STA $0312\n  LDA #80  : STA $031A\n  LDA #95  : STA $0313\n  LDA #50  : STA $031B\n  LDA #15  : STA $0314\n  LDA #20  : STA $031C\n  LDA #110 : STA $0315\n  LDA #65  : STA $031D\n  LDA #35  : STA $0316\n  LDA #100 : STA $031E\n  LDA #60  : STA $0317\n  LDA #45  : STA $031F\n\n  ; Init étoiles couche 2 (proche)\n  LDA #5   : STA $0320\n  LDA #12  : STA $0328\n  LDA #30  : STA $0321\n  LDA #55  : STA $0329\n  LDA #55  : STA $0322\n  LDA #95  : STA $032A\n  LDA #70  : STA $0323\n  LDA #25  : STA $032B\n  LDA #90  : STA $0324\n  LDA #75  : STA $032C\n  LDA #105 : STA $0325\n  LDA #10  : STA $032D\n  LDA #120 : STA $0326\n  LDA #45  : STA $032E\n  LDA #40  : STA $0327\n  LDA #115 : STA $032F\n\nMAIN_LOOP:\n  JSR SYS_WAIT_VBLANK\n  JSR SYS_CLEAR\n\n  ; ── Mise à jour couche 0 (vitesse 1) ─────────────\n  ; INEFFICACE : multiplication par 1 via boucle d'addition\n  LDX #0\n@upd0:\n  CPX #8 : BEQ @upd0_done    ; << BEQ sur CPX → coûteux\n  LDA $0300,X\n  ; Avancer de 1 pixel (wraparound 128)\n  CLC : ADC #1\n  AND #$7F\n  STA $0300,X\n  LDA $0300,X   ; << recharge inutilement ce qu'on vient de stocker\n  INX\n  JMP @upd0\n@upd0_done:\n\n  ; ── Mise à jour couche 1 (vitesse 2) ─────────────\n  LDX #0\n@upd1:\n  CPX #8 : BEQ @upd1_done\n  LDA $0310,X\n  ; Avancer de 2 pixels via 2 additions séparées (au lieu de ADC #2)\n  CLC : ADC #1 : AND #$7F\n  CLC : ADC #1 : AND #$7F    ; << deux opérations au lieu d'une\n  STA $0310,X\n  LDA $0310,X   ; << rechargement inutile\n  INX\n  JMP @upd1\n@upd1_done:\n\n  ; ── Mise à jour couche 2 (vitesse 3) ─────────────\n  LDX #0\n@upd2:\n  CPX #8 : BEQ @upd2_done\n  LDA $0320,X\n  ; Avancer de 3 pixels via 3 additions\n  CLC : ADC #1 : AND #$7F\n  CLC : ADC #1 : AND #$7F\n  CLC : ADC #1 : AND #$7F    ; << trois opérations au lieu d'une\n  STA $0320,X\n  LDA $0320,X   ; << rechargement inutile\n  INX\n  JMP @upd2\n@upd2_done:\n\n  ; ── Dessin couche 0 (gris foncé) ─────────────────\n  LDX #0\n@draw0:\n  CPX #8 : BEQ @draw0_done   ; << CPX/BEQ au lieu de DEX/BNE\n  LDA #COLOR_DKGRAY\n  LDA $0300,X   ; X étoile\n  TAX           ; << écrase X (l'index !!) → BUG LATENT déjà présent\n  LDA $0308,X   ; << utilise la mauvaise valeur comme index Y !\n  ; Note : ce bug graphique existe déjà, ne pas le corriger (hors scope)\n  ; Se concentrer sur les performances\n  JSR SYS_DRAW_PIXEL\n  INX\n  JMP @draw0\n@draw0_done:\n\n  ; ── Dessin couche 1 (gris moyen) ─────────────────\n  LDX #0\n@draw1:\n  CPX #8 : BEQ @draw1_done\n  LDA $0310,X\n  TAX\n  LDA $0318,X\n  TAY\n  LDA #COLOR_MDGRAY\n  JSR SYS_DRAW_PIXEL\n  INX\n  JMP @draw1\n@draw1_done:\n\n  ; ── Dessin couche 2 (blanc) ───────────────────────\n  LDX #0\n@draw2:\n  CPX #8 : BEQ @draw2_done\n  LDA $0320,X\n  TAX\n  LDA $0328,X\n  TAY\n  LDA #COLOR_WHITE\n  JSR SYS_DRAW_PIXEL\n  INX\n  JMP @draw2\n@draw2_done:\n\n  BRK   ; Stopper ici pour mesurer les cycles",
+      "arena_name": "Vers Pong",
+      "locked": true,
+      "title": "Dessine un pixel à l'écran",
+      "description": "## Objectif\n\nL'écran est déjà effacé en noir. Dessine un **pixel blanc** (couleur `1`) exactement au centre de l'écran, en `(64, 64)`.\n\n> `SYS_DRAW_PIXEL` attend la couleur dans `A`, la position `x` dans `X` et `y` dans `Y`. C'est exactement comme ça que tu dessineras la balle de Pong.",
+      "template": "; ── Défi 4 — Dessine un pixel à l'écran ────────────────────\n; Objectif : un pixel blanc (couleur 1) au centre de l'écran (64,64)\n\nVPU_CTRL       = $D000\nSYS_SET_MODE   = $F01B\nSYS_CLEAR      = $F000\nSYS_DRAW_PIXEL = $F003\n\n  .org $E000\n\nSTART:\n  LDA #1\n  JSR SYS_SET_MODE\n\n  LDA #0\n  JSR SYS_CLEAR        ; écran noir\n\n  ; TODO : dessine un pixel blanc (couleur 1) en (x=64, y=64)\n  ; A = couleur, X = x, Y = y, puis JSR SYS_DRAW_PIXEL\n\n  BRK\n",
       "assertions": [
-        {
-          "type": "register",
-          "register": "A",
-          "value": 0,
-          "failMsg": "Le programme doit atteindre BRK"
-        }
+        { "type": "memory", "address": 20512, "value": 16, "failMsg": "Le pixel (64,64) n'est pas blanc — vérifie A=couleur, X=x, Y=y avant JSR SYS_DRAW_PIXEL." }
       ],
-      "maxCycles": 5000,
+      "maxCycles": 200000,
       "hints": [
-        {
-          "text": "Optimisation 1 : Remplace `CPX #8 : BEQ @done` par une boucle à décompte : charge X=#8 avant la boucle, puis `DEX : BNE @loop` à la fin. Économie : 2 cycles par itération × 8 étoiles × 3 couches = 48 cycles.",
-          "cost": 5
-        },
-        {
-          "text": "Optimisation 2 : Supprime les `LDA $03XX,X` après chaque `STA $03XX,X`. La valeur est déjà dans A — pas besoin de la relire.",
-          "cost": 5
-        },
-        {
-          "text": "Optimisation 3 : Dans couche 1, remplace les deux `CLC:ADC #1:AND #$7F` par un seul `CLC:ADC #2:AND #$7F`. Idem couche 2 avec `ADC #3`.",
-          "cost": 5
-        }
+        { "text": "L'ordre des registres compte : LDA #1 (couleur), LDX #64, LDY #64, puis JSR SYS_DRAW_PIXEL." },
+        { "text": "SYS_DRAW_PIXEL gère le nibble-packing pour toi — pas besoin de calculer l'adresse mémoire toi-même." }
       ],
-      "meta": {
-        "concepts": [
-          "Optimisation boucle 6502",
-          "DEX/BNE vs CPX/BEQ",
-          "Élimination de rechargements",
-          "Cycles CPU"
-        ],
-        "estimatedMinutes": 20
-      }
+      "meta": { "concepts": ["SYS_DRAW_PIXEL", "nibble-packing", "framebuffer"], "estimatedMinutes": 7 }
     },
     {
       "id": 5,
       "arena": 2,
-      "arena_name": "Optimisation Sauvage",
-      "title": "Le Moteur de Tiles hors budget",
-      "description": "Un renderer de tilemap affiche une carte 16×16 tiles (chaque tile = 8×8 pixels) sur l'écran 128×128.\n\nLe rendu est visuellement correct, mais il **dépasse systématiquement le budget VBlank PAL** (20 000 cycles par frame).\n\n**Problème identifié** : à chaque tile, le code recalcule l'adresse destination dans le framebuffer en faisant une multiplication complète (boucle d'addition). Cette multiplication coûte ~200 cycles par tile × 256 tiles = **51 200 cycles** rien que pour les adresses.\n\n**Ta mission** : refactorer le calcul d'adresse pour utiliser une **accumulation incrémentale** — maintenir un pointeur courant et l'avancer plutôt que de tout recalculer. Passer sous **18 000 cycles** pour une frame complète.\n\n> La formule actuelle : `dst = $4000 + (tile_y * 8 * 128) + (tile_x * 8)` est recalculée 256 fois.",
-      "template": "; ── TILEMAP RENDERER Chuck-8 ── 16×16 tiles de 8×8px\n; Chaque tile est une couleur unie (simplifié)\n; Tilemap : $0400 (256 octets, un octet = couleur du tile)\n; Destination : Framebuffer A $4000\n\nVPU_CTRL      = $D000\nSYS_WAIT_VBLANK= $F057\n\nFB_BASE_LO    = $F0    ; pointeur framebuffer (ZP)\nFB_BASE_HI    = $F1\nROW_PTR_LO    = $F2    ; pointeur début de ligne courante\nROW_PTR_HI    = $F3\nDST_LO        = $F4    ; adresse destination pixel courant\nDST_HI        = $F5\n\nTILE_X        = $10\nTILE_Y        = $11\nTILE_COLOR    = $12\nPIX_ROW       = $13   ; ligne pixel dans le tile (0-7)\nPIX_COL       = $14   ; colonne pixel dans le tile (0-7)\nTEMP          = $15\nMUL_ACC       = $16   ; accumulateur pour multiplication\nMUL_CNT       = $17   ; compteur boucle multiplication\n\n  .org $0600\nSTART:\n  LDA #%10000001 : STA VPU_CTRL\n\n  ; Init tilemap couleurs ($0400) — pattern damier\n  LDX #0\n@init_map:\n  TXA : AND #$11       ; bit0 XOR bit4 → damier\n  BEQ @color_a\n  LDA #5 : JMP @store  ; vert\n@color_a:\n  LDA #6               ; bleu\n@store:\n  STA $0400,X\n  INX : BNE @init_map\n\nMAIN_LOOP:\n  JSR SYS_WAIT_VBLANK\n\n  ; ── Rendu tilemap ─────────────────────────────────\n  LDA #0 : STA TILE_Y\n@loop_ty:\n  LDA #0 : STA TILE_X\n@loop_tx:\n  ; ── Calcul adresse tile dans framebuffer ──────────\n  ; dst = $4000 + TILE_Y*8*128 + TILE_X*8\n  ; = $4000 + TILE_Y*1024 + TILE_X*8\n  ; MÉTHODE ACTUELLE : multiplication par additions répétées\n  ; COÛT : O(TILE_Y * 8) additions → très lent\n\n  ; Calculer TILE_Y * 1024 (= TILE_Y * 4 * 256)\n  LDA TILE_Y\n  STA MUL_ACC : LDA #0 : STA MUL_CNT\n  LDX MUL_ACC      ; multiplier par 4 (shift gauche 2)\n  LDA #0\n@mul_y:\n  CPX #0 : BEQ @mul_y_done\n  CLC : ADC MUL_ACC\n  DEX : JMP @mul_y\n@mul_y_done:\n  ; A = TILE_Y * TILE_Y (BUG : c'est faux de toute façon — c'est juste lent)\n  ; Code volontairement maladroit pour illustrer le problème de perf\n  ; En réalité on veut TILE_Y * 1024 = (TILE_Y << 10)\n  ; Le vrai calcul rapide : TILE_Y * 4 → stocker en HI, * 256 implicite\n  LDA TILE_Y : ASL : ASL   ; TILE_Y * 4 → bits 1-0 en A\n  STA DST_HI               ; HI = TILE_Y*4 (les 8 bits = *256 implicite)\n  LDA #0 : STA DST_LO\n  ; Ajouter $4000\n  LDA DST_HI : CLC : ADC #$40 : STA DST_HI\n  ; Ajouter TILE_X * 8\n  LDA TILE_X : ASL : ASL : ASL   ; TILE_X * 8\n  CLC : ADC DST_LO : STA DST_LO\n  BCC @addr_ok\n  INC DST_HI\n@addr_ok:\n\n  ; Lire couleur du tile\n  LDA TILE_Y : ASL : ASL : ASL : ASL   ; TILE_Y * 16\n  CLC : ADC TILE_X\n  TAX\n  LDA $0400,X : STA TILE_COLOR\n\n  ; ── Dessiner les 8 lignes du tile ────────────────\n  ; Chaque ligne = 8 pixels (nibble-packed = 4 octets)\n  ; SIMPLIFIÉ : on écrit juste 1 octet par ligne pour tester les cycles\n  ; En vrai il faudrait écrire 4 octets (8 pixels nibble-packed)\n  LDA #0 : STA PIX_ROW\n@draw_rows:\n  LDA PIX_ROW : CMP #8 : BCS @tile_done\n\n  ; Calculer adresse ligne courante = DST + PIX_ROW * 64\n  ; (128 pixels / 2 nibbles = 64 octets par ligne)\n  LDA PIX_ROW\n  ; ENCORE une multiplication lente\n  LDX PIX_ROW : LDA #0\n@mul_row:\n  CPX #0 : BEQ @mul_row_done\n  CLC : ADC #64\n  DEX : JMP @mul_row\n@mul_row_done:\n  ; A = PIX_ROW * 64\n  CLC : ADC DST_LO : STA TEMP\n  LDA #0 : BCC @no_carry_row\n  LDA #1\n@no_carry_row:\n  CLC : ADC DST_HI   ; HI de la ligne\n\n  ; Écrire 4 octets (couleur tile en nibble pair/impair)\n  LDA TILE_COLOR : ASL : ASL : ASL : ASL\n  ORA TILE_COLOR\n  ; Adresse en (TEMP, A-above) → trop complexe, simplifié :\n  ; pour le test on écrit juste à DST_LO/DST_HI\n  LDX TEMP : STX $F8\n  TAX : STX $F9\n  LDA TILE_COLOR : ORA TILE_COLOR\n  LDY #0\n  STA ($F8),Y\n\n  INC PIX_ROW\n  JMP @draw_rows\n@tile_done:\n\n  INC TILE_X\n  LDA TILE_X : CMP #16 : BCC @loop_tx\n  INC TILE_Y\n  LDA TILE_Y : CMP #16 : BCC @loop_ty\n\n  BRK",
+      "arena_name": "Vers Pong",
+      "locked": true,
+      "title": "Stocke et incrémente un score",
+      "description": "## Objectif\n\nInitialise une variable `SCORE` à `0` en mémoire, puis simule **3 points marqués** : incrémente `SCORE` trois fois sans jamais recharger `A`.\n\n> C'est exactement le mécanisme que tu utiliseras pour le score de Pong : une variable en mémoire, incrémentée directement à chaque point.",
+      "template": "; ── Défi 5 — Stocke et incrémente un score ─────────────────\n; Objectif : SCORE doit valoir 3 après 3 points marqués\n\nSCORE = $20\n\n  .org $E000\n\nSTART:\n  LDA #0\n  STA SCORE\n\n  ; TODO : simule 3 points marqués — incrémente SCORE trois fois\n  ; (indice : une seule instruction suffit, répétée 3 fois)\n\n  BRK\n",
       "assertions": [
-        {
-          "type": "register",
-          "register": "A",
-          "value": 0,
-          "failMsg": "Le programme doit atteindre BRK"
-        }
+        { "type": "memory", "address": 32, "value": 3, "failMsg": "SCORE devrait valoir 3 — incrémente-le directement en mémoire." }
       ],
-      "maxCycles": 18000,
+      "maxCycles": 10000,
       "hints": [
-        {
-          "text": "Clé de l'optimisation : maintenir `DST_LO/DST_HI` comme un pointeur courant. Initialise-le à $4000 avant les boucles. À chaque tile, avance-le de 8 (une colonne). À chaque nouvelle ligne de tiles, avance-le de 8*128 = 1024 (une rangée de tiles).",
-          "cost": 8
-        },
-        {
-          "text": "Pour la boucle interne (lignes du tile), même principe : garde un `LINE_PTR` que tu avances de 64 (une ligne de pixels = 64 octets en nibble-packed) à chaque ligne, au lieu de recalculer `PIX_ROW * 64`.",
-          "cost": 5
-        },
-        {
-          "text": "Structure optimale : deux additions par tile (au lieu d'une multiplication). `INC DST_LO : INC DST_LO ... (×8)` ou mieux `LDA DST_LO : CLC : ADC #8 : STA DST_LO : BCC @ok : INC DST_HI`.",
-          "cost": 5
-        }
+        { "text": "INC SCORE augmente la valeur en mémoire de 1, directement, sans passer par A." },
+        { "text": "Pas besoin de boucle ici : répète simplement INC SCORE trois fois." }
       ],
-      "meta": {
-        "concepts": [
-          "Pointeur incrémental",
-          "Multiplication vs addition",
-          "Budget cycles PAL/NTSC",
-          "Framebuffer nibble-packed"
-        ],
-        "estimatedMinutes": 35
-      }
+      "meta": { "concepts": ["INC", "mémoire", "score"], "estimatedMinutes": 5 }
     },
     {
       "id": 6,
       "arena": 2,
-      "arena_name": "Optimisation Sauvage",
-      "title": "Le Player de Musique qui saute",
-      "description": "Un player de musique procédurale joue une mélodie en boucle sur la **voix 0 SPU** (onde carrée). La séquence de notes est stockée en ROM.\n\n**Problème** : des notes **sautent** ou **durent deux fois trop longtemps** de façon irrégulière.\n\nCause : la routine `UPDATE_MUSIC` est appelée depuis la boucle principale **sans synchronisation VBlank**. Si une frame prend plus ou moins de temps, la routine est appelée 0, 1 ou 2 fois par frame — les durées de notes sont instables.\n\n**Ta mission** : restructurer la boucle principale pour appeler `UPDATE_MUSIC` **exactement une fois par VBlank**, en utilisant `SYS_WAIT_VBLANK` ou le flag `VPU_STATUS bit7`.\n\nUne fois corrigé, `NOTE_TIMER` doit décrémenter exactement 1 fois par frame, et `$0200` doit contenir `$01` après la première frame traitée.",
-      "template": "; ── MUSIC PLAYER Chuck-8 ── mélodie procédurale SPU\n; Voix 0 : onde carrée, mélodie 8 notes en boucle\n; Durée notes en frames (50 Hz PAL)\n\nVPU_CTRL      = $D000\nVPU_STATUS    = $D004\nSYS_WAIT_VBLANK= $F057\n\nSPU_V0_FREQ_LO= $D100\nSPU_V0_FREQ_HI= $D101\nSPU_V0_VOL    = $D102\nSPU_V0_CTRL   = $D107\nSPU_MASTER_VOL= $D118\n\n; Variables\nNOTE_IDX      = $10   ; index note courante (0-7)\nNOTE_TIMER    = $11   ; frames restantes sur cette note\nFRAME_DONE    = $12   ; flag : $01 si UPDATE_MUSIC a tourné cette frame\nTEMP          = $13\n\n; Séquence de notes : paires (FREQ_LO, FREQ_HI, DUREE_FRAMES)\n; Do4=478Hz, Re4=426Hz, Mi4=379Hz, Fa4=358Hz\n; Sol4=319Hz, La4=284Hz, Si4=253Hz, Do5=239Hz\n  .org $0700\nNOTE_TABLE:\n  ; Do4    Re4    Mi4    Fa4\n  .byte $EE,$01, $AA,$01, $7B,$01, $66,$01\n  ; Sol4   La4    Si4    Do5\n  .byte $3F,$01, $1C,$01, $FD,$00, $EF,$00\nNOTE_DUR_TABLE:      ; durée en frames pour chaque note\n  .byte 10, 10, 20, 10, 10, 20, 10, 30\n\n  .org $0600\nSTART:\n  LDA #%10000001 : STA VPU_CTRL\n\n  ; Init SPU voix 0\n  LDA #12 : STA SPU_MASTER_VOL\n  LDA #$EE : STA SPU_V0_FREQ_LO\n  LDA #$01 : STA SPU_V0_FREQ_HI\n  LDA #$FF : STA SPU_V0_VOL\n  LDA #$81 : STA SPU_V0_CTRL    ; gate=1, onde carrée\n\n  LDA #0 : STA NOTE_IDX\n  ; Charger durée première note\n  LDX NOTE_IDX\n  LDA NOTE_DUR_TABLE,X\n  STA NOTE_TIMER\n  LDA #0 : STA FRAME_DONE\n\n; ── Boucle principale ─────────────────────────────────\n; BUG : UPDATE_MUSIC est appelée directement dans la boucle\n; sans attendre VBlank → timing instable\nMAIN_LOOP:\n  ; Travail CPU fictif (simule des calculs variables)\n  LDX #0\n@busy_work:\n  INX : CPX #50 : BNE @busy_work\n\n  ; BUG : on appelle UPDATE_MUSIC sans synchroniser sur VBlank\n  ; Si le travail CPU varie, on peut appeler 0 ou 2 fois par frame\n  JSR UPDATE_MUSIC\n\n  JMP MAIN_LOOP\n\n; ── Mise à jour musique ────────────────────────────────\nUPDATE_MUSIC:\n  ; Marquer qu'on a tourné\n  LDA #$01 : STA $0200\n  LDA #$01 : STA FRAME_DONE\n\n  ; Décrémenter timer\n  LDA NOTE_TIMER : BEQ @next_note\n  DEC NOTE_TIMER\n  RTS\n\n@next_note:\n  ; Passer à la note suivante\n  LDA NOTE_IDX : CLC : ADC #1\n  AND #$07        ; modulo 8\n  STA NOTE_IDX\n\n  ; Charger fréquence\n  LDA NOTE_IDX : ASL : TAX\n  LDA NOTE_TABLE,X     : STA SPU_V0_FREQ_LO\n  LDA NOTE_TABLE+1,X   : STA SPU_V0_FREQ_HI\n\n  ; Charger durée\n  LDX NOTE_IDX\n  LDA NOTE_DUR_TABLE,X : STA NOTE_TIMER\n\n  ; Re-gate la note (retrigger enveloppe)\n  LDA #$00 : STA SPU_V0_CTRL   ; gate off\n  LDA #$81 : STA SPU_V0_CTRL   ; gate on\n\n  RTS",
+      "arena_name": "Vers Pong",
+      "locked": true,
+      "title": "Lis le clavier et déplace une raquette",
+      "description": "## Objectif\n\nUne variable `PAD_Y` représente la position d'une raquette, initialisée à `58`. Une touche est déjà « pressée » dans `KEY_ASCII` pour rendre ce défi testable. Si la touche est `'s'`, la raquette doit **descendre** : incrémente `PAD_Y`.\n\n> Dans le vrai Pong, `KEY_ASCII` sera mis à jour par le joueur à chaque frame — ici, on simule une touche pour que la validation soit fiable.",
+      "template": "; ── Défi 6 — Lis le clavier et déplace une raquette ────────\n; Objectif : si KEY_ASCII = 's', PAD_Y doit augmenter de 1\n\nKEY_ASCII = $D200\nPAD_Y     = $20\n\n  .org $E000\n\nSTART:\n  LDA #58\n  STA PAD_Y\n\n  LDA #'s'\n  STA KEY_ASCII        ; simule l'appui sur 's' (descendre)\n\n  LDA KEY_ASCII\n  CMP #'w'\n  BEQ MOVE_UP\n  CMP #'s'\n  BEQ MOVE_DOWN\n  JMP DONE\n\nMOVE_UP:\n  DEC PAD_Y\n  JMP DONE\n\nMOVE_DOWN:\n  ; TODO : la raquette descend — incrémente PAD_Y\n\nDONE:\n  BRK\n",
       "assertions": [
-        {
-          "type": "memory",
-          "address": 512,
-          "value": 1,
-          "failMsg": "$0200 doit valoir $01 après la première frame — UPDATE_MUSIC n'a pas été appelée"
-        },
-        {
-          "type": "memory",
-          "address": 17,
-          "value": 9,
-          "failMsg": "NOTE_TIMER doit être 9 après la première frame (10 - 1 = 9), pas plus bas"
-        }
+        { "type": "memory", "address": 32, "value": 59, "failMsg": "PAD_Y devrait valoir 59 (58+1) — la raquette doit descendre quand 's' est pressé." }
       ],
-      "maxCycles": 100000,
+      "maxCycles": 20000,
       "hints": [
-        {
-          "text": "La correction principale : déplace `JSR SYS_WAIT_VBLANK` AVANT `JSR UPDATE_MUSIC` dans la boucle principale. Ainsi UPDATE_MUSIC tourne exactement une fois par frame, synchronisée sur le signal vidéo.",
-          "cost": 5
-        },
-        {
-          "text": "Variante plus robuste : utilise `VPU_STATUS bit7` (vblank en cours) pour détecter le front montant du VBlank et n'appeler UPDATE_MUSIC qu'une seule fois par front.",
-          "cost": 8
-        }
+        { "text": "INC PAD_Y dans le bloc MOVE_DOWN suffit." },
+        { "text": "C'est le même pattern que pour le score : modifier une variable mémoire directement, sans passer par A." }
       ],
-      "meta": {
-        "concepts": [
-          "Synchronisation VBlank",
-          "SPU gate/retrigger",
-          "Timing audio 50Hz",
-          "Boucle principale temps réel"
-        ],
-        "estimatedMinutes": 20
-      }
+      "meta": { "concepts": ["clavier", "KEY_ASCII", "INC", "branchement"], "estimatedMinutes": 7 }
     }
   ]
 }
