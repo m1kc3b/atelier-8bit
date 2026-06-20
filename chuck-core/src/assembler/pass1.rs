@@ -105,12 +105,64 @@ pub fn build_symbol_table(stmts: &[Statement]) -> Result<SymbolTable, AssembleEr
             }
 
             StmtKind::Instruction(instr) => {
-                pc += estimate_size(&instr.mode);
+                pc += instr_size(&instr.mnem, &instr.mode, &symbols);
             }
         }
     }
 
     Ok(SymbolTable { symbols, org })
+}
+
+/// Mnémoniques de branchement relatif (toujours 2 octets : opcode + offset).
+const BRANCH_MNEMS: &[&str] =
+    &["BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS"];
+
+/// Taille d'une instruction en passe 1, en tenant compte des symboles déjà
+/// connus (constantes `=` et labels précédents). Corrige deux écueils :
+///   • les branchements sont relatifs → toujours 2 octets, jamais 3 ;
+///   • un opérande `Abs(Label)` dont le symbole est déjà résolu à ≤ $FF
+///     est en réalité du zero page → 2 octets, pas 3.
+pub fn instr_size(
+    mnem: &str,
+    mode: &ParsedMode,
+    symbols: &HashMap<String, u16>,
+) -> u16 {
+    if BRANCH_MNEMS.contains(&mnem.to_uppercase().as_str()) {
+        return 2;
+    }
+    estimate_size_with(mode, symbols)
+}
+
+/// Comme `estimate_size`, mais résout les labels/constantes connus pour
+/// choisir entre zero page (2 octets) et absolu (3 octets).
+fn estimate_size_with(mode: &ParsedMode, symbols: &HashMap<String, u16>) -> u16 {
+    let effective = match mode {
+        ParsedMode::Abs(Expr::Label(name)) if name.eq_ignore_ascii_case("A") => {
+            return 1;
+        }
+        other => other,
+    };
+    match effective {
+        ParsedMode::Imp     => 1,
+        ParsedMode::Imm(_)  => 2,
+        ParsedMode::Abs(e)  => if is_zp_known(e, symbols) { 2 } else { 3 },
+        ParsedMode::AbsX(e) => if is_zp_known(e, symbols) { 2 } else { 3 },
+        ParsedMode::AbsY(e) => if is_zp_known(e, symbols) { 2 } else { 3 },
+        ParsedMode::Ind(_)  => 3,
+        ParsedMode::IndX(_) => 2,
+        ParsedMode::IndY(_) => 2,
+    }
+}
+
+/// Zero page si l'opérande est un nombre ≤ $FF, ou un symbole DÉJÀ connu
+/// dont la valeur est ≤ $FF. Un symbole non encore résolu (forward) est
+/// supposé absolu (3 octets) — choix conservateur identique à l'origine.
+fn is_zp_known(expr: &Expr, symbols: &HashMap<String, u16>) -> bool {
+    match expr {
+        Expr::Num(n)      => *n <= 0x00FF,
+        Expr::Label(name) => symbols.get(name).map_or(false, |&v| v <= 0x00FF),
+        _                 => false,
+    }
 }
 
 /// Estime la taille d'une instruction selon son mode d'adressage parsé.
