@@ -12,13 +12,14 @@ import "./components/chuck-editor.js";
 import "./components/chuck-display.js";
 import "./components/chuck-registers.js";
 // import "./components/chuck-memory-dump.js";
-import "./components/chuck-challenge-panel.js";
+import "./components/chuck-side-panel.js";
 import "./components/chuck-help-modal.js";
 import "./components/chuck-learn-modal.js";
 import "./components/chuck-auth-gate.js";
 import "./components/chuck-account-modal.js";
 import "./components/chuck-welcome-modal.js";
 import "./components/chuck-onboarding-tour.js";
+import { setView, getViewFromUrl, initRouter } from "./core/router.js";
 
 import { authService } from "./core/auth/auth-service.js";
 
@@ -41,9 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const memoryEl = document.getElementById("modal-memory") as
     | (HTMLElement & { toggle(): void })
     | null;
-  const challengeAside = document.getElementById(
-    "challenge-aside",
-  ) as HTMLElement | null;
+  const sidePanel = document.getElementById("side-panel") as HTMLElement | null;
 
   document
     .getElementById("btn-show-display")
@@ -61,14 +60,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     help?.toggle();
   });
 
-  function openChallengeAside(): void {
-    challengeAside?.classList.add("panel-open");
+  function openSidePanel(): void {
+    sidePanel?.classList.add("panel-open");
   }
-  function closeChallengeAside(): void {
-    challengeAside?.classList.remove("panel-open");
+  function closeSidePanel(): void {
+    sidePanel?.classList.remove("panel-open");
   }
 
   const titlebarFile = document.getElementById("titlebar-file")!;
+
+  // ── Navigation 3 sections (Atelier / Challenges / Pong) ───
+  const viewWorkspace  = document.getElementById("workspace") as HTMLElement | null;
+  const viewChallenges = document.getElementById("view-challenges") as HTMLElement | null;
+  const viewPong       = document.getElementById("view-pong") as HTMLElement | null;
+  const navButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("#main-nav .nav-btn"),
+  );
+
+  function applyView(view: "atelier" | "challenges" | "pong"): void {
+    viewWorkspace?.classList.toggle("view-hidden", view !== "atelier");
+    viewChallenges?.classList.toggle("view-hidden", view !== "challenges");
+    viewPong?.classList.toggle("view-hidden", view !== "pong");
+    navButtons.forEach((btn) =>
+      btn.classList.toggle("active", btn.dataset.view === view),
+    );
+  }
+
+  navButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setView(btn.dataset.view as "atelier" | "challenges" | "pong");
+    });
+  });
+
+  bus.on("chuck:view-changed", ({ view }) => applyView(view));
+  initRouter();
+
+  // Lien profond (?challenge= / ?lesson=) → forcer l'affichage Atelier
+  const deepLinkParams = new URLSearchParams(window.location.search);
+  if (deepLinkParams.has("challenge") || deepLinkParams.has("lesson")) {
+    applyView("atelier");
+  }
 
   // ── Email gate — défis verrouillés (4+) ─────────────────────
   const gateEl = document.getElementById("modal-auth-gate") as
@@ -104,7 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const label = `Défi ${challenge.id} — ${challenge.title}`;
     titlebarFile.textContent = label;
     document.title = `${label} — Chuck IDE`;
-    openChallengeAside();
+    openSidePanel();
   });
 
   bus.on("chuck:require-auth" as any, () => {
@@ -116,14 +147,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     ({ item }: { item: { id: number; title: string } }) => {
       titlebarFile.textContent = item.title;
       document.title = `${item.title} — Chuck IDE`;
-      openChallengeAside();
+      openSidePanel();
     },
   );
 
   (bus as any).on("chuck:ide-free", () => {
     titlebarFile.textContent = "mode libre";
     document.title = "Chuck IDE — Chuck-8 Computer";
-    closeChallengeAside();
+    closeSidePanel();
   });
 
   // ── ChallengeManager ─────────────────────────────────────

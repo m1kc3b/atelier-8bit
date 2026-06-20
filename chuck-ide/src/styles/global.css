@@ -162,3 +162,29 @@ chuck-challenge-panel.panel-open {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
+
+/* ── Navigation 3 sections (funnel) ──────────────────────── */
+.main-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 14px;
+}
+.main-nav .nav-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.main-nav .nav-btn:hover { background: var(--surface-3); color: var(--text); }
+.main-nav .nav-btn.active { background: var(--accent-dim); color: var(--accent); }
+
+/* ── Bascule des 3 vues ───────────────────────────────────── */
+.view-hidden { display: none !important; }
+#view-challenges, #view-pong { flex: 1; min-height: 0; }

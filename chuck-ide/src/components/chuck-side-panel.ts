@@ -137,7 +137,7 @@ const STYLES = /* css */ `
   .nav-btn.success { animation:pulse-success 0.5s ease-out; }
 `;
 
-export class ChuckChallengePanel extends ChuckComponent {
+export class ChuckSidePanel extends ChuckComponent {
   private _item: ContentItem | null = null;
   private _totalCount = 30;
   private _hintStates: boolean[] = [];
@@ -230,6 +230,7 @@ export class ChuckChallengePanel extends ChuckComponent {
       lesson: "📖 Leçon",
       tip: "💡 Conseil",
       reference: "🔗 Référence",
+      "pong-step": "🏓 Pong",
     };
 
     const metaItems: string[] = [];
@@ -660,7 +661,7 @@ export class ChuckChallengePanel extends ChuckComponent {
   }
 }
 
-customElements.define("chuck-challenge-panel", ChuckChallengePanel);
+customElements.define("chuck-side-panel", ChuckSidePanel);
 
 function challengeToContentItem(c: any): ContentItem {
   const blocks: import("../types/content.js").ContentBlock[] = [];

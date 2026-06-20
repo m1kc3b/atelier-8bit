@@ -6,9 +6,11 @@ import { bus } from "./bus.js";
 import type { Emulator } from "./emulator.js";
 import {
   type Challenge,
+  type ChallengesFile,
   type ValidationResult,
   type AssertionFailure,
   type Assertion,
+  type ChallengeListItem,
 } from "../types/challenge.js";
 import type {
   ContentItem,
@@ -17,7 +19,7 @@ import type {
 } from "../types/content.js";
 import { storage } from "./storage/storage-service.js";
 import type { ChallengeProgress, Medal } from "./storage/types.js";
-import { challengesService } from './challenges/challenges-service.js';
+import { challengesService } from "./challenges/challenges-service.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -78,31 +80,32 @@ export class ChallengeManager {
   // ── Chargement ────────────────────────────────────────────
 
   private async _loadChallenges(): Promise<void> {
-  try {
-    const list = await challengesService.getAll();
-    for (const c of list) this._challenges.set(c.id, c);
-  } catch (e) {
-    bus.emit("chuck:log", {
-      text: `Chargement des défis : ${(e as Error).message}`,
-      level: "err",
-    });
+    try {
+      const list = await challengesService.getAll();
+      for (const c of list) this._challenges.set(c.id, c);
+    } catch (e) {
+      bus.emit("chuck:log", {
+        text: `Chargement des défis : ${(e as Error).message}`,
+        level: "err",
+      });
+    }
   }
-}
 
   private async _loadContent(): Promise<void> {
-  try {
-    const list = await challengesService.getAll();
-    for (const c of list) this._challenges.set(c.id, c);
-    bus.emit("chuck:challenges-count" as any, {
-      count: list.length,
-    });
-  } catch (e) {
-    bus.emit("chuck:log", {
-      text: `Chargement des défis : ${(e as Error).message}`,
-      level: "err",
-    });
+    try {
+      const list = await challengesService.getAll();
+      for (const c of list) this._challenges.set(c.id, c);
+      bus.emit("chuck:challenges-count" as any, {
+        count: list.length,
+      });
+      this._emitChallengesList();
+    } catch (e) {
+      bus.emit("chuck:log", {
+        text: `Chargement des défis : ${(e as Error).message}`,
+        level: "err",
+      });
+    }
   }
-}
 
   // ── Navigation ────────────────────────────────────────────
 
@@ -175,6 +178,7 @@ export class ChallengeManager {
       fromStorage: saved !== null,
       medal: medal ?? undefined,
     });
+    this._emitChallengesList();
   }
 
   private _loadContentItem(item: ContentItem): void {
@@ -197,9 +201,34 @@ export class ChallengeManager {
   }
 
   /** Dernier défi accessible */
+  /** Dernier défi accessible */
   isAccessible(id: number): boolean {
     if (id <= 1) return true;
     return storage.isCompleted(id - 1);
+  }
+
+  /** Émet la liste complète des défis pour l'écran "Les Challenges" */
+  private _emitChallengesList(): void {
+    const currentId = this.currentChallenge();
+    const items: ChallengeListItem[] = Array.from(this._challenges.values())
+      .sort((a, b) => a.id - b.id)
+      .map((c) => {
+        const sequentialLocked = !this.isAccessible(c.id);
+        const emailLocked =
+          !!c.locked && !storage.isUnlocked() && !sequentialLocked;
+        return {
+          id: c.id,
+          title: c.title,
+          arenaName: c.arena_name,
+          estimatedMinutes: c.meta?.estimatedMinutes,
+          sequentialLocked,
+          emailLocked,
+          completed: storage.isCompleted(c.id),
+          medal: storage.getMedal(c.id),
+          current: c.id === currentId,
+        };
+      });
+    bus.emit("chuck:challenges-list", { items });
   }
 
   /**
@@ -219,6 +248,7 @@ export class ChallengeManager {
     const medal: Medal = hintsUsed === 0 ? "🥇" : hintsUsed === 1 ? "🥈" : "🥉";
     storage.saveCompletion(id, medal, hintsUsed);
     bus.emit("chuck:challenge-completed" as any, { id, medal, hintsUsed });
+    this._emitChallengesList();
   }
 
   // ── Validation ────────────────────────────────────────────

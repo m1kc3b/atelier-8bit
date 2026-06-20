@@ -69,6 +69,10 @@ export interface ChuckEventMap {
   'chuck:validate':          { source: string; hintsUsed?: number };
   'chuck:goto-challenge':    { id: number };
   'chuck:autosave':          { id: number; code: string };
+  'chuck:challenges-list':   { items: import('../types/challenge.js').ChallengeListItem[] };
+
+  // ── Navigation / Funnel (accueil → 3 sections) ──────────────
+  'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'pong' };
 
   // ── Onboarding ──────────────────────────────
   'chuck:start-tour': undefined;

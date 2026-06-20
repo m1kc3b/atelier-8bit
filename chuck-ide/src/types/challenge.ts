@@ -3,6 +3,8 @@
    Types TypeScript pour challenges.json.
    ───────────────────────────────────────────────────────────── */
 
+   import type { Medal } from '../core/storage/types.js';
+
 // ── Condition de validation ───────────────────────────────────
 
 /** Vérifie la valeur d'un registre après exécution */
@@ -115,4 +117,19 @@ export interface AssertionFailure {
   expected:  number | boolean;
   actual:    number | boolean;
   message:   string;
+}
+
+export interface ChallengeListItem {
+  id:                number;
+  title:             string;
+  arenaName?:        string;
+  estimatedMinutes?: number;
+  /** Verrouillé car le défi précédent n'est pas encore validé */
+  sequentialLocked:  boolean;
+  /** Accessible séquentiellement mais nécessite un email (palier "Challenge 4") */
+  emailLocked:       boolean;
+  completed:         boolean;
+  medal:             Medal | null;
+  /** true si c'est le prochain défi à faire */
+  current:           boolean;
 }

@@ -160,3 +160,14 @@ export function isChallenge(item: ContentItem): item is ChallengeItem {
 export function hasValidation(item: ContentItem): item is ChallengeItem {
   return isChallenge(item);
 }
+
+/** Étape du parcours guidé Pong (Étape 3 du funnel) — réutilise le même panneau */
+export interface PongStepItem {
+  type:      'pong-step';
+  id:        number;
+  title:     string;
+  subtitle?: string;
+  blocks:    ContentBlock[];
+  stepIndex: number;
+  stepCount: number;
+}
