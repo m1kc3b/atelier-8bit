@@ -27,7 +27,7 @@ import { authService } from "./core/auth/auth-service.js";
 
 import { bus } from "./core/bus.js";
 import { Emulator } from "./core/emulator.js";
-import { ChallengeManager, PONG_ID_MIN } from "./core/challenge-manager.js";
+import { ChallengeManager, PONG_ARENA } from "./core/challenge-manager.js";
 import { storage } from "./core/storage/storage-service.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -137,7 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   bus.on("chuck:require-auth", ({ reason }) => {
-    gateEl?.open(reason === "pong" ? PONG_ID_MIN : 0);
+    gateEl?.open(reason === "pong" ? -1 : 0); // -1 = sentinelle « gate Pong »
   });
 
   (bus as any).on(

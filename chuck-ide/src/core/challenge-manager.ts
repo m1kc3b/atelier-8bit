@@ -28,7 +28,12 @@ const IDE_FREE_MODE = "chuck:ide-free" as const;
  *  table `challenges` côté Supabase (arena_name = 'Projet Pong', locked = true),
  *  avec des ids ≥ PONG_ID_MIN. Elles sont exemptées de la gating séquentielle
  *  globale et du compteur des défis classiques (cf. mémo projet). */
-export const PONG_ID_MIN = 1000;
+export const PONG_ARENA = "Projet Pong" as const;
+
+/** True si le challenge appartient au parcours guidé Pong. */
+function isPongArena(c: Challenge | undefined): boolean {
+  return !!c && c.arena_name === PONG_ARENA;
+}
 
 const FLAGS: Record<string, number> = {
   N: 0b1000_0000,
@@ -101,7 +106,7 @@ export class ChallengeManager {
       const list = await challengesService.getAll();
       for (const c of list) this._challenges.set(c.id, c);
       bus.emit("chuck:challenges-count" as any, {
-        count: list.filter((c) => c.id < PONG_ID_MIN).length,
+        count: list.filter((c) => !isPongArena(c)).length,
       });
       this._emitChallengesList();
       this._emitPongSteps();
@@ -212,15 +217,15 @@ export class ChallengeManager {
 
   // ── Pong (Étape 3 du funnel) ────────────────────────────────
 
-  /** Liste des défis "Projet Pong" (id ≥ PONG_ID_MIN), triés par id croissant. */
+  /** Liste des défis "Projet Pong", triés par id croissant. */
   private _pongSteps(): Challenge[] {
     return Array.from(this._challenges.values())
-      .filter((c) => c.id >= PONG_ID_MIN)
+      .filter((c) => isPongArena(c))
       .sort((a, b) => a.id - b.id);
   }
 
   private _isPongStepId(id: number): boolean {
-    return id >= PONG_ID_MIN && this._challenges.has(id);
+    return isPongArena(this._challenges.get(id));
   }
 
   private _isLastPongStep(id: number): boolean {
@@ -322,7 +327,7 @@ export class ChallengeManager {
   private _emitChallengesList(): void {
     const currentId = this.currentChallenge();
     const items: ChallengeListItem[] = Array.from(this._challenges.values())
-      .filter((c) => c.id < PONG_ID_MIN)
+      .filter((c) => !isPongArena(c))
       .sort((a, b) => a.id - b.id)
       .map((c) => {
         const sequentialLocked = !this.isAccessible(c.id);
@@ -350,14 +355,16 @@ export class ChallengeManager {
    * N'inclut jamais les étapes Pong (id ≥ PONG_ID_MIN).
    */
   currentChallenge(): number {
-    const regularIds = Array.from(this._challenges.keys()).filter(
-      (id) => id < PONG_ID_MIN,
-    );
-    const maxId = Math.max(...regularIds, 1);
-    for (let id = 1; id <= maxId; id++) {
+    const regularIds = Array.from(this._challenges.values())
+      .filter((c) => !isPongArena(c))
+      .map((c) => c.id);
+    if (regularIds.length === 0) return 1;
+    const maxId = Math.max(...regularIds);
+    const sorted = regularIds.sort((a, b) => a - b);
+    for (const id of sorted) {
       if (!storage.isCompleted(id)) return id;
     }
-    return maxId; // tous complétés → afficher le dernier
+    return maxId;
   }
 
   saveCompleted(id: number, hintsUsed: number): void {
