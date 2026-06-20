@@ -27,7 +27,7 @@ import { authService } from "./core/auth/auth-service.js";
 
 import { bus } from "./core/bus.js";
 import { Emulator } from "./core/emulator.js";
-import { ChallengeManager, PONG_ARENA } from "./core/challenge-manager.js";
+import { ChallengeManager } from "./core/challenge-manager.js";
 import { storage } from "./core/storage/storage-service.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
