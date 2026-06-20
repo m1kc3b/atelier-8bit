@@ -59,7 +59,7 @@ export class ChallengeManager {
       this._loadById(this.currentChallenge(), false);
     } else {
       bus.emit("chuck:log", {
-        text: "Mode libre — ?challenge=1 pour les défis, ?lesson=100 pour la formation.",
+        text: "Mode libre.",
         level: "dim",
       });
       (bus as any).emit(IDE_FREE_MODE, undefined);
