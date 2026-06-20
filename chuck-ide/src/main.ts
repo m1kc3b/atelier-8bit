@@ -19,13 +19,16 @@ import "./components/chuck-auth-gate.js";
 import "./components/chuck-account-modal.js";
 import "./components/chuck-welcome-modal.js";
 import "./components/chuck-onboarding-tour.js";
-import { setView, getViewFromUrl, initRouter } from "./core/router.js";
+import "./components/chuck-challenges-list.js";
+import "./components/chuck-pong-track.js";
+import "./components/chuck-pong-celebration";
+import { setView, initRouter } from "./core/router.js";
 
 import { authService } from "./core/auth/auth-service.js";
 
 import { bus } from "./core/bus.js";
 import { Emulator } from "./core/emulator.js";
-import { ChallengeManager } from "./core/challenge-manager.js";
+import { ChallengeManager, PONG_ID_MIN } from "./core/challenge-manager.js";
 import { storage } from "./core/storage/storage-service.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -138,8 +141,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     openSidePanel();
   });
 
-  bus.on("chuck:require-auth" as any, () => {
-    gateEl?.open(0); // 0 = pas de défi en attente, juste sauvegarde/nouveau projet
+  bus.on("chuck:require-auth", ({ reason }) => {
+    gateEl?.open(reason === "pong" ? PONG_ID_MIN : 0);
   });
 
   (bus as any).on(

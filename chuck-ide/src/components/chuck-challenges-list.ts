@@ -24,7 +24,7 @@ const STYLES = /* css */ `
     flex-shrink: 0;
   }
   .head h1 { font-size: 22px; font-weight: 800; color: var(--text); margin: 0 0 6px; }
-  .head p  { font-size: 13px; color: var(--text-muted); margin: 0 0 14px; }
+  .head p  { font-size: 13px; color: var(--text); margin: 0 0 14px; }
 
   .progress-row { display: flex; align-items: center; gap: 10px; }
   .progress-track { flex: 1; height: 6px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }

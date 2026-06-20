@@ -142,7 +142,8 @@ export type ContentItem =
   | ChallengeItem
   | LessonItem
   | TipItem
-  | ReferenceItem;
+  | ReferenceItem
+  | PongStepItem;
 
 // ── Fichier JSON racine ───────────────────────────────────────
 
@@ -157,8 +158,12 @@ export function isChallenge(item: ContentItem): item is ChallengeItem {
   return item.type === 'challenge';
 }
 
-export function hasValidation(item: ContentItem): item is ChallengeItem {
-  return isChallenge(item);
+export function isPongStep(item: ContentItem): item is PongStepItem {
+  return item.type === 'pong-step';
+}
+
+export function hasValidation(item: ContentItem): item is ChallengeItem | PongStepItem {
+  return isChallenge(item) || isPongStep(item);
 }
 
 /** Étape du parcours guidé Pong (Étape 3 du funnel) — réutilise le même panneau */

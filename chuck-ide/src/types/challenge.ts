@@ -133,3 +133,20 @@ export interface ChallengeListItem {
   /** true si c'est le prochain défi à faire */
   current:           boolean;
 }
+
+// ── Étapes du parcours guidé Pong (Étape 3 du funnel) ──────────
+// Mêmes défis (table `challenges`, ids ≥ 1000) mais exemptés de la
+// gating séquentielle globale et du compteur des défis classiques.
+
+export interface PongStepListItem {
+  id:           number;
+  /** Position 1-based parmi les étapes Pong (pas l'id brut) */
+  stepIndex:    number;
+  stepCount:    number;
+  title:        string;
+  completed:    boolean;
+  medal:        Medal | null;
+  /** Accessible si l'étape précédente est validée (ou si c'est la 1ère) */
+  accessible:   boolean;
+  current:      boolean;
+}

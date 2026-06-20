@@ -25,6 +25,12 @@ const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
 // const FREE_CHALLENGES = 3; // défis 1-3 accessibles sans restriction
 
+/** Les étapes du parcours guidé "Coder Pong" sont stockées dans la même
+ *  table `challenges` côté Supabase (arena_name = 'Projet Pong', locked = true),
+ *  avec des ids ≥ PONG_ID_MIN. Elles sont exemptées de la gating séquentielle
+ *  globale et du compteur des défis classiques (cf. mémo projet). */
+export const PONG_ID_MIN = 1000;
+
 const FLAGS: Record<string, number> = {
   N: 0b1000_0000,
   V: 0b0100_0000,
@@ -96,9 +102,10 @@ export class ChallengeManager {
       const list = await challengesService.getAll();
       for (const c of list) this._challenges.set(c.id, c);
       bus.emit("chuck:challenges-count" as any, {
-        count: list.length,
+        count: list.filter((c) => c.id < PONG_ID_MIN).length,
       });
       this._emitChallengesList();
+      this._emitPongSteps();
     } catch (e) {
       bus.emit("chuck:log", {
         text: `Chargement des défis : ${(e as Error).message}`,
@@ -118,6 +125,29 @@ export class ChallengeManager {
   }
 
   private _loadById(id: number, pushHistory = false): void {
+    // ── Étapes du parcours guidé Pong (id ≥ 1000) — gating dédiée ──
+    if (this._isPongStepId(id)) {
+      if (!this._challenges.has(id)) {
+        bus.emit("chuck:log", { text: `Étape Pong #${id} introuvable.`, level: "err" });
+        return;
+      }
+      if (!this.isPongStepAccessible(id)) {
+        const current = this._currentPongStepId();
+        bus.emit("chuck:log", {
+          text: `🔒 Étape verrouillée — termine d'abord l'étape précédente.`,
+          level: "err",
+        });
+        if (current !== null) {
+          this._loadPongStep(current, false);
+          this._syncUrl(current, false);
+        }
+        return;
+      }
+      this._loadPongStep(id, pushHistory);
+      this._syncUrl(id, pushHistory);
+      return;
+    }
+
     // ── Leçons / contenu (id ≥ 100) — pas de garde séquentielle ──
     if (id >= 100) {
       const item = this._contentItems.get(id);
@@ -181,6 +211,88 @@ export class ChallengeManager {
     this._emitChallengesList();
   }
 
+  // ── Pong (Étape 3 du funnel) ────────────────────────────────
+
+  /** Liste des défis "Projet Pong" (id ≥ PONG_ID_MIN), triés par id croissant. */
+  private _pongSteps(): Challenge[] {
+    return Array.from(this._challenges.values())
+      .filter((c) => c.id >= PONG_ID_MIN)
+      .sort((a, b) => a.id - b.id);
+  }
+
+  private _isPongStepId(id: number): boolean {
+    return id >= PONG_ID_MIN && this._challenges.has(id);
+  }
+
+  private _isLastPongStep(id: number): boolean {
+    const steps = this._pongSteps();
+    const last = steps[steps.length - 1];
+    return !!last && last.id === id;
+  }
+
+  /** Étape Pong accessible : la 1ère l'est toujours, les suivantes
+   *  nécessitent que l'étape précédente (pas le défi classique précédent)
+   *  ait été validée. Exempté de la gating séquentielle globale. */
+  isPongStepAccessible(id: number): boolean {
+    const steps = this._pongSteps();
+    const idx = steps.findIndex((c) => c.id === id);
+    if (idx <= 0) return true;
+    const prev = steps[idx - 1];
+    return !!prev && storage.isCompleted(prev.id);
+  }
+
+  /** Première étape non validée, ou la dernière si tout est complété. */
+  private _currentPongStepId(): number | null {
+    const steps = this._pongSteps();
+    if (steps.length === 0) return null;
+    for (const c of steps) {
+      if (!storage.isCompleted(c.id)) return c.id;
+    }
+    return steps[steps.length - 1]!.id;
+  }
+
+  private _loadPongStep(id: number, pushHistory: boolean): void {
+    const challenge = this._challenges.get(id);
+    if (!challenge) return;
+    const steps = this._pongSteps();
+    const stepIndex = steps.findIndex((c) => c.id === id) + 1;
+    const stepCount = steps.length;
+
+    this._current = challenge;
+    this._currentItem = pongStepToContentItem(challenge, stepIndex, stepCount);
+
+    const saved = storage.loadCode(id);
+    const medal = storage.getMedal(id);
+    bus.emit("chuck:challenge-loaded", {
+      challenge,
+      code: saved ?? challenge.template,
+      fromStorage: saved !== null,
+      medal: medal ?? undefined,
+      pong: { stepIndex, stepCount },
+    });
+    this._emitPongSteps();
+    void pushHistory; // la sync URL est gérée par l'appelant (_loadById)
+  }
+
+  /** Émet la liste des étapes Pong pour l'écran "🏓 Coder Pong". */
+  private _emitPongSteps(): void {
+    const steps = this._pongSteps();
+    const currentId = this._currentPongStepId();
+    const items: import("../types/challenge.js").PongStepListItem[] = steps.map(
+      (c, i) => ({
+        id: c.id,
+        stepIndex: i + 1,
+        stepCount: steps.length,
+        title: c.title,
+        completed: storage.isCompleted(c.id),
+        medal: storage.getMedal(c.id),
+        accessible: this.isPongStepAccessible(c.id),
+        current: c.id === currentId,
+      }),
+    );
+    bus.emit("chuck:pong-steps", { items });
+  }
+
   private _loadContentItem(item: ContentItem): void {
     this._current = null;
     this._currentItem = item;
@@ -211,6 +323,7 @@ export class ChallengeManager {
   private _emitChallengesList(): void {
     const currentId = this.currentChallenge();
     const items: ChallengeListItem[] = Array.from(this._challenges.values())
+      .filter((c) => c.id < PONG_ID_MIN)
       .sort((a, b) => a.id - b.id)
       .map((c) => {
         const sequentialLocked = !this.isAccessible(c.id);
@@ -235,9 +348,13 @@ export class ChallengeManager {
    * Retourne l'id du challenge courant à afficher :
    * le premier challenge non encore complété.
    * Si tout est complété, retourne le dernier challenge disponible.
+   * N'inclut jamais les étapes Pong (id ≥ PONG_ID_MIN).
    */
   currentChallenge(): number {
-    const maxId = Math.max(...Array.from(this._challenges.keys()), 1);
+    const regularIds = Array.from(this._challenges.keys()).filter(
+      (id) => id < PONG_ID_MIN,
+    );
+    const maxId = Math.max(...regularIds, 1);
     for (let id = 1; id <= maxId; id++) {
       if (!storage.isCompleted(id)) return id;
     }
@@ -248,7 +365,11 @@ export class ChallengeManager {
     const medal: Medal = hintsUsed === 0 ? "🥇" : hintsUsed === 1 ? "🥈" : "🥉";
     storage.saveCompletion(id, medal, hintsUsed);
     bus.emit("chuck:challenge-completed" as any, { id, medal, hintsUsed });
-    this._emitChallengesList();
+    if (this._isPongStepId(id)) {
+      this._emitPongSteps();
+    } else {
+      this._emitChallengesList();
+    }
   }
 
   // ── Validation ────────────────────────────────────────────
@@ -302,6 +423,9 @@ export class ChallengeManager {
         text: `✓ Défi réussi en ${run.cycles} cycle(s) !`,
         level: "ok",
       });
+      if (this._isPongStepId(challenge.id) && this._isLastPongStep(challenge.id)) {
+        bus.emit("chuck:pong-completed", { stepCount: this._pongSteps().length });
+      }
     } else {
       bus.emit("chuck:challenge-failed", { result });
       for (const f of failures)
@@ -438,5 +562,36 @@ function challengeToContentItem(c: Challenge): ChallengeItem {
     assertions: c.assertions ?? [],
     maxCycles: c.maxCycles,
     meta: c.meta as any,
+  };
+}
+
+/** Adaptateur Challenge (arène "Projet Pong") → PongStepItem.
+ *  Mêmes blocs pédagogiques qu'un défi classique, mais type 'pong-step'
+ *  pour un affichage et une navigation dédiés dans <chuck-side-panel>. */
+function pongStepToContentItem(
+  c: Challenge,
+  stepIndex: number,
+  stepCount: number,
+): import("../types/content.js").PongStepItem {
+  const blocks: ContentBlock[] = [];
+
+  if (c.description) {
+    blocks.push({ kind: "theory", content: c.description });
+  }
+  if (c.meta?.concepts?.length) {
+    blocks.push({ kind: "concepts", items: c.meta.concepts });
+  }
+  if (c.hints?.length) {
+    blocks.push({ kind: "hints", items: c.hints.map((h: any) => h.text ?? h) });
+  }
+
+  return {
+    type: "pong-step",
+    id: c.id,
+    title: c.title,
+    subtitle: c.arena_name,
+    blocks,
+    stepIndex,
+    stepCount,
   };
 }

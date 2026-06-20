@@ -8,8 +8,9 @@ import type {
   ContentItem,
   ContentBlock,
   ChallengeItem,
+  PongStepItem,
 } from "../types/content.js";
-import { isChallenge } from "../types/content.js";
+import { isChallenge, isPongStep } from "../types/content.js";
 import { storage } from '../core/storage/storage-service.js';
 
 const STYLES = /* css */ `
@@ -164,8 +165,10 @@ export class ChuckSidePanel extends ChuckComponent {
       this.emit("chuck:goto-challenge", { id: this._item.id + 1 });
     });
 
-    this.sub("chuck:challenge-loaded", ({ challenge }) => {
-      const item = challengeToContentItem(challenge as any);
+    this.sub("chuck:challenge-loaded", ({ challenge, pong }) => {
+      const item = pong
+        ? pongStepToContentItem(challenge as any, pong.stepIndex, pong.stepCount)
+        : challengeToContentItem(challenge as any);
       this._loadItem(item);
     });
     
@@ -205,6 +208,14 @@ export class ChuckSidePanel extends ChuckComponent {
     const next = this.shadow.getElementById("next-btn") as HTMLButtonElement;
     if (!this._item) return;
 
+    if (isPongStep(this._item)) {
+      // Navigation linéaire dédiée (bouton "Étape suivante" dans la zone
+      // de validation) — les chevrons du header restent désactivés.
+      prev.disabled = true;
+      next.disabled = true;
+      return;
+    }
+
     prev.disabled = this._item.id <= 1;
 
     // Désactiver "next" sauf si le défi est validé
@@ -220,8 +231,9 @@ export class ChuckSidePanel extends ChuckComponent {
     const isAlreadyValidated = this._isChallengeValidated(item.id);
 
     const headerTitle = this.shadow.getElementById("panel-title")!;
-    headerTitle.textContent =
-      item.type === "challenge"
+    headerTitle.textContent = isPongStep(item)
+      ? `Étape ${item.stepIndex} / ${item.stepCount}`
+      : item.type === "challenge"
         ? `${item.id} / ${this._totalCount}`
         : `${item.id}`;
 
@@ -251,25 +263,31 @@ export class ChuckSidePanel extends ChuckComponent {
       .map((b, i) => this._renderBlock(b, i))
       .join("");
 
+    const isLastPongStep = isPongStep(item) && item.stepIndex >= item.stepCount;
+
     let validationHtml = "";
-    if (isChallenge(item)) {
+    if (isChallenge(item) || isPongStep(item)) {
+      const verb = isPongStep(item) ? "l'étape" : "le défi";
       if (isAlreadyValidated) {
-        // Si déjà validé, afficher "Défi suivant"
+        const label = isPongStep(item)
+          ? isLastPongStep
+            ? "🎉 Revoir la célébration"
+            : "Étape suivante →"
+          : "Défi suivant →";
         validationHtml = `
         <div class="validation-zone">
           <div class="feedback" id="feedback"></div>
           <button class="validate-btn next-challenge" id="validate-btn">
-            Défi suivant →
+            ${label}
           </button>
         </div>`;
       } else {
-        // Sinon, afficher "Valider le défi"
         validationHtml = `
         <div class="validation-zone">
           <div class="feedback" id="feedback"></div>
           <button class="validate-btn" id="validate-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Valider le défi
+            Valider ${verb}
           </button>
         </div>`;
       }
@@ -293,11 +311,17 @@ export class ChuckSidePanel extends ChuckComponent {
     <div class="blocks">${blocksHtml}</div>
     ${validationHtml}`;
 
-    // --- Gestion du clic sur le bouton "Défi suivant" ---
+    // --- Gestion du clic sur le bouton "Défi/Étape suivant(e)" ---
     const validateBtn = this.shadow.getElementById("validate-btn");
     if (validateBtn) {
       if (isAlreadyValidated) {
         validateBtn.addEventListener("click", () => {
+          if (isLastPongStep) {
+            this.emit("chuck:pong-completed", {
+              stepCount: (this._item as PongStepItem).stepCount,
+            });
+            return;
+          }
           this.emit("chuck:goto-challenge", { id: this._item!.id + 1 });
         });
       } else {
@@ -420,9 +444,10 @@ export class ChuckSidePanel extends ChuckComponent {
     requestAnimationFrame(() => {
       this.emit("chuck:validate", { source, hintsUsed });
       btn.disabled = false;
+      const verb = this._item && isPongStep(this._item) ? "l'étape" : "le défi";
       btn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Valider le défi`;
+        Valider ${verb}`;
     });
   }
 
@@ -439,13 +464,15 @@ export class ChuckSidePanel extends ChuckComponent {
 
     if (success) {
       const medal = (result as any).medal ?? "🥇";
+      const item = this._item;
+      const pongLast = item && isPongStep(item) && item.stepIndex >= item.stepCount;
 
       el.className = "feedback success";
       el.innerHTML = `
-      <div class="fb-title">${medal} Défi réussi !</div>
+      <div class="fb-title">${medal} ${item && isPongStep(item) ? "Étape" : "Défi"} réussi${item && isPongStep(item) ? "e" : ""} !</div>
       <div class="fb-cycles">${result.cycles} cycle(s) CPU</div>`;
 
-      // Masquer le bouton "Valider le défi"
+      // Masquer le bouton "Valider le défi/l'étape"
       const btn = this.shadow.getElementById(
         "validate-btn",
       ) as HTMLButtonElement | null;
@@ -453,8 +480,23 @@ export class ChuckSidePanel extends ChuckComponent {
         btn.style.display = "none";
       }
 
-      // Ajouter le bouton "Défi suivant" si ce n'est pas le dernier défi
-      if (this._item && this._item.id < this._totalCount) {
+      if (item && isPongStep(item)) {
+        if (pongLast) {
+          // Dernière étape : pont direct vers l'écran de célébration.
+          this.emit("chuck:pong-completed", { stepCount: item.stepCount });
+        } else if (item.stepIndex < item.stepCount) {
+          const nextBtn = document.createElement("button");
+          nextBtn.id = "next-challenge-btn";
+          nextBtn.className = "validate-btn next-challenge";
+          nextBtn.innerHTML = `Étape suivante →`;
+          nextBtn.style.cssText = "background: var(--green); margin-top: 4px;";
+          nextBtn.addEventListener("click", () => {
+            this.emit("chuck:goto-challenge", { id: this._item!.id + 1 });
+          });
+          el.insertAdjacentElement("afterend", nextBtn);
+        }
+      } else if (this._item && this._item.id < this._totalCount) {
+        // Ajouter le bouton "Défi suivant" si ce n'est pas le dernier défi
         const nextBtn = document.createElement("button");
         nextBtn.id = "next-challenge-btn";
         nextBtn.className = "validate-btn next-challenge";
@@ -476,8 +518,14 @@ export class ChuckSidePanel extends ChuckComponent {
         itemHeaderRight.appendChild(badge);
       }
 
-      // Activer le bouton "next-btn" dans le header
-      if (next && this._item && this._item.id < this._totalCount) {
+      // Activer le bouton "next-btn" dans le header (défis classiques uniquement —
+      // les chevrons restent désactivés pour les étapes Pong, cf. _updateNav)
+      if (
+        next &&
+        this._item &&
+        isChallenge(this._item) &&
+        this._item.id < this._totalCount
+      ) {
         next.disabled = false;
         next.classList.add("success");
         setTimeout(() => next.classList.remove("success"), 600);
@@ -690,4 +738,27 @@ function challengeToContentItem(c: any): ContentItem {
     maxCycles: c.maxCycles,
     meta: c.meta,
   } as ChallengeItem;
+}
+
+function pongStepToContentItem(
+  c: any,
+  stepIndex: number,
+  stepCount: number,
+): PongStepItem {
+  const blocks: import("../types/content.js").ContentBlock[] = [];
+  if (c.description) blocks.push({ kind: "theory", content: c.description });
+  if (c.meta?.concepts?.length)
+    blocks.push({ kind: "concepts", items: c.meta.concepts });
+  if (c.hints?.length)
+    blocks.push({ kind: "hints", items: c.hints.map((h: any) => h.text ?? h) });
+
+  return {
+    type: "pong-step",
+    id: c.id,
+    title: c.title,
+    subtitle: c.arena_name,
+    blocks,
+    stepIndex,
+    stepCount,
+  };
 }

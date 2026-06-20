@@ -63,13 +63,24 @@ export interface ChuckEventMap {
 
   // ── Aide / Formation ────────────────────────────────────
   'chuck:open-help':    { lessonId?: number };  // ouvre la modale aide
-  'chuck:challenge-loaded':  { challenge: import('../types/challenge.js').Challenge; code: string; fromStorage: boolean; medal?: string };
+  'chuck:challenge-loaded':  {
+    challenge: import('../types/challenge.js').Challenge;
+    code: string;
+    fromStorage: boolean;
+    medal?: string;
+    /** Renseigné uniquement quand le défi chargé est une étape du parcours Pong */
+    pong?: { stepIndex: number; stepCount: number };
+  };
   'chuck:challenge-success': { result: import('../types/challenge.js').ValidationResult; medal?: string };
   'chuck:challenge-failed':  { result: import('../types/challenge.js').ValidationResult };
   'chuck:validate':          { source: string; hintsUsed?: number };
   'chuck:goto-challenge':    { id: number };
   'chuck:autosave':          { id: number; code: string };
   'chuck:challenges-list':   { items: import('../types/challenge.js').ChallengeListItem[] };
+
+  // ── Parcours guidé Coder Pong (Étape 3 du funnel) ───────────
+  'chuck:pong-steps':     { items: import('../types/challenge.js').PongStepListItem[] };
+  'chuck:pong-completed': { stepCount: number };
 
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
   'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'pong' };
@@ -78,7 +89,7 @@ export interface ChuckEventMap {
   'chuck:start-tour': undefined;
 
   // ── Auth ────────────────────────────────────
-  'chuck:require-auth': { reason: 'save' | 'new-project' | 'challenge' };
+  'chuck:require-auth': { reason: 'save' | 'new-project' | 'challenge' | 'pong' };
   'chuck:load-project':  { id: string; name: string; code: string };
   'chuck:signed-out':    undefined;
   'chuck:open-account': undefined;

@@ -3,6 +3,7 @@ import { authService } from '../core/auth/auth-service.js';
 import { storage } from '../core/storage/storage-service.js';
 import { challengesService } from '../core/challenges/challenges-service.js';
 import { ChuckOnboardingTour } from './chuck-onboarding-tour.js';
+import { setView } from '../core/router.js';
 
 type View = 'choice' | 'list';
 
@@ -187,15 +188,17 @@ export class ChuckWelcomeModal extends ChuckComponent {
         this.emit('chuck:start-tour', undefined);
       }
     });
-    body.querySelector('[data-choice="challenges"]')?.addEventListener('click', () => this._showView('list'));
+    body.querySelector('[data-choice="challenges"]')?.addEventListener('click', () => {
+      this.close();
+      setView('challenges')
+    });
     body.querySelector('[data-choice="pong"]')?.addEventListener('click', () => {
       this.close();
       if (!authService.isAuthenticated()) {
-        this.emit('chuck:require-auth', { reason: 'challenge' });
+        this.emit('chuck:require-auth', { reason: 'pong' });
         return;
       }
-      // TODO (étape 3 du plan) : remplacer par l'id réel du premier défi
-      // de l'arène Pong une fois créée côté Supabase.
+      setView('pong');
     });
   }
 
