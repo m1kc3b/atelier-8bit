@@ -6,7 +6,6 @@ import { bus } from "./bus.js";
 import type { Emulator } from "./emulator.js";
 import {
   type Challenge,
-  type ChallengesFile,
   type ValidationResult,
   type AssertionFailure,
   type Assertion,

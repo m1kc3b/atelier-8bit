@@ -11,7 +11,6 @@ import "./components/chuck-toolbar.js";
 import "./components/chuck-editor.js";
 import "./components/chuck-display.js";
 import "./components/chuck-registers.js";
-// import "./components/chuck-memory-dump.js";
 import "./components/chuck-side-panel.js";
 import "./components/chuck-help-modal.js";
 import "./components/chuck-learn-modal.js";
@@ -42,9 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const registersEl = document.getElementById("modal-registers") as
     | (HTMLElement & { toggle(): void })
     | null;
-  const memoryEl = document.getElementById("modal-memory") as
-    | (HTMLElement & { toggle(): void })
-    | null;
+    
   const sidePanel = document.getElementById("side-panel") as HTMLElement | null;
 
   document
@@ -53,9 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
     .getElementById("btn-show-registers")
     ?.addEventListener("click", () => registersEl?.toggle());
-  document
-    .getElementById("btn-show-memory")
-    ?.addEventListener("click", () => memoryEl?.toggle());
+  
   document.getElementById("btn-show-help")?.addEventListener("click", () => {
     const help = document.getElementById("modal-help") as
       | (HTMLElement & { toggle(): void })
@@ -240,7 +235,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     sbState.className = "sb-state running";
     ensureOpen(displayEl as any);
     ensureOpen(registersEl as any);
-    ensureOpen(memoryEl as any);
   });
 
   bus.on("chuck:cpu-updated", ({ PC }) => {

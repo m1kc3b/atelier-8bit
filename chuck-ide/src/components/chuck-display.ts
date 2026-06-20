@@ -402,7 +402,7 @@ export class ChuckDisplay extends ChuckComponent {
       <button class="close-btn" id="close">✕</button>
     </div>
     <div class="canvas-wrap">
-      <canvas id="screen" width="${SCREEN_W}" height="${SCREEN_H}"></canvas>
+      <canvas id="screen" width="${SCREEN_W}" height="${SCREEN_H}" tabindex="0"></canvas>
     </div>
     <div class="coords" id="coords">128 × 128 · 16 couleurs</div>
     <div class="resize-handle" id="resize"></div>`;
@@ -434,6 +434,37 @@ export class ChuckDisplay extends ChuckComponent {
     this.canvas.addEventListener('mouseleave', () => {
       this.shadow.getElementById('coords')!.textContent =
         `128 × 128 · 16 couleurs`;
+    });
+
+    // ── Clavier : le canvas est focalisable (tabindex=0) ──────
+    // On relaie les frappes au bus pour que l'Emulator alimente les
+    // registres clavier/manette. Indispensable : sans ce focus, c'est
+    // l'éditeur CodeMirror qui capte les touches.
+    const relayKey = (e: KeyboardEvent, down: boolean): void => {
+      // Laisser passer les raccourcis IDE globaux (Ctrl/Cmd + F5/F10)
+      if (e.ctrlKey || e.metaKey || e.key === 'F5' || e.key === 'F10') return;
+      // Empêcher le scroll de page sur les flèches / espace pendant le jeu
+      if (e.key.startsWith('Arrow') || e.key === ' ') e.preventDefault();
+      bus.emit('chuck:screen-key', {
+        down,
+        code:  e.code,
+        key:   e.key,
+        shift: e.shiftKey,
+        ctrl:  e.ctrlKey,
+        alt:   e.altKey,
+      });
+    };
+    this.canvas.addEventListener('keydown', (e) => relayKey(e, true));
+    this.canvas.addEventListener('keyup',   (e) => relayKey(e, false));
+
+    // Cliquer sur l'écran lui donne le focus clavier
+    this.canvas.addEventListener('mousedown', () => this.canvas.focus());
+
+    // Au Run : focaliser automatiquement l'écran pour capter le clavier
+    this.sub('chuck:run', () => {
+      this.show();
+      // rAF : attendre que la modale soit visible avant focus()
+      requestAnimationFrame(() => this.canvas.focus());
     });
 
     // Bus

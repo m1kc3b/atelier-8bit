@@ -182,7 +182,7 @@ export class Emulator {
     this.core = new mod.ChuckCore();
 
     bus.emit("chuck:log", {
-      text: "Chuck-8 v1.0 — Moteur Rust/WASM prêt. Point d'entrée : $E000",
+      text: "Chuck-8 v1.0 — Moteur Rust/WASM prêt. Entrée : $E000 · clavier : $D200–$D203",
       level: "dim",
     });
   }
@@ -217,22 +217,47 @@ export class Emulator {
   // ── Clavier, manette, souris ──────────────────────────────────
 
   private _bindInput(): void {
-    // ── Clavier ──────────────────────────────────────────────
-    document.addEventListener("keydown", (e) => {
-      if (!this._running) return;
-      // Éviter les raccourcis IDE (Ctrl+B, F5...)
-      if (e.ctrlKey || e.metaKey || e.key === "F5" || e.key === "F10") return;
+    // ── Clavier + manette ────────────────────────────────────
+    // Les frappes proviennent du canvas focalisé de chuck-display
+    // (relayées via le bus `chuck:screen-key`) et NON de `document` :
+    // sinon CodeMirror intercepte les touches (preventDefault /
+    // stopPropagation) et le programme assembleur ne reçoit jamais rien.
+    const padState = { p1: 0xff };
+    const PAD_MAP: Record<string, number> = {
+      KeyZ: 0b10000000, // A
+      KeyX: 0b01000000, // B
+      ShiftRight: 0b00100000, // Select
+      Enter: 0b00010000, // Start
+      ArrowRight: 0b00001000,
+      ArrowLeft: 0b00000100,
+      ArrowDown: 0b00000010,
+      ArrowUp: 0b00000001,
+    };
 
-      const ascii = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
-      const raw = this._keyToRaw(e.code);
-      const mods =
-        (e.shiftKey ? 1 : 0) | (e.ctrlKey ? 2 : 0) | (e.altKey ? 4 : 0);
-      this.core.set_key(ascii, raw, mods);
-    });
+    this._unsubs.push(
+      bus.on("chuck:screen-key", (e) => {
+        if (!this._running) return;
 
-    document.addEventListener("keyup", () => {
-      if (this._running) this.core.clear_key();
-    });
+        // 1. Registres clavier ($D200–$D203)
+        if (e.down) {
+          const ascii = e.key.length === 1 ? e.key.charCodeAt(0) : 0;
+          const raw = this._keyToRaw(e.code);
+          const mods =
+            (e.shift ? 1 : 0) | (e.ctrl ? 2 : 0) | (e.alt ? 4 : 0);
+          this.core.set_key(ascii, raw, mods);
+        } else {
+          this.core.clear_key();
+        }
+
+        // 2. Manette ($D300) — mêmes touches physiques
+        const mask = PAD_MAP[e.code];
+        if (mask) {
+          if (e.down) padState.p1 &= ~mask; // bit à 0 = enfoncé
+          else padState.p1 |= mask; // bit à 1 = relâché
+          this.core.set_pad(0, padState.p1);
+        }
+      }),
+    );
 
     // ── Souris (sur le canvas de chuck-display) ───────────────
     document.addEventListener("mousemove", (e) => {
@@ -247,41 +272,9 @@ export class Emulator {
       const px = Math.floor(((e.clientX - r.left) / r.width) * 128);
       const py = Math.floor(((e.clientY - r.top) / r.height) * 128);
       if (px >= 0 && px < 128 && py >= 0 && py < 128) {
-        const btn = (e.buttons & 1 ? 0 : 1) | (e.buttons & 2 ? 0 : 2);
+        // btn : bit0=gauche bit1=droit, 0=enfoncé (logique inversée)
+        const btn = (~e.buttons & 0b11) & 0xff;
         this.core.set_mouse(px, py, btn, 0);
-      }
-    });
-
-    // ── Manette (clavier WASD + touches) ─────────────────────
-    // Les touches sont mappées vers les bits de la manette NES
-    // bit=0 si enfoncé (logique inversée)
-    const padState = { p1: 0xff };
-    const PAD_MAP: Record<string, number> = {
-      KeyZ: 0b10000000, // A
-      KeyX: 0b01000000, // B
-      ShiftRight: 0b00100000, // Select
-      Enter: 0b00010000, // Start
-      ArrowRight: 0b00001000,
-      ArrowLeft: 0b00000100,
-      ArrowDown: 0b00000010,
-      ArrowUp: 0b00000001,
-    };
-
-    document.addEventListener("keydown", (e) => {
-      if (!this._running) return;
-      const mask = PAD_MAP[e.code];
-      if (mask) {
-        padState.p1 &= ~mask; // bit à 0 = enfoncé
-        this.core.set_pad(0, padState.p1);
-      }
-    });
-
-    document.addEventListener("keyup", (e) => {
-      if (!this._running) return;
-      const mask = PAD_MAP[e.code];
-      if (mask) {
-        padState.p1 |= mask; // bit à 1 = relâché
-        this.core.set_pad(0, padState.p1);
       }
     });
   }

@@ -38,6 +38,19 @@ export interface ChuckEventMap {
   'chuck:debug':      { enabled: boolean };
   'chuck:breakpoint': { line: number; active: boolean };
 
+  // ── Clavier écran → émulateur ───────────────────────────
+  // Émis par chuck-display (canvas focalisé), consommé par Emulator.
+  // `code`/`key` sont les champs natifs KeyboardEvent ; l'Emulator
+  // dérive ascii/raw/manette à partir d'eux.
+  'chuck:screen-key':  {
+    down: boolean;
+    code: string;
+    key:  string;
+    shift: boolean;
+    ctrl:  boolean;
+    alt:   boolean;
+  };
+
   // ── Émulateur → UI ──────────────────────────────────────
   'chuck:cpu-updated':  CpuState;
   'chuck:cpu-reset':    CpuState;
