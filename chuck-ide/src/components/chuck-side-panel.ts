@@ -12,6 +12,7 @@ import type {
 } from "../types/content.js";
 import { isChallenge, isPongStep } from "../types/content.js";
 import { storage } from '../core/storage/storage-service.js';
+import { renderMarkdown, renderMarkdownInline } from '../core/markdown.js';
 
 const STYLES = /* css */ `
   @import '/src/styles/tokens.css';
@@ -673,35 +674,13 @@ export class ChuckSidePanel extends ChuckComponent {
   }
 
   // ── Markdown ──────────────────────────────────────────────────
+  // Rendu délégué à la librairie `marked` (cf. core/markdown.ts).
   private _md(s: string): string {
-    const e = s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    return e
-      .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/```([\s\S]*?)```/g, "<pre>$1</pre>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/^- (.+)$/gm, "<li>$1</li>")
-      .replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>")
-      .replace(/\n{2,}/g, "</p><p>")
-      .replace(/\n/g, "<br>")
-      .replace(/^(.)/s, "<p>$1")
-      .replace(/(.)$/s, "$1</p>");
+    return renderMarkdown(s);
   }
 
   private _mdInline(s: string): string {
-    const e = s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    return e
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/`([^`]+)`/g, "<code>$1</code>");
+    return renderMarkdownInline(s);
   }
 
   private _esc(s: string): string {
