@@ -64,6 +64,9 @@ const STYLES = /* css */ `
   .step-card.current   { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
   .step-card.completed { border-color: rgba(61,214,140,.35); }
   .step-card.locked    { cursor: not-allowed; opacity: .5; }
+  .step-card.premium   { cursor: pointer; opacity: 1; border-color: var(--accent); }
+  .step-card.premium:hover { transform: translateY(-1px); }
+  .step-card.premium .step-sub { color: var(--accent); font-weight: 600; }
 
   .step-num {
     width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
@@ -184,7 +187,14 @@ export class ChuckPongTrack extends ChuckComponent {
       el.addEventListener("click", () => {
         const id = Number(el.dataset["id"]);
         const item = this._items.find((i) => i.id === id);
-        if (!item || !item.accessible) return;
+        if (!item) return;
+        // Étape premium verrouillée : ouvrir le mur d'achat plutôt que de
+        // tenter (en vain) de charger l'étape.
+        if (item.premiumLocked) {
+          this.emit("chuck:pong-completed", { stepCount: this._items.length });
+          return;
+        }
+        if (!item.accessible) return;
         setView("atelier");
         this.emit("chuck:goto-challenge", { id });
       });
@@ -198,18 +208,25 @@ export class ChuckPongTrack extends ChuckComponent {
   private _cardHtml(item: PongStepListItem): string {
     const classes = ["step-card"];
     if (!item.accessible) classes.push("locked");
+    if (item.premiumLocked) classes.push("premium");
     if (item.completed) classes.push("completed");
     if (item.current && !item.completed) classes.push("current");
 
     let status = "▶";
     if (item.completed) status = item.medal ?? "✅";
+    else if (item.premiumLocked) status = "⭐";
     else if (!item.accessible) status = "🔒";
 
-    const subtitle = item.accessible
-      ? "Raquettes · balle · score"
-      : `Termine l'étape ${item.stepIndex - 1} pour débloquer celle-ci`;
+    let subtitle: string;
+    if (item.premiumLocked) {
+      subtitle = "Pong Avancé · 99 € — débloque la suite";
+    } else if (item.accessible) {
+      subtitle = "Raquettes · balle · score";
+    } else {
+      subtitle = `Termine l'étape ${item.stepIndex - 1} pour débloquer celle-ci`;
+    }
 
-    return `<div class="${classes.join(" ")}" data-id="${item.id}">
+    return `<div class="${classes.join(" ")}" data-id="${item.id}" data-premium="${item.premiumLocked ? "1" : "0"}">
       <div class="step-num">${item.stepIndex}</div>
       <div class="step-text">
         <div class="step-title">${this._esc(item.title)}</div>

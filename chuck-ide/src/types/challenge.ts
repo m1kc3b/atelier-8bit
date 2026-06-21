@@ -148,5 +148,8 @@ export interface PongStepListItem {
   medal:        Medal | null;
   /** Accessible si l'étape précédente est validée (ou si c'est la 1ère) */
   accessible:   boolean;
+  /** Verrouillé spécifiquement par le mur premium (étape avancée non achetée).
+   *  Permet à l'UI d'afficher l'offre 99 € plutôt qu'un verrou séquentiel. */
+  premiumLocked: boolean;
   current:      boolean;
 }

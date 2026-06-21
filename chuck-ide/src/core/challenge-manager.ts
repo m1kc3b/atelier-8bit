@@ -20,10 +20,17 @@ import { storage } from "./storage/storage-service.js";
 import type { ChallengeProgress, Medal } from "./storage/types.js";
 import { challengesService } from "./challenges/challenges-service.js";
 import { tracksService } from "./challenges/tracks-service.js";
+import { premiumProduct } from "./premium-product.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
 // const FREE_CHALLENGES = 3; // défis 1-3 accessibles sans restriction
+
+/** Frontière gratuit/payant du parcours Pong (stratégie §3).
+ *  Les PONG_FREE_STEPS premières étapes sont le lead magnet gratuit
+ *  (Pong Light) ; au-delà, c'est Pong Avancé (premium, mur Stripe).
+ *  Une SEULE constante déplace la frontière — aucune migration BDD. */
+export const PONG_FREE_STEPS = 3;
 
 /** Les étapes du parcours guidé "Coder Pong" sont stockées dans la même
  *  table `challenges` côté Supabase (arena_name = 'Projet Pong', locked = true),
@@ -237,21 +244,43 @@ export class ChallengeManager {
     return isPongArena(this._challenges.get(id));
   }
 
-  private _isLastPongStep(id: number): boolean {
+  /** True si `id` est la DERNIÈRE étape gratuite (fin de Pong Light).
+   *  C'est là qu'on déclenche le mur premium et le funnel basic-completed.
+   *  Si le parcours a moins de PONG_FREE_STEPS étapes, c'est la dernière. */
+  private _isLastFreePongStep(id: number): boolean {
     const steps = this._pongSteps();
-    const last = steps[steps.length - 1];
-    return !!last && last.id === id;
+    if (steps.length === 0) return false;
+    const freeIdx = Math.min(PONG_FREE_STEPS, steps.length) - 1;
+    return steps[freeIdx]?.id === id;
   }
 
   /** Étape Pong accessible : la 1ère l'est toujours, les suivantes
    *  nécessitent que l'étape précédente (pas le défi classique précédent)
-   *  ait été validée. Exempté de la gating séquentielle globale. */
+   *  ait été validée. Exempté de la gating séquentielle globale.
+   *  Les étapes premium (index > PONG_FREE_STEPS) nécessitent en plus l'achat. */
   isPongStepAccessible(id: number): boolean {
     const steps = this._pongSteps();
     const idx = steps.findIndex((c) => c.id === id);
-    if (idx <= 0) return true;
+    if (idx < 0) return false;
+
+    // Palier premium : au-delà des étapes gratuites, accès réservé aux acheteurs.
+    if (idx + 1 > PONG_FREE_STEPS && !premiumProduct.hasPurchasedSync()) {
+      return false;
+    }
+
+    if (idx === 0) return true;
     const prev = steps[idx - 1];
     return !!prev && storage.isCompleted(prev.id);
+  }
+
+  /** True si l'étape est verrouillée SPÉCIFIQUEMENT par le mur premium
+   *  (par opposition au verrou séquentiel). Permet à l'UI de montrer le mur
+   *  d'achat plutôt qu'un simple « termine l'étape précédente ». */
+  isPongStepPremiumLocked(id: number): boolean {
+    const steps = this._pongSteps();
+    const idx = steps.findIndex((c) => c.id === id);
+    if (idx < 0) return false;
+    return idx + 1 > PONG_FREE_STEPS && !premiumProduct.hasPurchasedSync();
   }
 
   /** Première étape non validée, ou la dernière si tout est complété. */
@@ -306,6 +335,7 @@ export class ChallengeManager {
         completed: storage.isCompleted(c.id),
         medal: storage.getMedal(c.id),
         accessible: this.isPongStepAccessible(c.id),
+        premiumLocked: this.isPongStepPremiumLocked(c.id),
         current: c.id === currentId,
       }),
     );
@@ -444,12 +474,17 @@ export class ChallengeManager {
         text: `✓ Défi réussi en ${run.cycles} cycle(s) !`,
         level: "ok",
       });
-      if (this._isPongStepId(challenge.id) && this._isLastPongStep(challenge.id)) {
+      if (this._isPongStepId(challenge.id) && this._isLastFreePongStep(challenge.id)) {
         bus.emit("chuck:funnel-step", {
           step: "pong-basic-completed",
           meta: { stepId: challenge.id },
         });
-        bus.emit("chuck:pong-completed", { stepCount: this._pongSteps().length });
+        // Mur premium : affiché à la fin de Pong Light (lead magnet consommé,
+        // raison de payer encore intacte — cf. stratégie §2). N'apparaît pas
+        // si l'utilisateur a déjà acheté l'accès avancé.
+        if (!premiumProduct.hasPurchasedSync()) {
+          bus.emit("chuck:pong-completed", { stepCount: this._pongSteps().length });
+        }
       }
     } else {
       bus.emit("chuck:challenge-failed", { result });
