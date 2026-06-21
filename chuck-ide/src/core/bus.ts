@@ -98,6 +98,12 @@ export interface ChuckEventMap {
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
   'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'pong' };
 
+  // ── Tracking funnel (cf. core/funnel-tracker.ts) ────────────
+  'chuck:funnel-step': {
+    step: import('./funnel-tracker.js').FunnelStep;
+    meta?: Record<string, unknown>;
+  };
+
   // ── Onboarding ──────────────────────────────
   'chuck:start-tour': undefined;
 

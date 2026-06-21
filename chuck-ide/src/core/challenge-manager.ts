@@ -275,6 +275,12 @@ export class ChallengeManager {
       pong: { stepIndex, stepCount },
     });
     this._emitPongSteps();
+    if (stepIndex === 1) {
+      bus.emit("chuck:funnel-step", {
+        step: "pong-basic-started",
+        meta: { stepId: id },
+      });
+    }
     void pushHistory; // la sync URL est gérée par l'appelant (_loadById)
   }
 
@@ -430,6 +436,10 @@ export class ChallengeManager {
         level: "ok",
       });
       if (this._isPongStepId(challenge.id) && this._isLastPongStep(challenge.id)) {
+        bus.emit("chuck:funnel-step", {
+          step: "pong-basic-completed",
+          meta: { stepId: challenge.id },
+        });
         bus.emit("chuck:pong-completed", { stepCount: this._pongSteps().length });
       }
     } else {

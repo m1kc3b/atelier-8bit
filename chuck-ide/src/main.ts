@@ -29,8 +29,13 @@ import { bus } from "./core/bus.js";
 import { Emulator } from "./core/emulator.js";
 import { ChallengeManager } from "./core/challenge-manager.js";
 import { storage } from "./core/storage/storage-service.js";
+import { funnelTracker } from "./core/funnel-tracker.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // ── Tracking funnel ──────────────────────────────────────
+  // Démarré en premier : visitor_id prêt avant la 1ère étape tracée.
+  funnelTracker.start();
+
   // ── Émulateur WASM ───────────────────────────────────────
   // Chargement async du module Rust/WASM
   const displayEl = document.getElementById("modal-display") as

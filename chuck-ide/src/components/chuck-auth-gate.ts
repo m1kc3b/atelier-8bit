@@ -7,6 +7,9 @@ type Mode = "signin" | "signup";
 export class ChuckAuthGate extends ChuckComponent {
   private _pendingChallengeId = 4;
   private _mode: Mode = "signin";
+  /** true entre une connexion/inscription réussie et le close() qui suit,
+   *  pour ne pas compter une conversion comme un abandon. */
+  private _converted = false;
 
   protected render(): void {
     this.shadow.innerHTML = `<style>@import '/src/styles/tokens.css';
@@ -84,11 +87,22 @@ export class ChuckAuthGate extends ChuckComponent {
 
   open(pendingChallengeId = 4): void {
     this._pendingChallengeId = pendingChallengeId;
+    this._converted = false;
     this.classList.add("open");
+    this.emit("chuck:funnel-step", {
+      step: "gate-shown",
+      meta: { challengeId: pendingChallengeId },
+    });
   }
 
   close(): void {
     this.classList.remove("open");
+    if (!this._converted) {
+      this.emit("chuck:funnel-step", {
+        step: "gate-abandoned",
+        meta: { challengeId: this._pendingChallengeId },
+      });
+    }
   }
 
   static isUnlocked(): boolean {
@@ -144,6 +158,11 @@ export class ChuckAuthGate extends ChuckComponent {
       return;
     }
 
+    this._converted = true;
+    this.emit("chuck:funnel-step", {
+      step: "gate-converted",
+      meta: { challengeId: this._pendingChallengeId, mode: this._mode },
+    });
     this.close();
     setView('atelier');
     this.emit("chuck:goto-challenge", { id: this._pendingChallengeId });
