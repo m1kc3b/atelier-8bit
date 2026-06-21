@@ -19,6 +19,7 @@ import type {
 import { storage } from "./storage/storage-service.js";
 import type { ChallengeProgress, Medal } from "./storage/types.js";
 import { challengesService } from "./challenges/challenges-service.js";
+import { tracksService } from "./challenges/tracks-service.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -26,7 +27,7 @@ const IDE_FREE_MODE = "chuck:ide-free" as const;
 
 /** Les étapes du parcours guidé "Coder Pong" sont stockées dans la même
  *  table `challenges` côté Supabase (arena_name = 'Projet Pong', locked = true),
- *  avec des ids ≥ PONG_ID_MIN. Elles sont exemptées de la gating séquentielle
+ *  via leur arena_name (track). Elles sont exemptées de la gating séquentielle
  *  globale et du compteur des défis classiques (cf. mémo projet). */
 export const PONG_ARENA = "Projet Pong" as const;
 
@@ -91,8 +92,12 @@ export class ChallengeManager {
 
   private async _loadChallenges(): Promise<void> {
     try {
-      const list = await challengesService.getAll();
-      for (const c of list) this._challenges.set(c.id, c);
+      const [challenges, steps] = await Promise.all([
+        challengesService.getAll(),
+        tracksService.getAllSteps(),
+      ]);
+      for (const c of challenges) this._challenges.set(c.id, c);
+      for (const s of steps) this._challenges.set(s.id, s);
     } catch (e) {
       bus.emit("chuck:log", {
         text: `Chargement des défis : ${(e as Error).message}`,
@@ -103,10 +108,14 @@ export class ChallengeManager {
 
   private async _loadContent(): Promise<void> {
     try {
-      const list = await challengesService.getAll();
-      for (const c of list) this._challenges.set(c.id, c);
+      const [challenges, steps] = await Promise.all([
+        challengesService.getAll(),
+        tracksService.getAllSteps(),
+      ]);
+      for (const c of challenges) this._challenges.set(c.id, c);
+      for (const s of steps) this._challenges.set(s.id, s);
       bus.emit("chuck:challenges-count" as any, {
-        count: list.filter((c) => !isPongArena(c)).length,
+        count: challenges.length,
       });
       this._emitChallengesList();
       this._emitPongSteps();
@@ -129,7 +138,7 @@ export class ChallengeManager {
   }
 
   private _loadById(id: number, pushHistory = false): void {
-    // ── Étapes du parcours guidé Pong (id ≥ 1000) — gating dédiée ──
+    // ── Étapes de parcours (détectées par arena_name) — gating dédiée ──
     if (this._isPongStepId(id)) {
       if (!this._challenges.has(id)) {
         bus.emit("chuck:log", { text: `Étape Pong #${id} introuvable.`, level: "err" });
@@ -358,7 +367,7 @@ export class ChallengeManager {
    * Retourne l'id du challenge courant à afficher :
    * le premier challenge non encore complété.
    * Si tout est complété, retourne le dernier challenge disponible.
-   * N'inclut jamais les étapes Pong (id ≥ PONG_ID_MIN).
+   * N'inclut jamais les étapes de parcours (filtrées par arena_name).
    */
   currentChallenge(): number {
     const regularIds = Array.from(this._challenges.values())

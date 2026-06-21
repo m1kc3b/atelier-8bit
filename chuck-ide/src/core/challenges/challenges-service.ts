@@ -1,6 +1,13 @@
 import { supabase } from '../auth/auth-service.js';
 import type { Challenge } from '../../types/challenge.js';
 
+/**
+ * Accès aux défis fondamentaux séquentiels — table `challenges`.
+ * Depuis la séparation challenges/parcours (point 2), cette table ne
+ * contient PLUS les étapes Pong (déplacées dans tracks/track_steps,
+ * cf. tracksService). Le filtrage `isPongArena` côté manager devient
+ * donc inutile sur cette source, mais reste valide (renvoie toujours false).
+ */
 class ChallengesService {
   private _cache: Challenge[] | null = null;
 
@@ -19,8 +26,9 @@ class ChallengesService {
 
     this._cache = data.map((row) => ({
       id: row.id,
-      arena: row.arena ?? undefined,
-      arena_name: row.arena_name ?? undefined,
+      // Plus d'arène sur les défis fondamentaux : champ laissé vide.
+      arena: undefined,
+      arena_name: undefined,
       locked: row.locked ?? false,
       title: row.title,
       description: row.description ?? '',
