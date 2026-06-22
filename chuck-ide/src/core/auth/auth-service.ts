@@ -66,6 +66,13 @@ class AuthService {
     return { error: error?.message ?? null };
   }
 
+  async signInWithGithub(): Promise<{ error: string | null }> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "github"
+    })
+    return { error: error?.message ?? null };
+  }
+
   async signOut(): Promise<void> {
     await supabase.auth.signOut();
   }
@@ -96,6 +103,8 @@ class AuthService {
     });
     return { error: error?.message ?? null };
   }
+
+  
 }
 
 export const authService = new AuthService();
