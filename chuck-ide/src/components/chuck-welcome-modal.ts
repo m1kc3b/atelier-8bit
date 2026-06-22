@@ -200,6 +200,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
     const choiceEl = this.shadow.getElementById('view-choice')!;
     choiceEl.querySelector('[data-choice="free"]')?.addEventListener('click', () => {
       this.close();
+      this.emit('chuck:ide-free', undefined);
       if (!ChuckOnboardingTour.hasBeenSeen()) {
         this.emit('chuck:start-tour', undefined);
       }

@@ -80,7 +80,7 @@ export class ChallengeManager {
         text: "Mode libre.",
         level: "dim",
       });
-      (bus as any).emit(IDE_FREE_MODE, undefined);
+      bus.emit(IDE_FREE_MODE, undefined);
     }
   }
 
@@ -579,6 +579,17 @@ export class ChallengeManager {
       ),
       bus.on("chuck:goto-challenge", ({ id }) => {
         this._loadById(id, true);
+      }),
+      bus.on("chuck:ide-free", () => {
+        // Sortie d'un défi / Pong vers le mode libre : on oublie l'item courant
+        // pour que validation, autosave et assemblage ne ciblent plus l'ancien id.
+        this._current = null;
+        this._currentItem = null;
+        // Nettoie l'URL (?challenge / ?lesson) pour ne pas recharger un défi au refresh.
+        const url = new URL(window.location.href);
+        url.searchParams.delete("challenge");
+        url.searchParams.delete("lesson");
+        window.history.replaceState({}, "", url.toString());
       }),
     );
   }

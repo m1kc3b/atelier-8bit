@@ -114,6 +114,7 @@ export interface ChuckEventMap {
   'chuck:open-account': undefined;
 
   // ── Navigation modale (welcome héberge challenges + pong) ───
+  'chuck:ide-free':        undefined;
   'chuck:open-welcome':    { view?: 'choice' | 'challenges' | 'pong' } | undefined;
   'chuck:show-challenges': undefined;
   'chuck:show-pong':       undefined;

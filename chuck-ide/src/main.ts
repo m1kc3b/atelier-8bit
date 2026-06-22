@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
   );
 
-  (bus as any).on("chuck:ide-free", () => {
+  bus.on("chuck:ide-free", () => {
     setMode("free");
     titlebarFile.textContent = "mode libre";
     document.title = "Chuck IDE — Chuck-8 Computer";
