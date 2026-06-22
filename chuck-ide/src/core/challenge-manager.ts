@@ -68,8 +68,8 @@ export class ChallengeManager {
     if (urlId !== null) {
       // _loadById redirige automatiquement si l'id est inaccessible
       this._loadById(urlId, false);
-    } else if (this._hasParcoursParam()) {
-      // ?parcours sans valeur valide → challenge courant
+    } else if (this._hasTrackParam()) {
+      // ?challenge / ?parcours sans valeur valide → challenge courant
       this._loadById(this.currentChallenge(), false);
     } else {
       bus.emit(IDE_FREE_MODE, undefined);
@@ -135,19 +135,19 @@ export class ChallengeManager {
   private _getIdFromUrl(): number | null {
     const params = new URLSearchParams(window.location.search);
     const raw =
-      params.get("parcours") ??
       params.get("challenge") ??
+      params.get("parcours") ??
       params.get("lesson");
     if (!raw) return null;
     const id = parseInt(raw, 10);
     return isNaN(id) ? null : id;
   }
 
-  private _hasParcoursParam(): boolean {
+  private _hasTrackParam(): boolean {
     const params = new URLSearchParams(window.location.search);
     return (
-      params.has("parcours") ||
       params.has("challenge") ||
+      params.has("parcours") ||
       params.has("lesson")
     );
   }
@@ -210,13 +210,16 @@ export class ChallengeManager {
     this._syncUrl(id, pushHistory);
   }
 
-  // Méthode utilitaire — centralise la mise à jour de l'URL
+  // Méthode utilitaire — centralise la mise à jour de l'URL.
+  // Les étapes de parcours (Pong, Snake…) utilisent ?parcours=X ;
+  // les challenges classiques utilisent ?challenge=X.
   private _syncUrl(id: number, push: boolean): void {
     const url = new URL(window.location.href);
     url.searchParams.delete("challenge");
     url.searchParams.delete("lesson");
     url.searchParams.delete("parcours");
-    url.searchParams.set("parcours", String(id));
+    const param = this._isTrackStepId(id) ? "parcours" : "challenge";
+    url.searchParams.set(param, String(id));
     if (push) {
       window.history.pushState({}, "", url.toString());
     } else {
