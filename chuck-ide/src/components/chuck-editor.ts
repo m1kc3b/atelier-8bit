@@ -964,6 +964,10 @@ const STYLES = /* css */ `
   .log-info { color: var(--cyan); }
   .log-hex  { color: var(--amber); }
   .log-dim  { color: var(--text-muted); }
+  /* Message de lancement d'un mode : la couleur (du mode actif) est FIGÉE
+     inline au moment de l'écriture par _log() — voir chuck-editor _log().
+     Pas de color ici : éviterait que tous les anciens messages se recolorent. */
+  .log-mode { font-weight: 700; }
 
   .tab-bar {
   display: flex;
@@ -1205,12 +1209,14 @@ export class ChuckEditor extends ChuckComponent {
     // ── Bus ───────────────────────────────────────────────
     this.sub("chuck:log", ({ text, level }) => this._log(text, level));
 
-    this.sub("chuck:challenge-loaded", ({ challenge, code }) => {
+    this.sub("chuck:challenge-loaded", ({ challenge, code, track }) => {
       this._currentId = challenge.id;
       this._tabLabel.textContent = `defi_${String(challenge.id).padStart(2, "0")}.asm`;
       this.setSource(code);
       this._emitCursor();
-      this._log(`Défi #${challenge.id} — ${challenge.title}`, "info");
+      // Couleur figée selon le mode déduit de l'event (track → pong, sinon
+      // challenges) — indépendant de l'ordre des listeners qui posent data-mode.
+      this._log(`Défi #${challenge.id} — ${challenge.title}`, "mode", track ? "pong" : "challenges");
     });
 
     this.sub("chuck:ide-free", () => {
@@ -1330,7 +1336,7 @@ private _newProject(): void {
     });
   }
 
-  private _log(text: string, level: string): void {
+  private _log(text: string, level: string, mode?: string): void {
     const ts = new Date().toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
@@ -1338,6 +1344,16 @@ private _newProject(): void {
     });
     const span = document.createElement("span");
     span.className = `log log-${level}`;
+    // Pour un message de lancement de mode : on FIGE la couleur du mode au
+    // moment de l'écriture (couleur calculée, pas la variable --mode-color qui
+    // évoluerait et recolorierait les anciennes lignes à chaque changement).
+    // `mode` explicite si fourni (déduit de l'event), sinon data-mode courant.
+    if (level === "mode") {
+      const root = document.documentElement;
+      const m = mode || root.dataset.mode || "free";
+      const c = getComputedStyle(root).getPropertyValue(`--mode-${m}`).trim();
+      if (c) span.style.color = c;
+    }
     span.textContent = `[${ts}]  ${text}`;
     this._output.appendChild(span);
     this._output.appendChild(document.createElement("br"));

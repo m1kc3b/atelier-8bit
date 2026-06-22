@@ -72,11 +72,11 @@ export class ChallengeManager {
       // ?challenge sans valeur valide → challenge courant
       this._loadById(this.currentChallenge(), false);
     } else {
+      bus.emit(IDE_FREE_MODE, undefined);
       bus.emit("chuck:log", {
         text: "Mode libre.",
-        level: "dim",
+        level: "mode",
       });
-      bus.emit(IDE_FREE_MODE, undefined);
     }
   }
 

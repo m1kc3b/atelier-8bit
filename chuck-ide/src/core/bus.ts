@@ -60,7 +60,7 @@ export interface ChuckEventMap {
   'chuck:assemble-err': { line: number; err: string };
 
   // ── Console ─────────────────────────────────────────────
-  'chuck:log':     { text: string; level: 'info' | 'ok' | 'err' | 'hex' | 'dim' };
+  'chuck:log':     { text: string; level: 'info' | 'ok' | 'err' | 'hex' | 'dim' | 'mode' };
 
   // ── Éditeur ─────────────────────────────────────────────
   'chuck:code-changed':  undefined;
