@@ -34,7 +34,7 @@ export class ChuckAuthGate extends ChuckComponent {
 
   protected render(): void {
     this.shadow.innerHTML = `<style>@import '/src/styles/tokens.css';
-      :host { position:fixed; inset:0; z-index:9000; display:none;
+      :host { position:fixed; inset:0; z-index:9800; display:none;
               align-items:center; justify-content:center;
               background:rgba(0,0,0,.7); }
       :host(.open) { display:flex; }
