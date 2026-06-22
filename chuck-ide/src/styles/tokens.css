@@ -16,8 +16,8 @@
 
   /* ── Texte ────────────────────────────────────────────── */
   --text:        #e2e2e2;
-  --text-dim:    #999;
-  --text-muted:  #555;
+  --text-dim:    #bebbbb;
+  --text-muted:  #8f8e8e;
 
   /* ── Accent & couleurs sémantiques ────────────────────── */
   --accent:      #7c6af7;
