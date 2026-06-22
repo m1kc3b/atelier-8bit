@@ -115,6 +115,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   // init() émet chuck:challenge-loaded de façon synchrone — les listeners
   // doivent exister avant l'appel.
 
+  // Couleur du mode actif, propagée à tout l'UI via --mode-color sur :root.
+  type ModeName = "free" | "challenges" | "pong";
+  function setMode(mode: ModeName): void {
+    const root = document.documentElement;
+    root.style.setProperty("--mode-color", `var(--mode-${mode})`);
+    root.style.setProperty("--mode-color-dim", `var(--mode-${mode}-dim)`);
+    root.dataset.mode = mode;
+  }
+
   bus.on("chuck:challenge-loaded", ({ challenge }) => {
     if (challenge.locked && !storage.isUnlocked()) {
       gateEl?.open({
@@ -125,7 +134,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  bus.on("chuck:challenge-loaded", ({ challenge }) => {
+  bus.on("chuck:challenge-loaded", ({ challenge, pong }) => {
+    setMode(pong ? "pong" : "challenges");
     const label = `Défi ${challenge.id} — ${challenge.title}`;
     titlebarFile.textContent = label;
     document.title = `${label} — Chuck IDE`;
@@ -164,6 +174,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
 
   (bus as any).on("chuck:ide-free", () => {
+    setMode("free");
     titlebarFile.textContent = "mode libre";
     document.title = "Chuck IDE — Chuck-8 Computer";
     closeSidePanel();

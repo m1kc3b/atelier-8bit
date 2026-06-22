@@ -47,15 +47,19 @@ export class ChuckWelcomeModal extends ChuckComponent {
       .hero h1 { font-size:30px; font-weight:800; color:var(--text); margin:0 0 14px; line-height:1.25; }
       .hero p { font-size:15px; color:var(--text); line-height:1.65; max-width:560px; margin:0 auto 34px; }
       .cta-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:0 40px; margin-bottom:34px; }
-      .cta-card { display:flex; flex-direction:column; align-items:flex-start; gap:9px;
-                  padding:22px 18px; background:var(--surface-3); border:1px solid var(--border);
+      .cta-card { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:9px;
+                  padding:22px 18px 22px 21px; background:var(--surface-3); border:1px solid var(--border);
+                  border-left:3px solid var(--card, var(--accent));
                   border-radius:14px; cursor:pointer; text-align:left;
                   transition:border-color var(--t-fast), background var(--t-fast), transform .12s; }
-      .cta-card:hover { border-color:var(--accent); background:var(--accent-dim); transform:translateY(-2px); }
+      .cta-card[data-choice="free"]       { --card: var(--mode-free);       --card-dim: var(--mode-free-dim); }
+      .cta-card[data-choice="challenges"] { --card: var(--mode-challenges); --card-dim: var(--mode-challenges-dim); }
+      .cta-card[data-choice="pong"]       { --card: var(--mode-pong);       --card-dim: var(--mode-pong-dim); }
+      .cta-card:hover { border-color:var(--card); background:var(--card-dim); transform:translateY(-2px); }
       .cta-icon { font-size:24px; }
       .cta-card strong { font-size:13.5px; color:var(--text); }
       .cta-card span { font-size:11.5px; color:var(--text-muted); line-height:1.55; }
-      .cta-arrow { margin-top:4px; font-size:11.5px; color:var(--accent); opacity:0; transition:opacity var(--t-fast); }
+      .cta-arrow { margin-top:4px; font-size:11.5px; color:var(--card, var(--accent)); opacity:0; transition:opacity var(--t-fast); }
       .cta-card:hover .cta-arrow { opacity:1; }
       .choice-view { display:flex; flex-direction:column; min-height:100%; }
       .stats-strip { margin-top:auto; display:flex; justify-content:center; gap:26px; padding:18px 40px 8px;
@@ -96,6 +100,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
       <div class="topbar">
         <button class="back-btn" id="back-btn" title="Retour">←</button>
         <span class="topbar-logo">🕹️ L'Atelier 8-bit</span>
+        
       </div>
       <div id="body">
         <div id="view-choice"></div>

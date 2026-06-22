@@ -880,9 +880,9 @@ const STYLES = /* css */ `
     position: absolute;
     bottom: 0; left: 0; right: 0;
     height: 1px;
-    background: var(--accent);
+    background: var(--mode-color);
   }
-  .tab-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .7; }
+  .tab-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--mode-color); opacity: .7; }
 
   .tab-export {
     margin-left: auto;

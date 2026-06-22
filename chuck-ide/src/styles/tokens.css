@@ -31,6 +31,17 @@
   --cyan:        #38bdf8;
   --cyan-dim:    rgba(56, 189, 248, 0.12);
 
+  /* ── Couleurs par mode (libre · challenges · pong) ─────── */
+  --mode-free:         var(--accent);
+  --mode-free-dim:     var(--accent-dim);
+  --mode-challenges:   var(--cyan);
+  --mode-challenges-dim: var(--cyan-dim);
+  --mode-pong:         var(--amber);
+  --mode-pong-dim:     var(--amber-dim);
+  /* Couleur du mode actif — mise à jour dynamiquement (défaut : libre). */
+  --mode-color:        var(--mode-free);
+  --mode-color-dim:    var(--mode-free-dim);
+
   /* ── Typographie ──────────────────────────────────────── */
   --font-ui:     'Inter', 'Segoe UI', sans-serif;
   --font-mono:   'Hack', monospace;
