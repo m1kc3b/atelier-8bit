@@ -352,7 +352,13 @@ impl<'a> Parser<'a> {
 
                     // Directive .xxx
                     _ if name.starts_with('.') => {
-                        stmts.push(self.parse_directive(name, line)?);
+                        // .include est traité ici (et non dans parse_directive)
+                        // car il injecte PLUSIEURS statements, pas un seul.
+                        if name.eq_ignore_ascii_case(".include") {
+                            stmts.extend(self.parse_include(line)?);
+                        } else {
+                            stmts.push(self.parse_directive(name, line)?);
+                        }
                     }
 
                     // *=  (origin)
@@ -403,6 +409,48 @@ impl<'a> Parser<'a> {
             self.advance();
         }
 
+        Ok(stmts)
+    }
+
+    /// Résout `.include "chuck.inc"`.
+    ///
+    /// L'assembleur n'a pas de système de fichiers : le seul include reconnu
+    /// est le header système virtuel « chuck.inc », intégré au binaire
+    /// (voir `chuck_inc.rs`). Il est injecté comme une série de définitions
+    /// `NOM = valeur`, exactement comme si l'utilisateur les avait tapées.
+    /// Tout autre nom de fichier produit une erreur explicite.
+    fn parse_include(&mut self, line: usize) -> Result<Vec<Statement>, AssembleError> {
+        let name = match self.peek_kind().cloned() {
+            Some(TokenKind::String(s)) => { self.advance(); s }
+            _ => return Err(AssembleError {
+                line,
+                msg: "Nom de fichier attendu après .include (ex. .include \"chuck.inc\")".into(),
+            }),
+        };
+
+        // Tolère "chuck.inc" comme "Chuck.Inc", avec ou sans chemin (./chuck.inc).
+        let base = name.rsplit(['/', '\\']).next().unwrap_or(&name);
+        if !base.eq_ignore_ascii_case(super::chuck_inc::CHUCK_INC_NAME) {
+            return Err(AssembleError {
+                line,
+                msg: format!(
+                    "Include inconnu : « {name} ». Seul \"chuck.inc\" (header système \
+                     intégré) est disponible — il n'y a pas de système de fichiers."
+                ),
+            });
+        }
+
+        // Injecte chaque constante comme Directive::Define (= `NOM = valeur`).
+        let stmts = super::chuck_inc::CHUCK_INC_CONSTANTS
+            .iter()
+            .map(|(cname, val)| Statement {
+                line,
+                kind: StmtKind::Directive(Directive::Define(
+                    (*cname).to_string(),
+                    Expr::Num(*val),
+                )),
+            })
+            .collect();
         Ok(stmts)
     }
 
@@ -463,7 +511,7 @@ impl<'a> Parser<'a> {
                 Directive::Segment(name)
             }
             // .proc, .endproc, .macro, .endmacro → ignorés silencieusement
-            ".proc" | ".endproc" | ".macro" | ".endmacro" | ".include" => {
+            ".proc" | ".endproc" | ".macro" | ".endmacro" => {
                 while !matches!(self.peek_kind(), Some(TokenKind::Newline) | None) {
                     self.advance();
                 }
@@ -572,5 +620,53 @@ mod tests {
     fn org_directive() {
         let stmts = parse_src(".org $0600\n");
         assert!(stmts.iter().any(|s| matches!(s.kind, StmtKind::Directive(Directive::Org(_)))));
+    }
+
+    #[test]
+    fn include_chuck_inc_injects_constants() {
+        // .include "chuck.inc" injecte les constantes du header système.
+        let stmts = parse_src(".include \"chuck.inc\"\n");
+        let defines: Vec<_> = stmts.iter()
+            .filter_map(|s| match &s.kind {
+                StmtKind::Directive(Directive::Define(n, e)) => Some((n.clone(), e.clone())),
+                _ => None,
+            })
+            .collect();
+        // Le header complet est injecté.
+        assert_eq!(defines.len(), crate::assembler::chuck_inc::CHUCK_INC_CONSTANTS.len());
+        // Une constante clé est présente avec la bonne valeur.
+        let found = defines.iter().find(|(n, _)| n == "SYS_DRAW_PIXEL").unwrap();
+        assert!(matches!(found.1, Expr::Num(0xF003)));
+    }
+
+    #[test]
+    fn include_resolves_in_real_program() {
+        // Un programme qui utilise une constante du header doit s'assembler.
+        let stmts = parse_src(".include \"chuck.inc\"\n  JSR SYS_DRAW_PIXEL\n  BRK\n");
+        assert!(stmts.iter().any(|s| matches!(&s.kind,
+            StmtKind::Instruction(i) if i.mnem == "JSR")));
+    }
+
+    #[test]
+    fn include_unknown_file_errors() {
+        // Tout autre fichier que chuck.inc est rejeté explicitement.
+        let tokens = tokenize(".include \"autre.inc\"\n").unwrap();
+        let res = parse(&tokens);
+        assert!(res.is_err(), "un include inconnu doit échouer");
+        assert!(res.err().unwrap().msg.contains("autre.inc"));
+    }
+
+    #[test]
+    fn include_path_and_case_insensitive() {
+        // ./Chuck.Inc doit être accepté comme chuck.inc.
+        let stmts = parse_src(".include \"./Chuck.Inc\"\n");
+        assert!(stmts.iter().any(|s| matches!(&s.kind,
+            StmtKind::Directive(Directive::Define(_, _)))));
+    }
+
+    #[test]
+    fn include_missing_arg_errors() {
+        let tokens = tokenize(".include\n").unwrap();
+        assert!(parse(&tokens).is_err(), "un .include sans argument doit échouer");
     }
 }

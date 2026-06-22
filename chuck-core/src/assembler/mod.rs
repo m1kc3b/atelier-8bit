@@ -1,5 +1,6 @@
 // chuck-core/src/assembler/mod.rs
 
+pub mod chuck_inc;
 pub mod lexer;
 pub mod parser;
 pub mod pass1;
