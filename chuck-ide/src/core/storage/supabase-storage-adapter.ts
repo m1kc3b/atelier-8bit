@@ -52,7 +52,7 @@ export class SupabaseStorageAdapter implements IStorageService {
       challenge_id: challengeId,
       code,
       saved_at: new Date().toISOString(),
-    }));
+    }, { onConflict: 'user_id,challenge_id' }));
   }
 
   getProgress(challengeId: number): ChallengeProgress | null {
@@ -75,7 +75,7 @@ export class SupabaseStorageAdapter implements IStorageService {
         hints_used: hintsUsed,
         completed_at: updated.completedAt,
         saved_at: new Date().toISOString(),
-      }));
+      }, { onConflict: 'user_id,challenge_id' }));
     }
     return updated;
   }
@@ -93,7 +93,12 @@ export class SupabaseStorageAdapter implements IStorageService {
       .select('*')
       .eq('user_id', user.id);
     if (error || !data) return;
+
+    // Indexe les lignes serveur par challenge_id pour comparaison.
+    const serverRows = new Map<number, any>();
     for (const row of data) {
+      serverRows.set(row.challenge_id, row);
+      // Serveur → local (le serveur est plus récent)
       const local    = this._local.getProgress(row.challenge_id);
       const serverTs = new Date(row.saved_at).getTime();
       const localTs  = local ? new Date(local.savedAt).getTime() : 0;
@@ -101,6 +106,29 @@ export class SupabaseStorageAdapter implements IStorageService {
         this._local.saveCode(row.challenge_id, row.code);
         if (row.medal) this._local.saveCompletion(row.challenge_id, row.medal, row.hints_used ?? 0);
       }
+    }
+
+    // Local → serveur : pousse tout ce que le serveur ignore ou a plus ancien.
+    // C'est ce qui remonte les challenges 1, 2, 3 faits avant connexion.
+    const rows: any[] = [];
+    for (const local of Object.values(this._local.getAllProgress())) {
+      const row      = serverRows.get(local.challengeId);
+      const localTs  = new Date(local.savedAt).getTime();
+      const serverTs = row ? new Date(row.saved_at).getTime() : -1;
+      if (localTs > serverTs) {
+        rows.push({
+          user_id:      user.id,
+          challenge_id: local.challengeId,
+          code:         local.code,
+          medal:        local.medal ?? null,
+          hints_used:   local.hintsUsed ?? null,
+          completed_at: local.completedAt ?? null,
+          saved_at:     local.savedAt,
+        });
+      }
+    }
+    if (rows.length) {
+      fire(supabase.from('challenge_progress').upsert(rows, { onConflict: 'user_id,challenge_id' }));
     }
   }
 }
