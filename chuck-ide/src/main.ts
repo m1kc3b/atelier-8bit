@@ -106,7 +106,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ── Email gate — défis verrouillés (4+) ─────────────────────
   const gateEl = document.getElementById("modal-auth-gate") as
-    | (HTMLElement & { open(id: number): void })
+    | (HTMLElement & {
+        open(opts?: {
+          challengeId?: number;
+          title?: string;
+          sub?: string;
+          dismissible?: boolean;
+        }): void;
+      })
     | null;
 
   const accountModal = document.getElementById("modal-account") as
@@ -121,7 +128,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (authService.isAuthenticated()) {
       accountModal?.open();
     } else {
-      gateEl?.open(0);
+      gateEl?.open({
+        title: "Connecte-toi à ton compte",
+        sub: "Retrouve ta progression et tes réalisations sauvegardées.",
+        dismissible: true,
+      });
     }
   });
 
@@ -130,7 +141,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   bus.on("chuck:challenge-loaded", ({ challenge }) => {
     if (challenge.locked && !storage.isUnlocked()) {
-      gateEl?.open(challenge.id);
+      gateEl?.open({
+        challengeId: challenge.id,
+        title: "Sauvegarde ta progression",
+        sub: "Crée un compte pour débloquer la suite des défis et garder tes réalisations.",
+      });
     }
   });
 
@@ -142,7 +157,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   bus.on("chuck:require-auth", ({ reason }) => {
-    gateEl?.open(reason === "pong" ? -1 : 0); // -1 = sentinelle « gate Pong »
+    const copy: Record<string, { title: string; sub: string }> = {
+      save: {
+        title: "Sauvegarde ton travail",
+        sub: "Crée un compte pour enregistrer ce projet et le retrouver plus tard.",
+      },
+      "new-project": {
+        title: "Crée un compte pour démarrer un projet",
+        sub: "Tes projets sont sauvegardés et synchronisés sur ton compte.",
+      },
+      pong: {
+        title: "Continue Coder Pong",
+        sub: "Crée un compte pour sauvegarder ta progression dans le parcours.",
+      },
+      challenge: {
+        title: "Sauvegarde ta progression",
+        sub: "Crée un compte pour débloquer la suite des défis.",
+      },
+    };
+    gateEl?.open(copy[reason] ?? {});
   });
 
   (bus as any).on(

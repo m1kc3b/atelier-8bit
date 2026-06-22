@@ -4,6 +4,28 @@ import { setView } from "../core/router.js";
 
 type Mode = "signin" | "signup";
 
+/** Options d'ouverture de la gate. Le copy (title/sub) est fourni par
+ *  l'appelant pour s'adapter au contexte (défi verrouillé, sauvegarde,
+ *  nouveau projet, Pong, compte…). */
+export interface AuthGateOpenOptions {
+  /** Défi à charger après authentification. Défaut : 4. */
+  challengeId?: number;
+  /** Titre affiché en mode "signin". Défaut : copy générique. */
+  title?: string;
+  /** Sous-titre affiché en mode "signin". Défaut : copy générique. */
+  sub?: string;
+  /** Affiche le bouton de fermeture. Défaut : false (gate bloquante).
+   *  Seule la connexion volontaire (clic « Mon compte ») doit passer true,
+   *  sinon l'utilisateur pourrait poursuivre les défis sans jamais s'authentifier. */
+  dismissible?: boolean;
+}
+
+/** Copy par défaut si l'appelant n'en fournit pas. */
+const DEFAULT_GATE_COPY = {
+  title: "Sauvegarde ta progression",
+  sub: "Crée un compte pour retrouver tes réalisations et continuer.",
+} as const;
+
 export class ChuckAuthGate extends ChuckComponent {
   private _pendingChallengeId = 4;
   private _mode: Mode = "signin";
@@ -42,8 +64,8 @@ export class ChuckAuthGate extends ChuckComponent {
     </style>
     <div class="modal">
       <button class="close-btn" id="close-btn" title="Fermer">✕</button>
-      <h2 id="title">Connecte-toi pour continuer</h2>
-      <p class="sub" id="sub">27 défis t'attendent.</p>
+      <h2 id="title">Sauvegarde ta progression</h2>
+      <p class="sub" id="sub">Crée un compte pour retrouver tes réalisations et continuer.</p>
       <form id="auth-form" autocomplete="on">
         <input id="email" name="email" type="email" placeholder="Email" autocomplete="username" required>
         <input id="password" name="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
@@ -79,23 +101,50 @@ export class ChuckAuthGate extends ChuckComponent {
         if (e.key === "Escape" && this.classList.contains("open")) {
           e.stopImmediatePropagation();
           e.preventDefault();
+          if (this._dismissible) this.close();
         }
       },
       { capture: true },
     );
   }
 
-  open(pendingChallengeId = 4): void {
-    this._pendingChallengeId = pendingChallengeId;
+  /** Sous-titre du contexte courant — restauré quand on revient en mode "signin". */
+  private _contextSub: string = DEFAULT_GATE_COPY.sub;
+
+  /** true si l'utilisateur a le droit de fermer sans s'authentifier. */
+  private _dismissible = false;
+
+  open(opts: AuthGateOpenOptions = {}): void {
+    const { challengeId = 4, title, sub, dismissible = false } = opts;
+    this._pendingChallengeId = challengeId;
     this._converted = false;
+
+    const titleEl = this.shadow.getElementById("title")!;
+    const subEl = this.shadow.getElementById("sub")!;
+    titleEl.textContent = title ?? DEFAULT_GATE_COPY.title;
+    subEl.textContent = sub ?? DEFAULT_GATE_COPY.sub;
+    this._contextSub = sub ?? DEFAULT_GATE_COPY.sub;
+
+    // Bouton fermer visible uniquement pour une connexion volontaire.
+    this._dismissible = dismissible;
+    const closeBtn = this.shadow.getElementById("close-btn") as HTMLElement;
+    closeBtn.style.display = dismissible ? "" : "none";
+
+    // Toujours rouvrir en mode "signin".
+    this._mode = "signin";
+
     this.classList.add("open");
     this.emit("chuck:funnel-step", {
       step: "gate-shown",
-      meta: { challengeId: pendingChallengeId },
+      meta: { challengeId },
     });
   }
 
   close(): void {
+    // Gate bloquante : seule une authentification réussie (_converted) peut
+    // la fermer. Un clic « fermer » n'existe que si dismissible.
+    if (!this._dismissible && !this._converted) return;
+
     this.classList.remove("open");
     if (!this._converted) {
       this.emit("chuck:funnel-step", {
@@ -112,6 +161,7 @@ export class ChuckAuthGate extends ChuckComponent {
   private _toggleMode(): void {
     this._mode = this._mode === "signin" ? "signup" : "signin";
     const title = this.shadow.getElementById("title")!;
+    const sub = this.shadow.getElementById("sub")!;
     const submitBtn = this.shadow.getElementById("submit-btn")!;
     const switchText = this.shadow.getElementById("switch-text")!;
     const switchLink = this.shadow.getElementById("switch-link")!;
@@ -119,12 +169,15 @@ export class ChuckAuthGate extends ChuckComponent {
 
     if (this._mode === "signup") {
       title.textContent = "Crée ton compte";
+      sub.textContent =
+        "Gratuit. Ta progression et tes réalisations sont sauvegardées.";
       submitBtn.textContent = "S'inscrire";
       switchText.textContent = "Déjà un compte ?";
       switchLink.textContent = "Se connecter";
       forgotWrap.style.display = "none";
     } else {
-      title.textContent = "Connecte-toi pour continuer";
+      title.textContent = DEFAULT_GATE_COPY.title;
+      sub.textContent = this._contextSub;
       submitBtn.textContent = "Se connecter";
       switchText.textContent = "Pas encore de compte ?";
       switchLink.textContent = "Créer un compte";
