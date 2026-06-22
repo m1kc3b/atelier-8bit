@@ -107,7 +107,6 @@ export class ChuckWelcomeModal extends ChuckComponent {
 
   protected setup(): void {
     this.shadow.getElementById('back-btn')!.addEventListener('click', () => this._showView('choice'));
-    this.shadow.getElementById('close-btn')!.addEventListener('click', () => this.close());
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.classList.contains('open')) this.close();
     });
