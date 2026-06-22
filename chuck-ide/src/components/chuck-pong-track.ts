@@ -2,11 +2,11 @@
    Chuck IDE — components/chuck-pong-track.ts
    Écran "🏓 Coder Pong" — Choix 3 depuis l'accueil.
 
-   Feuille de route du parcours guidé : liste des étapes (même
-   principe que <chuck-challenges-list>), avec verrou "compte requis"
-   tant que l'utilisateur n'est pas inscrit. Cliquer sur une étape
-   accessible bascule sur l'Atelier (éditeur + <chuck-side-panel>),
-   exactement comme pour un défi classique.
+   Feuille de route du parcours guidé : étapes présentées en grille
+   de cards (présentation identique à <chuck-challenges-list>), avec
+   verrou "compte requis" tant que l'utilisateur n'est pas inscrit.
+   Cliquer sur une étape accessible bascule sur l'Atelier (éditeur +
+   <chuck-side-panel>), exactement comme pour un défi classique.
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
@@ -31,14 +31,52 @@ const STYLES = /* css */ `
     flex-shrink: 0;
   }
   .head h1 { font-size: 22px; font-weight: 800; color: var(--text); margin: 0 0 6px; }
-  .head p  { font-size: 13px; color: var(--text); margin: 0 0 14px; max-width: 560px; line-height: 1.55; }
+  .head p  { font-size: 13px; color: var(--text); margin: 0 0 14px; }
 
   .progress-row { display: flex; align-items: center; gap: 10px; }
   .progress-track { flex: 1; height: 6px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
   .progress-label { font-size: 11px; font-weight: 700; color: var(--text-dim); white-space: nowrap; }
 
-  .body { flex: 1; overflow-y: auto; padding: 24px 32px 40px; }
+  .grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 32px 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    align-content: start;
+  }
+
+  .card {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color var(--t-fast), transform var(--t-fast);
+  }
+  .card:hover:not(.locked) { border-color: var(--accent); transform: translateY(-2px); }
+  .card.current   { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+  .card.completed { border-color: rgba(61,214,140,.35); }
+  .card.locked    { cursor: not-allowed; opacity: .5; pointer-events: none; }
+  .card.premium   { cursor: pointer; opacity: 1; border-color: var(--accent); }
+  .card.premium:hover { transform: translateY(-2px); }
+
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .card-id { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .card-status { font-size: 16px; line-height: 1; }
+
+  .card-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 6px; line-height: 1.35; }
+
+  .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    padding: 2px 7px; border-radius: 4px; background: var(--surface-3); color: var(--text-dim);
+  }
+  .tag.premium { background: var(--accent-dim); color: var(--accent); }
+  .tag.lock  { background: var(--surface-3); color: var(--text-muted); }
 
   /* ── État verrouillé (pas de compte) ─────────────────────── */
   .locked-box { display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -52,40 +90,11 @@ const STYLES = /* css */ `
     font-family: var(--font-ui); cursor: pointer;
   }
 
-  /* ── Roadmap ──────────────────────────────────────────────── */
-  .roadmap { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
-
-  .step-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px; background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 10px; cursor: pointer; transition: border-color var(--t-fast), transform var(--t-fast);
-  }
-  .step-card:hover:not(.locked) { border-color: var(--accent); transform: translateY(-1px); }
-  .step-card.current   { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
-  .step-card.completed { border-color: rgba(61,214,140,.35); }
-  .step-card.locked    { cursor: not-allowed; opacity: .5; }
-  .step-card.premium   { cursor: pointer; opacity: 1; border-color: var(--accent); }
-  .step-card.premium:hover { transform: translateY(-1px); }
-  .step-card.premium .step-sub { color: var(--accent); font-weight: 600; }
-
-  .step-num {
-    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; font-family: var(--font-mono);
-    background: var(--surface-3); color: var(--text-dim);
-  }
-  .step-card.current .step-num   { background: var(--accent-dim); color: var(--accent); }
-  .step-card.completed .step-num { background: var(--green-dim); color: var(--green); }
-
-  .step-text { flex: 1; min-width: 0; }
-  .step-title { font-size: 14px; font-weight: 700; color: var(--text); }
-  .step-sub   { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
-  .step-status { font-size: 18px; flex-shrink: 0; }
-
   .all-done {
-    margin-top: 16px; padding: 16px 18px; border-radius: 10px;
+    grid-column: 1 / -1;
+    padding: 16px 18px; border-radius: 10px;
     background: var(--accent-dim); border: 1px solid var(--accent);
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 640px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
   .all-done span { font-size: 13px; font-weight: 700; color: var(--text); }
   .all-done button {
@@ -94,7 +103,7 @@ const STYLES = /* css */ `
     font-family: var(--font-ui); cursor: pointer; flex-shrink: 0;
   }
 
-  .empty { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .empty { grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; }
 `;
 
 export class ChuckPongTrack extends ChuckComponent {
@@ -110,7 +119,7 @@ export class ChuckPongTrack extends ChuckComponent {
           <span class="progress-label" id="progress-label">0 / 0</span>
         </div>
       </div>
-      <div class="body" id="body">
+      <div class="grid" id="grid">
         <div class="empty">Chargement…</div>
       </div>`;
   }
@@ -118,25 +127,26 @@ export class ChuckPongTrack extends ChuckComponent {
   protected setup(): void {
     this.sub("chuck:pong-steps", ({ items }) => {
       this._items = items;
-      this._renderBody();
+      this._renderGrid();
     });
     // L'état d'auth peut changer après le rendu initial (ex: retour de la
     // gate d'inscription) — on réaffiche pour lever le verrou sans reload.
-    this.sub("chuck:challenge-loaded", () => this._renderBody());
+    this.sub("chuck:challenge-loaded", () => this._renderGrid());
   }
 
   connectedCallback(): void {
     super.connectedCallback();
-    this._renderBody();
+    this._renderGrid();
   }
 
-  private _renderBody(): void {
-    const body = this.shadow.getElementById("body")!;
+  private _renderGrid(): void {
+    const grid = this.shadow.getElementById("grid")!;
     const progressRow = this.shadow.getElementById("progress-row")!;
 
     if (!storage.isUnlocked()) {
       progressRow.style.display = "none";
-      body.innerHTML = `
+      grid.style.display = "block";
+      grid.innerHTML = `
         <div class="locked-box">
           <div class="locked-icon">🔒</div>
           <h2>Débloque le projet guidé Pong</h2>
@@ -151,7 +161,8 @@ export class ChuckPongTrack extends ChuckComponent {
 
     if (this._items.length === 0) {
       progressRow.style.display = "none";
-      body.innerHTML = `
+      grid.style.display = "block";
+      grid.innerHTML = `
         <div class="locked-box">
           <div class="locked-icon">🏓</div>
           <h2>Le parcours arrive très vite</h2>
@@ -163,6 +174,8 @@ export class ChuckPongTrack extends ChuckComponent {
       );
       return;
     }
+
+    grid.style.display = "grid";
 
     const completedCount = this._items.filter((i) => i.completed).length;
     const allDone = completedCount === this._items.length;
@@ -181,9 +194,9 @@ export class ChuckPongTrack extends ChuckComponent {
          </div>`
       : "";
 
-    body.innerHTML = `<div class="roadmap">${cards}</div>${doneBanner}`;
+    grid.innerHTML = `${cards}${doneBanner}`;
 
-    body.querySelectorAll<HTMLElement>(".step-card[data-id]").forEach((el) => {
+    grid.querySelectorAll<HTMLElement>(".card[data-id]").forEach((el) => {
       el.addEventListener("click", () => {
         const id = Number(el.dataset["id"]);
         const item = this._items.find((i) => i.id === id);
@@ -205,8 +218,8 @@ export class ChuckPongTrack extends ChuckComponent {
   }
 
   private _cardHtml(item: PongStepListItem): string {
-    const classes = ["step-card"];
-    if (!item.accessible) classes.push("locked");
+    const classes = ["card"];
+    if (!item.accessible && !item.premiumLocked) classes.push("locked");
     if (item.premiumLocked) classes.push("premium");
     if (item.completed) classes.push("completed");
     if (item.current && !item.completed) classes.push("current");
@@ -216,22 +229,26 @@ export class ChuckPongTrack extends ChuckComponent {
     else if (item.premiumLocked) status = "⭐";
     else if (!item.accessible) status = "🔒";
 
-    let subtitle: string;
+    const tags: string[] = [];
     if (item.premiumLocked) {
-      subtitle = "Pong Avancé · 99 € — débloque la suite";
-    } else if (item.accessible) {
-      subtitle = "Raquettes · balle · score";
+      tags.push(`<span class="tag premium">Pong Avancé · 29 €</span>`);
+    } else if (!item.accessible) {
+      tags.push(`<span class="tag lock">Étape ${item.stepIndex - 1} requise</span>`);
     } else {
-      subtitle = `Termine l'étape ${item.stepIndex - 1} pour débloquer celle-ci`;
+      tags.push(`<span class="tag">Raquettes · balle · score</span>`);
     }
 
-    return `<div class="${classes.join(" ")}" data-id="${item.id}" data-premium="${item.premiumLocked ? "1" : "0"}">
-      <div class="step-num">${item.stepIndex}</div>
-      <div class="step-text">
-        <div class="step-title">${this._esc(item.title)}</div>
-        <div class="step-sub">${this._esc(subtitle)}</div>
+    const title = (!item.accessible && !item.premiumLocked)
+      ? `Termine l'étape ${item.stepIndex - 1} pour débloquer celle-ci`
+      : item.title;
+
+    return `<div class="${classes.join(" ")}" data-id="${item.id}" data-premium="${item.premiumLocked ? "1" : "0"}" title="${this._esc(title)}">
+      <div class="card-top">
+        <span class="card-id">#${item.stepIndex}</span>
+        <span class="card-status">${status}</span>
       </div>
-      <div class="step-status">${status}</div>
+      <div class="card-title">${this._esc(item.title)}</div>
+      <div class="card-meta">${tags.join("")}</div>
     </div>`;
   }
 
