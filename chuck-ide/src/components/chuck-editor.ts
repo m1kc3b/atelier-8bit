@@ -1112,7 +1112,7 @@ export class ChuckEditor extends ChuckComponent {
     <div class="tab-bar">
       <div class="tab active">
         <span class="tab-dot"></span>
-        <span id="tab-label">untitled.asm</span>
+        <span id="tab-label">demo.asm</span>
         <button class="tab-save" id="save-btn" title="Sauvegarder le projet">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -1207,7 +1207,7 @@ export class ChuckEditor extends ChuckComponent {
 
     this.sub("chuck:challenge-loaded", ({ challenge, code }) => {
       this._currentId = challenge.id;
-      this._tabLabel.textContent = `jour_${String(challenge.id).padStart(2, "0")}.asm`;
+      this._tabLabel.textContent = `defi_${String(challenge.id).padStart(2, "0")}.asm`;
       this.setSource(code);
       this._emitCursor();
       this._log(`Défi #${challenge.id} — ${challenge.title}`, "info");
