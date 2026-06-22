@@ -68,7 +68,10 @@ class AuthService {
 
   async signInWithGithub(): Promise<{ error: string | null }> {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "github"
+      provider: "github",
+      options: {
+        redirectTo: "https://atelier-8bit.fr"
+      }
     })
     return { error: error?.message ?? null };
   }
