@@ -999,6 +999,7 @@ const STYLES = /* css */ `
   }
 
   .tab-new {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1021,6 +1022,32 @@ const STYLES = /* css */ `
   }
   .tab-new:active {
     transform: scale(.92);
+  }
+  /* Pop-up (tooltip) au survol du bouton « + » */
+  .tab-new[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 50;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: var(--font-ui);
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity var(--t-fast), transform var(--t-fast);
+  }
+  .tab-new[data-tip]:hover::after {
+    opacity: 1;
+    transform: translateY(0);
   }
 
   ::-webkit-scrollbar       { width: 6px; }
@@ -1125,7 +1152,7 @@ export class ChuckEditor extends ChuckComponent {
           </svg>
         </button>
       </div>
-      <button class="tab-new" id="new-project-btn" title="Nouveau projet">+</button>
+      <button class="tab-new" id="new-project-btn" data-tip="Créer un nouveau projet" title="Créer un nouveau projet">+</button>
     </div>
     <div id="cm-host"></div>
     <div class="console-strip">
@@ -1220,11 +1247,12 @@ export class ChuckEditor extends ChuckComponent {
     });
 
     this.sub("chuck:ide-free", () => {
-      // Sortie d'un défi / Pong vers le mode libre : on repart sur un buffer vierge.
+      // Mode libre : on charge le code de démonstration (pas un buffer vierge).
+      // Créer un nouveau projet vide se fait explicitement via le bouton « + ».
       this._currentId = 0;            // désactive l'autosave de défi (cf. _scheduleAutosave)
       this._currentProjectId = null;
-      this._tabLabel.textContent = "untitled.asm";
-      this.setSource("; Nouveau programme\n\n");
+      this._tabLabel.textContent = "demo.asm";
+      this.setSource(DEFAULT_SOURCE);
       this._emitCursor();
     });
 

@@ -35,6 +35,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Démarré en premier : visitor_id prêt avant la 1ère étape tracée.
   funnelTracker.start();
 
+  // ── Modale de bienvenue — affichée IMMÉDIATEMENT ─────────
+  // Ouverte avant le chargement de l'émulateur WASM et des défis, pour
+  // qu'elle apparaisse dès l'arrivée sur le site (pas après le réseau/WASM).
+  const welcomeModal = document.getElementById("modal-welcome") as
+    | (HTMLElement & {
+        open(view?: "choice" | "challenges" | "pong"): Promise<void>;
+      })
+    | null;
+  {
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawChallenge = urlParams.get("challenge") ?? urlParams.get("lesson");
+    const isNumericChallenge =
+      rawChallenge !== null && /^\d+$/.test(rawChallenge);
+    const isBareChallenge = urlParams.has("challenge") && !isNumericChallenge;
+    if (!isNumericChallenge) {
+      void welcomeModal?.open(isBareChallenge ? "challenges" : "choice");
+    }
+  }
+
   // ── Émulateur WASM ───────────────────────────────────────
   // Chargement async du module Rust/WASM
   const displayEl = document.getElementById("modal-display") as
@@ -183,23 +202,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ── ChallengeManager ─────────────────────────────────────
   const challengeManager = new ChallengeManager();
   await challengeManager.init(await Emulator.create());
-
-  // ── Modale de bienvenue ──────────────────────────────────
-  const welcomeModal = document.getElementById("modal-welcome") as
-    | (HTMLElement & {
-        open(view?: "choice" | "challenges" | "pong"): Promise<void>;
-      })
-    | null;
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const rawChallenge = urlParams.get("challenge") ?? urlParams.get("lesson");
-  const isNumericChallenge =
-    rawChallenge !== null && /^\d+$/.test(rawChallenge);
-  const isBareChallenge = urlParams.has("challenge") && !isNumericChallenge;
-
-  if (!isNumericChallenge) {
-    welcomeModal?.open(isBareChallenge ? "challenges" : "choice");
-  }
 
   const sbState = document.getElementById("sb-state")!;
   const sbCursor = document.getElementById("sb-cursor")!;

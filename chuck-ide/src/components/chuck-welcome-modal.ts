@@ -126,9 +126,18 @@ export class ChuckWelcomeModal extends ChuckComponent {
   }
 
   async open(view: View = 'choice'): Promise<void> {
+    // Affichage IMMÉDIAT : on ne bloque pas l'ouverture sur le réseau.
     this.classList.add('open');
-    if (this._challengeCount === 0) await this._loadChallengeCount();
     this._showView(view);
+    // Le compteur de défis n'est qu'un nombre affiché : on le charge en
+    // arrière-plan puis on rafraîchit la vue choix si elle est visible.
+    if (this._challengeCount === 0) {
+      void this._loadChallengeCount().then(() => {
+        if (this._currentView === 'choice' && this.classList.contains('open')) {
+          this._showView('choice');
+        }
+      });
+    }
   }
 
   close(): void {
