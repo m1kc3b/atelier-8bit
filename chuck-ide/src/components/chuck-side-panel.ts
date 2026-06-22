@@ -132,6 +132,11 @@ const STYLES = /* css */ `
     color: #0a1a0a;
     font-size: 14px;
   }
+  .all-validated {
+    padding: 11px 14px; border-radius: 8px; text-align: center;
+    background: var(--green-dim); border: 1px solid rgba(61,214,140,.3);
+    color: var(--green); font-weight: 700; font-size: 13px;
+  }
   ::-webkit-scrollbar       { width:5px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:var(--surface-4);border-radius:3px; }
@@ -265,6 +270,7 @@ export class ChuckSidePanel extends ChuckComponent {
       .join("");
 
     const isLastTrackStep = isTrackStep(item) && item.stepIndex >= item.stepCount;
+    const isLastChallenge = isChallenge(item) && item.id >= this._totalCount;
 
     let validationHtml = "";
     if (isChallenge(item) || isTrackStep(item)) {
@@ -274,13 +280,18 @@ export class ChuckSidePanel extends ChuckComponent {
           ? isLastTrackStep
             ? "🎉 Revoir la célébration"
             : "Étape suivante →"
-          : "Défi suivant →";
+          : isLastChallenge
+            ? null
+            : "Défi suivant →";
+        const buttonHtml = label
+          ? `<button class="validate-btn next-challenge" id="validate-btn">
+            ${label}
+          </button>`
+          : `<div class="all-validated">🎉 Tous les défis sont validés !</div>`;
         validationHtml = `
         <div class="validation-zone">
           <div class="feedback" id="feedback"></div>
-          <button class="validate-btn next-challenge" id="validate-btn">
-            ${label}
-          </button>
+          ${buttonHtml}
         </div>`;
       } else {
         validationHtml = `
