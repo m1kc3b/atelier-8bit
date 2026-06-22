@@ -184,8 +184,8 @@ export class ChuckSidePanel extends ChuckComponent {
         this._loadItem(item);
       },
     );
-    this.sub("chuck:challenge-success", ({ result }) =>
-      this._showFeedback(result, true),
+    this.sub("chuck:challenge-success", ({ result, medal }) =>
+      this._showFeedback({ ...result, medal }, true),
     );
     this.sub("chuck:challenge-failed", ({ result }) =>
       this._showFeedback(result, false),
@@ -294,8 +294,9 @@ export class ChuckSidePanel extends ChuckComponent {
       }
     }
 
+    const earnedMedal = storage.getMedal(item.id) ?? "🥇";
     const medalHtml = isAlreadyValidated
-      ? `<span id="validated-badge" class="medal-badge">🥇</span>`
+      ? `<span id="validated-badge" class="medal-badge">${earnedMedal}</span>`
       : "";
 
     this.shadow.getElementById("body")!.innerHTML = `
@@ -476,7 +477,7 @@ export class ChuckSidePanel extends ChuckComponent {
     if (!el) return;
 
     if (success) {
-      const medal = (result as any).medal ?? "🥇";
+      const medal = result.medal ?? "🥇";
       const item = this._item;
       const pongLast = item && isTrackStep(item) && item.stepIndex >= item.stepCount;
 
