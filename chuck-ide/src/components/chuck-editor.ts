@@ -1238,7 +1238,9 @@ export class ChuckEditor extends ChuckComponent {
 
     this.sub("chuck:challenge-loaded", ({ challenge, code, track }) => {
       this._currentId = challenge.id;
-      this._tabLabel.textContent = `defi_${String(challenge.id).padStart(2, "0")}.asm`;
+      this._tabLabel.textContent = track
+        ? `${track.trackId}_${challenge.id}.asm`
+        : `defi_${String(challenge.id).padStart(2, "0")}.asm`;
       this.setSource(code);
       this._emitCursor();
       // Couleur figée selon le mode déduit de l'event (track → pong, sinon

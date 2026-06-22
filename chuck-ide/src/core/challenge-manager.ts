@@ -68,8 +68,8 @@ export class ChallengeManager {
     if (urlId !== null) {
       // _loadById redirige automatiquement si l'id est inaccessible
       this._loadById(urlId, false);
-    } else if (new URLSearchParams(window.location.search).has("challenge")) {
-      // ?challenge sans valeur valide → challenge courant
+    } else if (this._hasParcoursParam()) {
+      // ?parcours sans valeur valide → challenge courant
       this._loadById(this.currentChallenge(), false);
     } else {
       bus.emit(IDE_FREE_MODE, undefined);
@@ -134,10 +134,22 @@ export class ChallengeManager {
 
   private _getIdFromUrl(): number | null {
     const params = new URLSearchParams(window.location.search);
-    const raw = params.get("challenge") ?? params.get("lesson");
+    const raw =
+      params.get("parcours") ??
+      params.get("challenge") ??
+      params.get("lesson");
     if (!raw) return null;
     const id = parseInt(raw, 10);
     return isNaN(id) ? null : id;
+  }
+
+  private _hasParcoursParam(): boolean {
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.has("parcours") ||
+      params.has("challenge") ||
+      params.has("lesson")
+    );
   }
 
   private _loadById(id: number, pushHistory = false): void {
@@ -203,7 +215,8 @@ export class ChallengeManager {
     const url = new URL(window.location.href);
     url.searchParams.delete("challenge");
     url.searchParams.delete("lesson");
-    url.searchParams.set("challenge", String(id));
+    url.searchParams.delete("parcours");
+    url.searchParams.set("parcours", String(id));
     if (push) {
       window.history.pushState({}, "", url.toString());
     } else {

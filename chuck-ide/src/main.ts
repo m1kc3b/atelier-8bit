@@ -45,10 +45,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     | null;
   {
     const urlParams = new URLSearchParams(window.location.search);
-    const rawChallenge = urlParams.get("challenge") ?? urlParams.get("lesson");
+    const rawChallenge =
+      urlParams.get("parcours") ??
+      urlParams.get("challenge") ??
+      urlParams.get("lesson");
     const isNumericChallenge =
       rawChallenge !== null && /^\d+$/.test(rawChallenge);
-    const isBareChallenge = urlParams.has("challenge") && !isNumericChallenge;
+    const hasParcours =
+      urlParams.has("parcours") ||
+      urlParams.has("challenge") ||
+      urlParams.has("lesson");
+    const isBareChallenge = hasParcours && !isNumericChallenge;
     if (!isNumericChallenge) {
       void welcomeModal?.open(isBareChallenge ? "challenges" : "choice");
     }
@@ -143,6 +150,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     root.dataset.mode = mode;
   }
 
+  // Nom d'affichage d'un parcours à partir de son slug ('pong' → 'Pong').
+  function parcoursName(trackId: string): string {
+    return trackId.charAt(0).toUpperCase() + trackId.slice(1);
+  }
+
   bus.on("chuck:challenge-loaded", ({ challenge }) => {
     if (challenge.locked && !storage.isUnlocked()) {
       gateEl?.open({
@@ -155,7 +167,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   bus.on("chuck:challenge-loaded", ({ challenge, track }) => {
     setMode(track ? "pong" : "challenges");
-    const label = `Défi ${challenge.id} — ${challenge.title}`;
+    const label = track
+      ? `${parcoursName(track.trackId)} ${track.stepIndex} — ${challenge.title}`
+      : `Défi ${challenge.id} — ${challenge.title}`;
     titlebarFile.textContent = label;
     document.title = `${label} — Chuck IDE`;
     openSidePanel();

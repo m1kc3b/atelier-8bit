@@ -69,7 +69,7 @@ export interface ChallengeMeta {
 }
 
 export interface Challenge {
-  /** Identifiant unique — correspond au paramètre URL ?challenge=X */
+  /** Identifiant unique — correspond au paramètre URL ?parcours=X (legacy : ?challenge / ?lesson) */
   id:          number;
   /** Numéro d'arène */
   arena?:      number;
