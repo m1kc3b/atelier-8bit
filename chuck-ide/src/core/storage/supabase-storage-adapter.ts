@@ -9,9 +9,15 @@ import { LocalStorageAdapter } from './local-storage-adapter.js';
 import { supabase, authService } from '../auth/auth-service.js';
 
 function fire(promise: PromiseLike<unknown>): void {
-  Promise.resolve(promise).catch((err) =>
-    console.warn('[SupabaseStorage] requête échouée (ignorée) :', err),
-  );
+  Promise.resolve(promise)
+    .then((res: any) => {
+      if (res && res.error) {
+        console.error('[SupabaseStorage] erreur Supabase :', res.error);
+      }
+    })
+    .catch((err) =>
+      console.error('[SupabaseStorage] requête échouée :', err),
+    );
 }
 
 export class SupabaseStorageAdapter implements IStorageService {
@@ -47,12 +53,19 @@ export class SupabaseStorageAdapter implements IStorageService {
     this._local.saveCode(challengeId, code);
     const user = authService.getUser();
     if (!user) return;
-    fire(supabase.from('challenge_progress').upsert({
+    const existing = this._local.getProgress(challengeId);
+    const payload: Record<string, unknown> = {
       user_id: user.id,
       challenge_id: challengeId,
-      code,
+      code: code ?? '',
+      hints_used: existing?.hintsUsed ?? 0,
       saved_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,challenge_id' }));
+    };
+    // Un upsert remplace toute la ligne : on préserve la complétion existante
+    // pour ne pas remettre medal/completed_at à null lors d'un simple autosave.
+    if (existing?.medal)       payload.medal        = existing.medal;
+    if (existing?.completedAt) payload.completed_at = existing.completedAt;
+    fire(supabase.from('challenge_progress').upsert(payload, { onConflict: 'user_id,challenge_id' }));
   }
 
   getProgress(challengeId: number): ChallengeProgress | null {
@@ -70,9 +83,9 @@ export class SupabaseStorageAdapter implements IStorageService {
       fire(supabase.from('challenge_progress').upsert({
         user_id: user.id,
         challenge_id: challengeId,
-        code: updated.code,
+        code: updated.code ?? '',
         medal,
-        hints_used: hintsUsed,
+        hints_used: hintsUsed ?? 0,
         completed_at: updated.completedAt,
         saved_at: new Date().toISOString(),
       }, { onConflict: 'user_id,challenge_id' }));
@@ -116,15 +129,16 @@ export class SupabaseStorageAdapter implements IStorageService {
       const localTs  = new Date(local.savedAt).getTime();
       const serverTs = row ? new Date(row.saved_at).getTime() : -1;
       if (localTs > serverTs) {
-        rows.push({
+        const payload: Record<string, unknown> = {
           user_id:      user.id,
           challenge_id: local.challengeId,
-          code:         local.code,
-          medal:        local.medal ?? null,
-          hints_used:   local.hintsUsed ?? null,
-          completed_at: local.completedAt ?? null,
+          code:         local.code ?? '',
+          hints_used:   local.hintsUsed ?? 0, // colonne NOT NULL
           saved_at:     local.savedAt,
-        });
+        };
+        if (local.medal)       payload.medal        = local.medal;
+        if (local.completedAt) payload.completed_at  = local.completedAt;
+        rows.push(payload);
       }
     }
     if (rows.length) {
