@@ -21,7 +21,6 @@ import "./components/chuck-onboarding-tour.js";
 import "./components/chuck-challenges-list.js";
 import "./components/chuck-pong-track.js";
 import "./components/chuck-pong-celebration";
-import { setView, initRouter } from "./core/router.js";
 
 import { authService } from "./core/auth/auth-service.js";
 
@@ -73,36 +72,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const titlebarFile = document.getElementById("titlebar-file")!;
 
   // ── Navigation 3 sections (Atelier / Challenges / Pong) ───
-  const viewWorkspace  = document.getElementById("workspace") as HTMLElement | null;
-  const viewChallenges = document.getElementById("view-challenges") as HTMLElement | null;
-  const viewPong       = document.getElementById("view-pong") as HTMLElement | null;
-  const navButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>("#main-nav .nav-btn"),
-  );
+  // Plus de vues plein écran : challenges et pong vivent dans la modale
+  // welcome. Le workspace (IDE) reste toujours monté en dessous.
 
-  function applyView(view: "atelier" | "challenges" | "pong"): void {
-    viewWorkspace?.classList.toggle("view-hidden", view !== "atelier");
-    viewChallenges?.classList.toggle("view-hidden", view !== "challenges");
-    viewPong?.classList.toggle("view-hidden", view !== "pong");
-    navButtons.forEach((btn) =>
-      btn.classList.toggle("active", btn.dataset.view === view),
-    );
-  }
-
-  navButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setView(btn.dataset.view as "atelier" | "challenges" | "pong");
-    });
-  });
-
-  bus.on("chuck:view-changed", ({ view }) => applyView(view));
-  initRouter();
-
-  // Lien profond (?challenge= / ?lesson=) → forcer l'affichage Atelier
-  const deepLinkParams = new URLSearchParams(window.location.search);
-  if (deepLinkParams.has("challenge") || deepLinkParams.has("lesson")) {
-    applyView("atelier");
-  }
+  // Bouton « Menu » de la titlebar → rouvre la modale sur la dernière vue.
+  document
+    .getElementById("btn-show-welcome")
+    ?.addEventListener("click", () => bus.emit("chuck:open-welcome", undefined));
 
   // ── Email gate — défis verrouillés (4+) ─────────────────────
   const gateEl = document.getElementById("modal-auth-gate") as
@@ -199,7 +175,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ── Modale de bienvenue ──────────────────────────────────
   const welcomeModal = document.getElementById("modal-welcome") as
-    | (HTMLElement & { open(view?: "choice" | "list"): void })
+    | (HTMLElement & {
+        open(view?: "choice" | "challenges" | "pong"): Promise<void>;
+      })
     | null;
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -209,7 +187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const isBareChallenge = urlParams.has("challenge") && !isNumericChallenge;
 
   if (!isNumericChallenge) {
-    welcomeModal?.open(isBareChallenge ? "list" : "choice");
+    welcomeModal?.open(isBareChallenge ? "challenges" : "choice");
   }
 
   const sbState = document.getElementById("sb-state")!;

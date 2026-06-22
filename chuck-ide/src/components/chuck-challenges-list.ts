@@ -4,7 +4,6 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import { setView } from "../core/router.js";
 import type { ChallengeListItem } from "../types/challenge.js";
 
 const STYLES = /* css */ `
@@ -14,7 +13,8 @@ const STYLES = /* css */ `
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--surface);
+    min-height: 0;
+    background: transparent;
     overflow: hidden;
   }
 
@@ -119,7 +119,6 @@ export class ChuckChallengesList extends ChuckComponent {
         const id = Number(el.dataset.id);
         const item = this._items.find((i) => i.id === id);
         if (!item || item.sequentialLocked) return;
-        setView("atelier");
         this.emit("chuck:goto-challenge", { id });
       });
     });

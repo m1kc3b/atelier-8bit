@@ -1,20 +1,15 @@
 import { ChuckComponent } from '../core/base-component.js';
 import { authService } from '../core/auth/auth-service.js';
-import { storage } from '../core/storage/storage-service.js';
 import { challengesService } from '../core/challenges/challenges-service.js';
 import { ChuckOnboardingTour } from './chuck-onboarding-tour.js';
-import { setView } from '../core/router.js';
 
-type View = 'choice' | 'list';
-
-interface ChallengeRow {
-  id: number;
-  title: string;
-  locked: boolean;
-}
+type View = 'choice' | 'challenges' | 'pong';
 
 export class ChuckWelcomeModal extends ChuckComponent {
-  private _challenges: ChallengeRow[] = [];
+  /** Nombre de défis — sert uniquement aux compteurs de la vue "choice". */
+  private _challengeCount = 0;
+  /** Vue courante, mémorisée pour réouverture via le bouton flottant. */
+  private _currentView: View = 'choice';
 
   protected render(): void {
     this.shadow.innerHTML = `<style>@import '/src/styles/tokens.css';
@@ -38,7 +33,10 @@ export class ChuckWelcomeModal extends ChuckComponent {
       .back-btn.visible { display:flex; }
       .back-btn:hover { color:var(--text); }
       .close-btn:hover { background:var(--red); color:#fff; }
-      #body { flex:1; overflow-y:auto; }
+      #body { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+      #body > [hidden] { display:none !important; }
+      #view-choice { flex:1; min-height:0; overflow-y:auto; }
+      #modal-challenges, #modal-pong { flex:1; min-height:0; }
 
       /* ── Vue choix ─────────────────────────────────────── */
       .hero { text-align:center; padding:44px 40px 8px; }
@@ -100,7 +98,11 @@ export class ChuckWelcomeModal extends ChuckComponent {
         <span class="topbar-logo">👾 CHUCK IDE</span>
         <button class="close-btn" id="close-btn" title="Fermer">✕</button>
       </div>
-      <div id="body"></div>
+      <div id="body">
+        <div id="view-choice"></div>
+        <chuck-challenges-list id="modal-challenges" hidden></chuck-challenges-list>
+        <chuck-pong-track id="modal-pong" hidden></chuck-pong-track>
+      </div>
     </div>`;
   }
 
@@ -110,11 +112,19 @@ export class ChuckWelcomeModal extends ChuckComponent {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.classList.contains('open')) this.close();
     });
+
+    // Navigation inter-vues émise par les composants enfants / l'IDE.
+    this.sub('chuck:show-challenges', () => this._showView('challenges'));
+    this.sub('chuck:show-pong', () => this._showView('pong'));
+    this.sub('chuck:open-welcome', (p) => { void this.open(p?.view ?? this._currentView); });
+
+    // Cliquer un défi / une étape ferme la modale (l'IDE prend le relais).
+    this.sub('chuck:goto-challenge', () => this.close());
   }
 
   async open(view: View = 'choice'): Promise<void> {
     this.classList.add('open');
-    if (this._challenges.length === 0) await this._loadChallenges();
+    if (this._challengeCount === 0) await this._loadChallengeCount();
     this._showView(view);
   }
 
@@ -122,23 +132,27 @@ export class ChuckWelcomeModal extends ChuckComponent {
     this.classList.remove('open');
   }
 
-  private async _loadChallenges(): Promise<void> {
+  private async _loadChallengeCount(): Promise<void> {
     const list = await challengesService.getAll();
-    this._challenges = list.map((c) => ({ id: c.id, title: c.title, locked: !!c.locked }));
+    this._challengeCount = list.length;
   }
 
   private _showView(view: View): void {
+    this._currentView = view;
     const backBtn = this.shadow.getElementById('back-btn')!;
-    const body = this.shadow.getElementById('body')!;
-    backBtn.classList.toggle('visible', view === 'list');
-    body.innerHTML = view === 'choice' ? this._renderChoices() : this._renderList();
-    if (view === 'choice') this._bindChoiceEvents();
-    else this._bindListEvents();
-  }
+    const choiceEl = this.shadow.getElementById('view-choice')!;
+    const challengesEl = this.shadow.getElementById('modal-challenges')!;
+    const pongEl = this.shadow.getElementById('modal-pong')!;
 
-  private _completedCount(): number {
-    const progress = storage.getAllProgress();
-    return Object.values(progress).filter((p) => !!p.medal).length;
+    backBtn.classList.toggle('visible', view !== 'choice');
+    choiceEl.toggleAttribute('hidden', view !== 'choice');
+    challengesEl.toggleAttribute('hidden', view !== 'challenges');
+    pongEl.toggleAttribute('hidden', view !== 'pong');
+
+    if (view === 'choice') {
+      choiceEl.innerHTML = this._renderChoices();
+      this._bindChoiceEvents();
+    }
   }
 
   private _renderChoices(): string {
@@ -162,7 +176,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
           <button class="cta-card" data-choice="challenges">
             <span class="cta-icon">🏆</span>
             <strong>Les Challenges</strong>
-            <span>${this._challenges.length} défis progressifs, du premier LDA au pixel à l'écran.</span>
+            <span>${this._challengeCount} défis progressifs, du premier LDA au pixel à l'écran.</span>
             <span class="cta-arrow">Explorer →</span>
           </button>
           <button class="cta-card locked-hint" data-choice="pong">
@@ -173,7 +187,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
           </button>
         </div>
         <div class="stats-strip">
-          <span><strong>${this._challenges.length}</strong> défis</span>
+          <span><strong>${this._challengeCount}</strong> défis</span>
           <span><strong>MOS 6502</strong> émulé en Rust/WASM</span>
           <span><strong>🥇🥈🥉</strong> système de médailles</span>
         </div>
@@ -181,69 +195,22 @@ export class ChuckWelcomeModal extends ChuckComponent {
   }
 
   private _bindChoiceEvents(): void {
-    const body = this.shadow.getElementById('body')!;
-    body.querySelector('[data-choice="free"]')?.addEventListener('click', () => {
+    const choiceEl = this.shadow.getElementById('view-choice')!;
+    choiceEl.querySelector('[data-choice="free"]')?.addEventListener('click', () => {
       this.close();
       if (!ChuckOnboardingTour.hasBeenSeen()) {
         this.emit('chuck:start-tour', undefined);
       }
     });
-    body.querySelector('[data-choice="challenges"]')?.addEventListener('click', () => {
-      this.close();
-      setView('challenges')
+    choiceEl.querySelector('[data-choice="challenges"]')?.addEventListener('click', () => {
+      this._showView('challenges');
     });
-    body.querySelector('[data-choice="pong"]')?.addEventListener('click', () => {
-      this.close();
+    choiceEl.querySelector('[data-choice="pong"]')?.addEventListener('click', () => {
       if (!authService.isAuthenticated()) {
         this.emit('chuck:require-auth', { reason: 'pong' });
         return;
       }
-      setView('pong');
-    });
-  }
-
-  private _renderList(): string {
-    if (this._challenges.length === 0) {
-      return `<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:60px 0">
-        Impossible de charger la liste des défis.
-      </div>`;
-    }
-    const progress = storage.getAllProgress();
-    const unlocked = storage.isUnlocked();
-    const completed = this._completedCount();
-    const pct = Math.round((completed / this._challenges.length) * 100);
-
-    const cards = this._challenges.map((c) => {
-      const medal = progress[c.id]?.medal;
-      const isLocked = c.locked && !unlocked && !medal;
-      const icon = medal ?? (isLocked ? '🔒' : '▶');
-      return `
-        <div class="challenge-card${isLocked ? ' locked' : ''}" data-id="${c.id}">
-          <span class="challenge-icon">${icon}</span>
-          <div class="challenge-card-text">
-            <div class="challenge-card-title">${c.title}</div>
-            <div class="challenge-card-id">Défi #${c.id}</div>
-          </div>
-        </div>`;
-    }).join('');
-
-    return `
-      <div class="list-header">
-        <h2>Tous les défis</h2>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <div class="progress-label">${completed} / ${this._challenges.length} défis complétés</div>
-      </div>
-      <div class="challenge-grid">${cards}</div>`;
-  }
-
-  private _bindListEvents(): void {
-    const body = this.shadow.getElementById('body')!;
-    body.querySelectorAll<HTMLElement>('.challenge-card').forEach((card) => {
-      card.addEventListener('click', () => {
-        const id = Number(card.dataset['id']);
-        this.close();
-        this.emit('chuck:goto-challenge', { id });
-      });
+      this._showView('pong');
     });
   }
 }

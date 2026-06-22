@@ -15,7 +15,6 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import { setView } from "../core/router.js";
 import { premiumProduct } from "../core/premium-product.js";
 
 const STYLES = /* css */ `
@@ -132,7 +131,7 @@ export class ChuckPongCelebration extends ChuckComponent {
     this.shadow.getElementById("close-btn")!.addEventListener("click", () => this.close());
     this.shadow.getElementById("goto-pong")!.addEventListener("click", () => {
       this.close();
-      setView("pong");
+      this.emit("chuck:open-welcome", { view: "pong" });
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.classList.contains("open")) this.close();

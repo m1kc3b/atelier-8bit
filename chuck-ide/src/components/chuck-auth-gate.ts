@@ -1,6 +1,5 @@
 import { ChuckComponent } from "../core/base-component.js";
 import { authService } from "../core/auth/auth-service.js";
-import { setView } from "../core/router.js";
 
 type Mode = "signin" | "signup";
 
@@ -217,7 +216,6 @@ export class ChuckAuthGate extends ChuckComponent {
       meta: { challengeId: this._pendingChallengeId, mode: this._mode },
     });
     this.close();
-    setView('atelier');
     this.emit("chuck:goto-challenge", { id: this._pendingChallengeId });
   }
 

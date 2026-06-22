@@ -10,7 +10,6 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import { setView } from "../core/router.js";
 import { storage } from "../core/storage/storage-service.js";
 import type { PongStepListItem } from "../types/challenge.js";
 
@@ -21,7 +20,8 @@ const STYLES = /* css */ `
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--surface);
+    min-height: 0;
+    background: transparent;
     overflow: hidden;
   }
 
@@ -159,7 +159,7 @@ export class ChuckPongTrack extends ChuckComponent {
           <button id="goto-challenges">Voir les défis →</button>
         </div>`;
       this.shadow.getElementById("goto-challenges")?.addEventListener("click", () =>
-        setView("challenges"),
+        this.emit("chuck:show-challenges", undefined),
       );
       return;
     }
@@ -195,7 +195,6 @@ export class ChuckPongTrack extends ChuckComponent {
           return;
         }
         if (!item.accessible) return;
-        setView("atelier");
         this.emit("chuck:goto-challenge", { id });
       });
     });

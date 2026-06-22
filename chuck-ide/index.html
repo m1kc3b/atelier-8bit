@@ -14,6 +14,19 @@
         <span class="titlebar-logo">👾 CHUCK IDE</span>
         <span class="titlebar-file" id="titlebar-file">mode libre</span>
         <div class="titlebar-actions">
+          <button class="titlebar-pill" id="btn-show-welcome" title="Accueil / Parcours">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+            Menu
+          </button>
           <button class="titlebar-pill" id="btn-show-display" title="Écran">
             <svg
               viewBox="0 0 24 24"
@@ -76,9 +89,6 @@
         <!-- Challenge aside — panneau fixe à droite -->
         <chuck-side-panel id="side-panel"></chuck-side-panel>
       </div>
-
-      <chuck-challenges-list id="view-challenges" class="view-hidden"></chuck-challenges-list>
-      <chuck-pong-track id="view-pong" class="view-hidden"></chuck-pong-track>
 
       <!-- ── Status bar ──────────────────────────────────────── -->
       <footer id="statusbar">

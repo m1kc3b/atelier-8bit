@@ -112,6 +112,11 @@ export interface ChuckEventMap {
   'chuck:load-project':  { id: string; name: string; code: string };
   'chuck:signed-out':    undefined;
   'chuck:open-account': undefined;
+
+  // ── Navigation modale (welcome héberge challenges + pong) ───
+  'chuck:open-welcome':    { view?: 'choice' | 'challenges' | 'pong' } | undefined;
+  'chuck:show-challenges': undefined;
+  'chuck:show-pong':       undefined;
   
 }
 
