@@ -159,6 +159,7 @@ class TracksService {
       maxCycles: row.max_cycles ?? undefined,
       hints: (row.hints as Challenge['hints']) ?? [],
       meta: (row.meta as Challenge['meta']) ?? undefined,
+      stepIndex: row.step_index,
     })) as Challenge[];
 
     return this._stepsCache;

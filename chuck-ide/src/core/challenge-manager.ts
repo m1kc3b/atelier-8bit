@@ -245,7 +245,7 @@ export class ChallengeManager {
   private _trackStepsByName(arenaName: string): Challenge[] {
     return Array.from(this._challenges.values())
       .filter((c) => c.arena_name === arenaName)
-      .sort((a, b) => a.id - b.id);
+      .sort((a, b) => (a.stepIndex ?? a.id) - (b.stepIndex ?? b.id));
   }
 
   private _isTrackStepId(id: number): boolean {

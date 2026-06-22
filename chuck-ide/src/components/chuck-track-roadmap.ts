@@ -45,11 +45,51 @@ const STYLES = /* css */ `
   .progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
   .progress-label { font-size: 11px; font-weight: 700; color: var(--text-dim); white-space: nowrap; }
 
-  .body { flex: 1; overflow-y: auto; padding: 24px 32px 40px; }
+  /* ── Grille d'étapes — identique à l'écran Challenges ─────── */
+  .grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 32px 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    align-content: start;
+  }
+
+  .card {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color var(--t-fast), transform var(--t-fast);
+  }
+  .card:hover:not(.locked) { border-color: var(--accent); transform: translateY(-2px); }
+  .card.current   { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+  .card.completed { border-color: rgba(61,214,140,.35); }
+  .card.locked    { cursor: not-allowed; opacity: .5; pointer-events: none; }
+  /* Premium : même rendu visuel qu'une étape verrouillée, mais cliquable
+     (le clic ouvre le paywall au lieu de charger l'étape). */
+  .card.premium   { cursor: pointer; opacity: .5; }
+  .card.premium:hover { transform: none; border-color: var(--border); }
+
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .card-id { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-muted); }
+  .card-status { font-size: 16px; line-height: 1; }
+
+  .card-title { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 6px; line-height: 1.35; }
+
+  .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    padding: 2px 7px; border-radius: 4px; background: var(--surface-3); color: var(--text-dim);
+  }
+  .tag.lock    { background: var(--surface-3); color: var(--text-muted); }
 
   /* ── État verrouillé (pas de compte) ─────────────────────── */
-  .locked-box { display: flex; flex-direction: column; align-items: center; justify-content: center;
-                text-align: center; height: 100%; gap: 14px; max-width: 420px; margin: 0 auto; }
+  .locked-box { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+                text-align: center; min-height: 280px; gap: 14px; max-width: 420px; margin: 0 auto; padding: 40px; }
   .locked-icon { font-size: 40px; }
   .locked-box h2 { font-size: 18px; font-weight: 800; color: var(--text); margin: 0; }
   .locked-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0; }
@@ -59,40 +99,11 @@ const STYLES = /* css */ `
     font-family: var(--font-ui); cursor: pointer;
   }
 
-  /* ── Roadmap ──────────────────────────────────────────────── */
-  .roadmap { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
-
-  .step-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px; background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 10px; cursor: pointer; transition: border-color var(--t-fast), transform var(--t-fast);
-  }
-  .step-card:hover:not(.locked) { border-color: var(--accent); transform: translateY(-1px); }
-  .step-card.current   { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
-  .step-card.completed { border-color: rgba(61,214,140,.35); }
-  .step-card.locked    { cursor: not-allowed; opacity: .5; }
-  .step-card.premium   { cursor: pointer; opacity: 1; border-color: var(--accent); }
-  .step-card.premium:hover { transform: translateY(-1px); }
-  .step-card.premium .step-sub { color: var(--accent); font-weight: 600; }
-
-  .step-num {
-    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; font-family: var(--font-mono);
-    background: var(--surface-3); color: var(--text-dim);
-  }
-  .step-card.current .step-num   { background: var(--accent-dim); color: var(--accent); }
-  .step-card.completed .step-num { background: var(--green-dim); color: var(--green); }
-
-  .step-text { flex: 1; min-width: 0; }
-  .step-title { font-size: 14px; font-weight: 700; color: var(--text); }
-  .step-sub   { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
-  .step-status { font-size: 18px; flex-shrink: 0; }
-
   .all-done {
-    margin-top: 16px; padding: 16px 18px; border-radius: 10px;
+    grid-column: 1 / -1;
+    padding: 16px 18px; border-radius: 10px;
     background: var(--accent-dim); border: 1px solid var(--accent);
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 640px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
   .all-done span { font-size: 13px; font-weight: 700; color: var(--text); }
   .all-done button {
@@ -101,7 +112,7 @@ const STYLES = /* css */ `
     font-family: var(--font-ui); cursor: pointer; flex-shrink: 0;
   }
 
-  .empty { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .empty { grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px; }
 `;
 
 export class ChuckTrackRoadmap extends ChuckComponent {
@@ -127,7 +138,7 @@ export class ChuckTrackRoadmap extends ChuckComponent {
           <span class="progress-label" id="progress-label">0 / 0</span>
         </div>
       </div>
-      <div class="body" id="body">
+      <div class="grid" id="body">
         <div class="empty">Chargement…</div>
       </div>`;
   }
@@ -228,19 +239,19 @@ export class ChuckTrackRoadmap extends ChuckComponent {
          </div>`
       : "";
 
-    body.innerHTML = `<div class="roadmap">${cards}</div>${doneBanner}`;
+    body.innerHTML = `${cards}${doneBanner}`;
 
-    body.querySelectorAll<HTMLElement>(".step-card[data-id]").forEach((el) => {
+    body.querySelectorAll<HTMLElement>(".card[data-id]").forEach((el) => {
       el.addEventListener("click", () => {
         const id = Number(el.dataset["id"]);
         const item = this._items.find((i) => i.id === id);
         if (!item) return;
-        // Étape premium verrouillée : ouvrir le mur d'achat plutôt que de
-        // tenter (en vain) de charger l'étape.
+        // Étape premium : ouvrir le mur d'achat plutôt que de tenter de charger.
         if (item.premiumLocked) {
           this.emit("chuck:track-completed-request", { trackId: this._trackId });
           return;
         }
+        // Verrou séquentiel : non cliquable (doublé par pointer-events:none).
         if (!item.accessible) return;
         this.emit("chuck:goto-challenge", { id });
       });
@@ -252,44 +263,47 @@ export class ChuckTrackRoadmap extends ChuckComponent {
   }
 
   private _priceLabel(): string {
-    if (!this._config || this._config.priceCents == null) return "premium";
+    if (!this._config || this._config.priceCents == null) return "Premium";
     const amount = (this._config.priceCents / 100).toLocaleString("fr-FR", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
     const symbol = this._config.currency === "EUR" ? "€" : ` ${this._config.currency}`;
-    const name = this._config.premiumName ?? "Premium";
-    return `${name} · ${amount}${symbol} — débloque la suite`;
+    return `${amount}${symbol}`;
   }
 
   private _cardHtml(item: TrackStepListItem): string {
-    const classes = ["step-card"];
-    if (!item.accessible) classes.push("locked");
+    const classes = ["card"];
+    // Premium : cliquable (ouvre le paywall) → PAS de .locked (pointer-events).
     if (item.premiumLocked) classes.push("premium");
+    else if (!item.accessible) classes.push("locked");
     if (item.completed) classes.push("completed");
     if (item.current && !item.completed) classes.push("current");
 
     let status = "▶";
     if (item.completed) status = item.medal ?? "✅";
-    else if (item.premiumLocked) status = "⭐";
+    else if (item.premiumLocked) status = "🔒";
     else if (!item.accessible) status = "🔒";
 
-    let subtitle: string;
+    const tags: string[] = [];
     if (item.premiumLocked) {
-      subtitle = this._priceLabel();
-    } else if (item.accessible) {
-      subtitle = "Étape accessible";
-    } else {
-      subtitle = `Termine l'étape ${item.stepIndex - 1} pour débloquer celle-ci`;
+      const name = this._config?.premiumName ?? "Premium";
+      tags.push(`<span class="tag lock">🔒 ${this._esc(name)} · ${this._esc(this._priceLabel())}</span>`);
+    } else if (!item.accessible) {
+      tags.push(`<span class="tag lock">Étape ${item.stepIndex - 1} requise</span>`);
     }
 
-    return `<div class="${classes.join(" ")}" data-id="${item.id}" data-premium="${item.premiumLocked ? "1" : "0"}">
-      <div class="step-num">${item.stepIndex}</div>
-      <div class="step-text">
-        <div class="step-title">${this._esc(item.title)}</div>
-        <div class="step-sub">${this._esc(subtitle)}</div>
+    const title = !item.accessible && !item.premiumLocked
+      ? `Termine l'étape ${item.stepIndex - 1} pour débloquer celle-ci`
+      : item.title;
+
+    return `<div class="${classes.join(" ")}" data-id="${item.id}" title="${this._esc(title)}">
+      <div class="card-top">
+        <span class="card-id">Étape ${item.stepIndex}</span>
+        <span class="card-status">${status}</span>
       </div>
-      <div class="step-status">${status}</div>
+      <div class="card-title">${this._esc(item.title)}</div>
+      <div class="card-meta">${tags.join("")}</div>
     </div>`;
   }
 

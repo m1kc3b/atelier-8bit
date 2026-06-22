@@ -91,6 +91,9 @@ export interface Challenge {
   hints?:      ChallengeHint[];
   /** Métadonnées pédagogiques */
   meta?:       ChallengeMeta;
+  /** Position 1-based dans un parcours (étapes de track uniquement).
+   *  Source d'ordre fiable — les ids DB ne sont pas contigus. */
+  stepIndex?:  number;
 }
 
 // ── Structure de challenges.json ──────────────────────────────
