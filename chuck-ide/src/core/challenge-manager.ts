@@ -610,6 +610,16 @@ export class ChallengeManager {
       bus.on("chuck:goto-challenge", ({ id }) => {
         this._loadById(id, true);
       }),
+      bus.on("chuck:goto-next-track-step", ({ fromId }) => {
+        // Résout l'étape suivante dans l'ordre du parcours (pas id+1 : les
+        // ids de track_steps ne sont pas contigus).
+        const track = trackOf(this._challenges.get(fromId));
+        if (!track) return;
+        const steps = this._trackStepsByName(track.name);
+        const idx = steps.findIndex((c) => c.id === fromId);
+        const next = idx >= 0 ? steps[idx + 1] : undefined;
+        if (next) this._loadById(next.id, true);
+      }),
       bus.on("chuck:track-completed-request", ({ trackId }) => {
         const track = tracksService.getTrackById(trackId);
         if (!track) return;

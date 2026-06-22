@@ -88,6 +88,10 @@ export interface ChuckEventMap {
   'chuck:challenge-failed':  { result: import('../types/challenge.js').ValidationResult };
   'chuck:validate':          { source: string; hintsUsed?: number };
   'chuck:goto-challenge':    { id: number };
+  /** Navigation « étape suivante » d'un parcours, résolue par le manager
+   *  dans l'ordre step_index (les ids de track_steps ne sont PAS contigus,
+   *  donc id+1 ne marche pas). */
+  'chuck:goto-next-track-step': { fromId: number };
   'chuck:autosave':          { id: number; code: string };
   'chuck:challenges-list':   { items: import('../types/challenge.js').ChallengeListItem[] };
 

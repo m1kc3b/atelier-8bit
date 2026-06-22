@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Chuck IDE — components/chuck-challenge-panel.ts
+   Chuck IDE — components/chuck-side-panel.ts
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
@@ -163,7 +163,7 @@ export class ChuckSidePanel extends ChuckComponent {
     });
     this.shadow.getElementById("next-btn")!.addEventListener("click", () => {
       if (!this._item) return;
-      this.emit("chuck:goto-challenge", { id: this._item.id + 1 });
+      this._emitNext();
     });
 
     this.sub("chuck:challenge-loaded", ({ challenge, track }) => {
@@ -323,7 +323,7 @@ export class ChuckSidePanel extends ChuckComponent {
             });
             return;
           }
-          this.emit("chuck:goto-challenge", { id: this._item!.id + 1 });
+          this._emitNext();
         });
       } else {
         validateBtn.addEventListener("click", () => this._validate());
@@ -428,6 +428,18 @@ export class ChuckSidePanel extends ChuckComponent {
   }
 
   // ── Validation ────────────────────────────────────────────────
+  /** Navigation « suivant » : track-aware. Les étapes de parcours sont
+   *  résolues par le manager dans l'ordre step_index (ids non contigus) ;
+   *  les défis classiques restent en id+1 (ids contigus). */
+  private _emitNext(): void {
+    if (!this._item) return;
+    if (isTrackStep(this._item)) {
+      this.emit("chuck:goto-next-track-step", { fromId: this._item.id });
+    } else {
+      this.emit("chuck:goto-challenge", { id: this._item.id + 1 });
+    }
+  }
+
   private _validate(): void {
     const editor = document.getElementById("editor") as
       | (HTMLElement & { getSource?(): string })
@@ -492,7 +504,7 @@ export class ChuckSidePanel extends ChuckComponent {
           nextBtn.innerHTML = `Étape suivante →`;
           nextBtn.style.cssText = "background: var(--green); margin-top: 4px;";
           nextBtn.addEventListener("click", () => {
-            this.emit("chuck:goto-challenge", { id: this._item!.id + 1 });
+            this.emit("chuck:goto-next-track-step", { fromId: this._item!.id });
           });
           el.insertAdjacentElement("afterend", nextBtn);
         }
