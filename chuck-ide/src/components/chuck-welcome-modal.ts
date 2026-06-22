@@ -95,8 +95,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
     <div class="modal">
       <div class="topbar">
         <button class="back-btn" id="back-btn" title="Retour">←</button>
-        <span class="topbar-logo">👾 CHUCK IDE</span>
-        <button class="close-btn" id="close-btn" title="Fermer">✕</button>
+        <span class="topbar-logo">🕹️ L'Atelier 8-bit</span>
       </div>
       <div id="body">
         <div id="view-choice"></div>
@@ -162,7 +161,6 @@ export class ChuckWelcomeModal extends ChuckComponent {
     return `
       <div class="choice-view">
         <div class="hero">
-          <span class="hero-badge">🕹️ L'Atelier 8-bit</span>
           <h1>Apprends à programmer comme en 1980.</h1>
           <p>La rétro-informatique est le chemin le plus rapide pour comprendre comment les machines fonctionnent vraiment. Écris de l'assembleur 6502 pour un ordinateur 8-bit fictif, directement dans ton navigateur.</p>
         </div>
