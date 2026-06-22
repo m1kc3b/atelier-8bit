@@ -15,7 +15,37 @@ import type { Challenge } from '../../types/challenge.js';
  * d'appel. Le hack historique `id ≥ 1000` n'est plus nécessaire.
  */
 
-export interface TrackMeta {
+/** Une ligne d'offre premium affichée dans le paywall (offer-card). */
+export interface TrackPerk {
+  ico: string;
+  text: string;
+}
+
+/**
+ * Configuration d'un parcours : frontière gratuit/premium + présentation.
+ * Tout ce qui était figé en dur pour Pong (3 étapes gratuites, 99 €, copy
+ * de l'offre, header) vit désormais ici, par parcours.
+ */
+export interface TrackConfig {
+  /** Nb d'étapes gratuites (lead magnet). Au-delà : premium. */
+  freeSteps: number;
+  /** Prix premium en centimes. null = parcours 100 % gratuit (pas de paywall). */
+  priceCents: number | null;
+  /** Code devise ISO (affichage), ex. 'EUR'. */
+  currency: string;
+  /** Nom de l'offre premium, ex. 'Pong Avancé'. */
+  premiumName: string | null;
+  /** Phrase d'accroche du paywall. */
+  premiumTagline: string | null;
+  /** Lignes de l'offer-card. */
+  premiumPerks: TrackPerk[];
+  /** Icône du header roadmap, ex. '🏓'. */
+  icon: string | null;
+  /** Sous-titre du header roadmap. */
+  subtitle: string | null;
+}
+
+export interface TrackMeta extends TrackConfig {
   id: string;       // slug : 'pong', 'snake'…
   name: string;     // 'Projet Pong'
   position: number;
@@ -25,7 +55,27 @@ interface TrackRow {
   id: string;
   name: string;
   position: number | null;
+  free_steps: number | null;
+  price_cents: number | null;
+  currency: string | null;
+  premium_name: string | null;
+  premium_tagline: string | null;
+  premium_perks: unknown;
+  icon: string | null;
+  subtitle: string | null;
 }
+
+/** Config par défaut quand une colonne est nulle (parcours non configuré). */
+const DEFAULT_TRACK_CONFIG: TrackConfig = {
+  freeSteps: 3,
+  priceCents: null,
+  currency: "EUR",
+  premiumName: null,
+  premiumTagline: null,
+  premiumPerks: [],
+  icon: null,
+  subtitle: null,
+};
 
 interface TrackStepRow {
   id: number;
@@ -62,6 +112,16 @@ class TracksService {
       id: row.id,
       name: row.name,
       position: row.position ?? 0,
+      freeSteps: row.free_steps ?? DEFAULT_TRACK_CONFIG.freeSteps,
+      priceCents: row.price_cents ?? DEFAULT_TRACK_CONFIG.priceCents,
+      currency: row.currency ?? DEFAULT_TRACK_CONFIG.currency,
+      premiumName: row.premium_name ?? DEFAULT_TRACK_CONFIG.premiumName,
+      premiumTagline: row.premium_tagline ?? DEFAULT_TRACK_CONFIG.premiumTagline,
+      premiumPerks: Array.isArray(row.premium_perks)
+        ? (row.premium_perks as TrackPerk[])
+        : DEFAULT_TRACK_CONFIG.premiumPerks,
+      icon: row.icon ?? DEFAULT_TRACK_CONFIG.icon,
+      subtitle: row.subtitle ?? DEFAULT_TRACK_CONFIG.subtitle,
     }));
     return this._tracksCache;
   }
@@ -112,6 +172,17 @@ class TracksService {
     const name = tracks.find((t) => t.id === trackId)?.name;
     if (!name) return [];
     return all.filter((c) => c.arena_name === name);
+  }
+
+  /** Lookup synchrone d'un parcours par son nom d'arène (cache requis).
+   *  Renvoie null tant que getTracks() n'a pas peuplé le cache. */
+  getTrackByName(arenaName: string): TrackMeta | null {
+    return this._tracksCache?.find((t) => t.name === arenaName) ?? null;
+  }
+
+  /** Lookup synchrone d'un parcours par slug (cache requis). */
+  getTrackById(trackId: string): TrackMeta | null {
+    return this._tracksCache?.find((t) => t.id === trackId) ?? null;
   }
 
   clearCache(): void {

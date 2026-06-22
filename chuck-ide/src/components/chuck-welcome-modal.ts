@@ -105,7 +105,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
       <div id="body">
         <div id="view-choice"></div>
         <chuck-challenges-list id="modal-challenges" hidden></chuck-challenges-list>
-        <chuck-pong-track id="modal-pong" hidden></chuck-pong-track>
+        <chuck-track-roadmap id="modal-pong" track-id="pong" hidden></chuck-track-roadmap>
       </div>
     </div>`;
   }

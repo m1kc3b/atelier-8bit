@@ -143,7 +143,7 @@ export type ContentItem =
   | LessonItem
   | TipItem
   | ReferenceItem
-  | PongStepItem;
+  | TrackStepItem;
 
 // ── Fichier JSON racine ───────────────────────────────────────
 
@@ -158,18 +158,20 @@ export function isChallenge(item: ContentItem): item is ChallengeItem {
   return item.type === 'challenge';
 }
 
-export function isPongStep(item: ContentItem): item is PongStepItem {
-  return item.type === 'pong-step';
+export function isTrackStep(item: ContentItem): item is TrackStepItem {
+  return item.type === 'track-step';
 }
 
-export function hasValidation(item: ContentItem): item is ChallengeItem | PongStepItem {
-  return isChallenge(item) || isPongStep(item);
+export function hasValidation(item: ContentItem): item is ChallengeItem | TrackStepItem {
+  return isChallenge(item) || isTrackStep(item);
 }
 
-/** Étape du parcours guidé Pong (Étape 3 du funnel) — réutilise le même panneau */
-export interface PongStepItem {
-  type:      'pong-step';
+/** Étape d'un parcours guidé — réutilise le même panneau qu'un défi. */
+export interface TrackStepItem {
+  type:      'track-step';
   id:        number;
+  /** Slug du parcours auquel l'étape appartient. */
+  trackId:   string;
   title:     string;
   subtitle?: string;
   blocks:    ContentBlock[];

@@ -8,9 +8,9 @@ import type {
   ContentItem,
   ContentBlock,
   ChallengeItem,
-  PongStepItem,
+  TrackStepItem,
 } from "../types/content.js";
-import { isChallenge, isPongStep } from "../types/content.js";
+import { isChallenge, isTrackStep } from "../types/content.js";
 import { storage } from '../core/storage/storage-service.js';
 import { renderMarkdown, renderMarkdownInline } from '../core/markdown.js';
 
@@ -166,9 +166,9 @@ export class ChuckSidePanel extends ChuckComponent {
       this.emit("chuck:goto-challenge", { id: this._item.id + 1 });
     });
 
-    this.sub("chuck:challenge-loaded", ({ challenge, pong }) => {
-      const item = pong
-        ? pongStepToContentItem(challenge as any, pong.stepIndex, pong.stepCount)
+    this.sub("chuck:challenge-loaded", ({ challenge, track }) => {
+      const item = track
+        ? trackStepToContentItem(challenge as any, track.trackId, track.stepIndex, track.stepCount)
         : challengeToContentItem(challenge as any);
       this._loadItem(item);
     });
@@ -209,7 +209,7 @@ export class ChuckSidePanel extends ChuckComponent {
     const next = this.shadow.getElementById("next-btn") as HTMLButtonElement;
     if (!this._item) return;
 
-    if (isPongStep(this._item)) {
+    if (isTrackStep(this._item)) {
       // Navigation linéaire dédiée (bouton "Étape suivante" dans la zone
       // de validation) — les chevrons du header restent désactivés.
       prev.disabled = true;
@@ -232,7 +232,7 @@ export class ChuckSidePanel extends ChuckComponent {
     const isAlreadyValidated = this._isChallengeValidated(item.id);
 
     const headerTitle = this.shadow.getElementById("panel-title")!;
-    headerTitle.textContent = isPongStep(item)
+    headerTitle.textContent = isTrackStep(item)
       ? `Étape ${item.stepIndex} / ${item.stepCount}`
       : item.type === "challenge"
         ? `${item.id} / ${this._totalCount}`
@@ -243,7 +243,7 @@ export class ChuckSidePanel extends ChuckComponent {
       lesson: "📖 Leçon",
       tip: "💡 Conseil",
       reference: "🔗 Référence",
-      "pong-step": "🏓 Pong",
+      "track-step": "🎮 Parcours",
     };
 
     const metaItems: string[] = [];
@@ -264,14 +264,14 @@ export class ChuckSidePanel extends ChuckComponent {
       .map((b, i) => this._renderBlock(b, i))
       .join("");
 
-    const isLastPongStep = isPongStep(item) && item.stepIndex >= item.stepCount;
+    const isLastTrackStep = isTrackStep(item) && item.stepIndex >= item.stepCount;
 
     let validationHtml = "";
-    if (isChallenge(item) || isPongStep(item)) {
-      const verb = isPongStep(item) ? "l'étape" : "le défi";
+    if (isChallenge(item) || isTrackStep(item)) {
+      const verb = isTrackStep(item) ? "l'étape" : "le défi";
       if (isAlreadyValidated) {
-        const label = isPongStep(item)
-          ? isLastPongStep
+        const label = isTrackStep(item)
+          ? isLastTrackStep
             ? "🎉 Revoir la célébration"
             : "Étape suivante →"
           : "Défi suivant →";
@@ -317,9 +317,9 @@ export class ChuckSidePanel extends ChuckComponent {
     if (validateBtn) {
       if (isAlreadyValidated) {
         validateBtn.addEventListener("click", () => {
-          if (isLastPongStep) {
-            this.emit("chuck:pong-completed", {
-              stepCount: (this._item as PongStepItem).stepCount,
+          if (isLastTrackStep) {
+            this.emit("chuck:track-completed-request", {
+              trackId: (this._item as TrackStepItem).trackId,
             });
             return;
           }
@@ -445,7 +445,7 @@ export class ChuckSidePanel extends ChuckComponent {
     requestAnimationFrame(() => {
       this.emit("chuck:validate", { source, hintsUsed });
       btn.disabled = false;
-      const verb = this._item && isPongStep(this._item) ? "l'étape" : "le défi";
+      const verb = this._item && isTrackStep(this._item) ? "l'étape" : "le défi";
       btn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Valider ${verb}`;
@@ -466,11 +466,11 @@ export class ChuckSidePanel extends ChuckComponent {
     if (success) {
       const medal = (result as any).medal ?? "🥇";
       const item = this._item;
-      const pongLast = item && isPongStep(item) && item.stepIndex >= item.stepCount;
+      const pongLast = item && isTrackStep(item) && item.stepIndex >= item.stepCount;
 
       el.className = "feedback success";
       el.innerHTML = `
-      <div class="fb-title">${medal} ${item && isPongStep(item) ? "Étape" : "Défi"} réussi${item && isPongStep(item) ? "e" : ""} !</div>
+      <div class="fb-title">${medal} ${item && isTrackStep(item) ? "Étape" : "Défi"} réussi${item && isTrackStep(item) ? "e" : ""} !</div>
       <div class="fb-cycles">${result.cycles} cycle(s) CPU</div>`;
 
       // Masquer le bouton "Valider le défi/l'étape"
@@ -481,10 +481,10 @@ export class ChuckSidePanel extends ChuckComponent {
         btn.style.display = "none";
       }
 
-      if (item && isPongStep(item)) {
+      if (item && isTrackStep(item)) {
         if (pongLast) {
           // Dernière étape : pont direct vers l'écran de célébration.
-          this.emit("chuck:pong-completed", { stepCount: item.stepCount });
+          this.emit("chuck:track-completed-request", { trackId: item.trackId });
         } else if (item.stepIndex < item.stepCount) {
           const nextBtn = document.createElement("button");
           nextBtn.id = "next-challenge-btn";
@@ -719,11 +719,12 @@ function challengeToContentItem(c: any): ContentItem {
   } as ChallengeItem;
 }
 
-function pongStepToContentItem(
+function trackStepToContentItem(
   c: any,
+  trackId: string,
   stepIndex: number,
   stepCount: number,
-): PongStepItem {
+): TrackStepItem {
   const blocks: import("../types/content.js").ContentBlock[] = [];
   if (c.description) blocks.push({ kind: "theory", content: c.description });
   if (c.meta?.concepts?.length)
@@ -732,8 +733,9 @@ function pongStepToContentItem(
     blocks.push({ kind: "hints", items: c.hints.map((h: any) => h.text ?? h) });
 
   return {
-    type: "pong-step",
+    type: "track-step",
     id: c.id,
+    trackId,
     title: c.title,
     subtitle: c.arena_name,
     blocks,

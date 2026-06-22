@@ -4,9 +4,9 @@ import type { Challenge } from '../../types/challenge.js';
 /**
  * Accès aux défis fondamentaux séquentiels — table `challenges`.
  * Depuis la séparation challenges/parcours (point 2), cette table ne
- * contient PLUS les étapes Pong (déplacées dans tracks/track_steps,
- * cf. tracksService). Le filtrage `isPongArena` côté manager devient
- * donc inutile sur cette source, mais reste valide (renvoie toujours false).
+ * contient PLUS les étapes de parcours (déplacées dans tracks/track_steps,
+ * cf. tracksService). Le filtrage par parcours (trackOf) côté manager
+ * devient donc inutile sur cette source, mais reste valide (renvoie null).
  */
 class ChallengesService {
   private _cache: Challenge[] | null = null;

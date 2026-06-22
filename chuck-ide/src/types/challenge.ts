@@ -134,13 +134,13 @@ export interface ChallengeListItem {
   current:           boolean;
 }
 
-// ── Étapes du parcours guidé Pong (Étape 3 du funnel) ──────────
-// Mêmes défis (table `challenges`, ids ≥ 1000) mais exemptés de la
+// ── Étapes des parcours guidés (généralisé depuis Pong) ────────
+// Mêmes défis (table `challenges` via arena_name) mais exemptés de la
 // gating séquentielle globale et du compteur des défis classiques.
 
-export interface PongStepListItem {
+export interface TrackStepListItem {
   id:           number;
-  /** Position 1-based parmi les étapes Pong (pas l'id brut) */
+  /** Position 1-based parmi les étapes du parcours (pas l'id brut) */
   stepIndex:    number;
   stepCount:    number;
   title:        string;
@@ -149,7 +149,7 @@ export interface PongStepListItem {
   /** Accessible si l'étape précédente est validée (ou si c'est la 1ère) */
   accessible:   boolean;
   /** Verrouillé spécifiquement par le mur premium (étape avancée non achetée).
-   *  Permet à l'UI d'afficher l'offre 99 € plutôt qu'un verrou séquentiel. */
+   *  Permet à l'UI d'afficher l'offre premium plutôt qu'un verrou séquentiel. */
   premiumLocked: boolean;
   current:      boolean;
 }

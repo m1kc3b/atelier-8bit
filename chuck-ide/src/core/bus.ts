@@ -81,8 +81,8 @@ export interface ChuckEventMap {
     code: string;
     fromStorage: boolean;
     medal?: string;
-    /** Renseigné uniquement quand le défi chargé est une étape du parcours Pong */
-    pong?: { stepIndex: number; stepCount: number };
+    /** Renseigné uniquement quand le défi chargé est une étape de parcours */
+    track?: { trackId: string; stepIndex: number; stepCount: number };
   };
   'chuck:challenge-success': { result: import('../types/challenge.js').ValidationResult; medal?: string };
   'chuck:challenge-failed':  { result: import('../types/challenge.js').ValidationResult };
@@ -91,9 +91,24 @@ export interface ChuckEventMap {
   'chuck:autosave':          { id: number; code: string };
   'chuck:challenges-list':   { items: import('../types/challenge.js').ChallengeListItem[] };
 
-  // ── Parcours guidé Coder Pong (Étape 3 du funnel) ───────────
-  'chuck:pong-steps':     { items: import('../types/challenge.js').PongStepListItem[] };
-  'chuck:pong-completed': { stepCount: number };
+  // ── Parcours guidés (généralisé depuis Coder Pong) ──────────
+  'chuck:track-steps': {
+    trackId: string;
+    trackName: string;
+    config: import('./challenges/tracks-service.js').TrackConfig;
+    items: import('../types/challenge.js').TrackStepListItem[];
+  };
+  /** Mur premium d'un parcours : déclenché en fin d'étapes gratuites. */
+  'chuck:track-completed': {
+    trackId: string;
+    config: import('./challenges/tracks-service.js').TrackConfig;
+    trackName: string;
+  };
+  /** Intention d'achat — traitée par le backend (pas de Stripe côté front). */
+  'chuck:track-purchase-requested': { trackId: string };
+  /** Demande de (ré)ouverture du paywall (ex. « revoir la célébration »).
+   *  Le manager résout la config et ré-émet chuck:track-completed. */
+  'chuck:track-completed-request': { trackId: string };
 
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
   'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'pong' };

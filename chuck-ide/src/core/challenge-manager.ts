@@ -20,27 +20,23 @@ import { storage } from "./storage/storage-service.js";
 import type { ChallengeProgress, Medal } from "./storage/types.js";
 import { challengesService } from "./challenges/challenges-service.js";
 import { tracksService } from "./challenges/tracks-service.js";
-import { premiumProduct } from "./premium-product.js";
+import type { TrackMeta, TrackConfig } from "./challenges/tracks-service.js";
+import { productAccess } from "./product-access.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
 // const FREE_CHALLENGES = 3; // défis 1-3 accessibles sans restriction
 
-/** Frontière gratuit/payant du parcours Pong (stratégie §3).
- *  Les PONG_FREE_STEPS premières étapes sont le lead magnet gratuit
- *  (Pong Light) ; au-delà, c'est Pong Avancé (premium, mur Stripe).
- *  Une SEULE constante déplace la frontière — aucune migration BDD. */
-export const PONG_FREE_STEPS = 3;
+/** True si le challenge appartient à un parcours guidé (a une arène nommée
+ *  correspondant à une track connue). La frontière gratuit/premium et le prix
+ *  sont portés par la track (cf. tracks-service), plus aucune constante globale. */
+function trackOf(c: Challenge | undefined): TrackMeta | null {
+  if (!c || !c.arena_name) return null;
+  return tracksService.getTrackByName(c.arena_name);
+}
 
-/** Les étapes du parcours guidé "Coder Pong" sont stockées dans la même
- *  table `challenges` côté Supabase (arena_name = 'Projet Pong', locked = true),
- *  via leur arena_name (track). Elles sont exemptées de la gating séquentielle
- *  globale et du compteur des défis classiques (cf. mémo projet). */
-export const PONG_ARENA = "Projet Pong" as const;
-
-/** True si le challenge appartient au parcours guidé Pong. */
-function isPongArena(c: Challenge | undefined): boolean {
-  return !!c && c.arena_name === PONG_ARENA;
+function isTrackStep(c: Challenge | undefined): boolean {
+  return trackOf(c) !== null;
 }
 
 const FLAGS: Record<string, number> = {
@@ -125,7 +121,7 @@ export class ChallengeManager {
         count: challenges.length,
       });
       this._emitChallengesList();
-      this._emitPongSteps();
+      this._emitAllTrackSteps();
     } catch (e) {
       bus.emit("chuck:log", {
         text: `Chargement des défis : ${(e as Error).message}`,
@@ -146,24 +142,25 @@ export class ChallengeManager {
 
   private _loadById(id: number, pushHistory = false): void {
     // ── Étapes de parcours (détectées par arena_name) — gating dédiée ──
-    if (this._isPongStepId(id)) {
+    if (this._isTrackStepId(id)) {
       if (!this._challenges.has(id)) {
-        bus.emit("chuck:log", { text: `Étape Pong #${id} introuvable.`, level: "err" });
+        bus.emit("chuck:log", { text: `Étape #${id} introuvable.`, level: "err" });
         return;
       }
-      if (!this.isPongStepAccessible(id)) {
-        const current = this._currentPongStepId();
+      const arenaName = this._challenges.get(id)!.arena_name!;
+      if (!this.isTrackStepAccessible(id)) {
+        const current = this._currentTrackStepId(arenaName);
         bus.emit("chuck:log", {
           text: `🔒 Étape verrouillée — termine d'abord l'étape précédente.`,
           level: "err",
         });
         if (current !== null) {
-          this._loadPongStep(current, false);
+          this._loadTrackStep(current, false);
           this._syncUrl(current, false);
         }
         return;
       }
-      this._loadPongStep(id, pushHistory);
+      this._loadTrackStep(id, pushHistory);
       this._syncUrl(id, pushHistory);
       return;
     }
@@ -231,40 +228,59 @@ export class ChallengeManager {
     this._emitChallengesList();
   }
 
-  // ── Pong (Étape 3 du funnel) ────────────────────────────────
+  // ── Parcours guidés (généralisé depuis Pong) ────────────────
 
-  /** Liste des défis "Projet Pong", triés par id croissant. */
-  private _pongSteps(): Challenge[] {
+  /** Émet le roster de chaque parcours (init / refresh global). */
+  private _emitAllTrackSteps(): void {
+    const seen = new Set<string>();
+    for (const c of this._challenges.values()) {
+      const track = trackOf(c);
+      if (!track || seen.has(track.id)) continue;
+      seen.add(track.id);
+      this._emitTrackSteps(track);
+    }
+  }
+
+  /** Liste des étapes d'un parcours (par nom d'arène), triées par id. */
+  private _trackStepsByName(arenaName: string): Challenge[] {
     return Array.from(this._challenges.values())
-      .filter((c) => isPongArena(c))
+      .filter((c) => c.arena_name === arenaName)
       .sort((a, b) => a.id - b.id);
   }
 
-  private _isPongStepId(id: number): boolean {
-    return isPongArena(this._challenges.get(id));
+  private _isTrackStepId(id: number): boolean {
+    return isTrackStep(this._challenges.get(id));
   }
 
-  /** True si `id` est la DERNIÈRE étape gratuite (fin de Pong Light).
-   *  C'est là qu'on déclenche le mur premium et le funnel basic-completed.
-   *  Si le parcours a moins de PONG_FREE_STEPS étapes, c'est la dernière. */
-  private _isLastFreePongStep(id: number): boolean {
-    const steps = this._pongSteps();
+  /** True si `id` est la DERNIÈRE étape gratuite de son parcours (fin du lead
+   *  magnet). C'est là qu'on déclenche le mur premium + funnel basic-completed.
+   *  Si le parcours a moins de freeSteps étapes, c'est sa dernière étape. */
+  private _isLastFreeStep(id: number): boolean {
+    const track = trackOf(this._challenges.get(id));
+    if (!track) return false;
+    const steps = this._trackStepsByName(track.name);
     if (steps.length === 0) return false;
-    const freeIdx = Math.min(PONG_FREE_STEPS, steps.length) - 1;
+    const freeIdx = Math.min(track.freeSteps, steps.length) - 1;
     return steps[freeIdx]?.id === id;
   }
 
-  /** Étape Pong accessible : la 1ère l'est toujours, les suivantes
-   *  nécessitent que l'étape précédente (pas le défi classique précédent)
-   *  ait été validée. Exempté de la gating séquentielle globale.
-   *  Les étapes premium (index > PONG_FREE_STEPS) nécessitent en plus l'achat. */
-  isPongStepAccessible(id: number): boolean {
-    const steps = this._pongSteps();
+  /** Étape de parcours accessible : la 1ère l'est toujours, les suivantes
+   *  nécessitent que l'étape précédente ait été validée. Exempté de la gating
+   *  séquentielle globale. Les étapes premium (index > freeSteps) nécessitent
+   *  en plus l'achat du parcours. */
+  isTrackStepAccessible(id: number): boolean {
+    const track = trackOf(this._challenges.get(id));
+    if (!track) return false;
+    const steps = this._trackStepsByName(track.name);
     const idx = steps.findIndex((c) => c.id === id);
     if (idx < 0) return false;
 
     // Palier premium : au-delà des étapes gratuites, accès réservé aux acheteurs.
-    if (idx + 1 > PONG_FREE_STEPS && !premiumProduct.hasPurchasedSync()) {
+    if (
+      track.priceCents != null &&
+      idx + 1 > track.freeSteps &&
+      !productAccess.hasPurchasedSync(track.id)
+    ) {
       return false;
     }
 
@@ -273,19 +289,20 @@ export class ChallengeManager {
     return !!prev && storage.isCompleted(prev.id);
   }
 
-  /** True si l'étape est verrouillée SPÉCIFIQUEMENT par le mur premium
-   *  (par opposition au verrou séquentiel). Permet à l'UI de montrer le mur
-   *  d'achat plutôt qu'un simple « termine l'étape précédente ». */
-  isPongStepPremiumLocked(id: number): boolean {
-    const steps = this._pongSteps();
+  /** True si l'étape est verrouillée SPÉCIFIQUEMENT par le mur premium (par
+   *  opposition au verrou séquentiel). Permet à l'UI de montrer le mur d'achat. */
+  isTrackStepPremiumLocked(id: number): boolean {
+    const track = trackOf(this._challenges.get(id));
+    if (!track || track.priceCents == null) return false;
+    const steps = this._trackStepsByName(track.name);
     const idx = steps.findIndex((c) => c.id === id);
     if (idx < 0) return false;
-    return idx + 1 > PONG_FREE_STEPS && !premiumProduct.hasPurchasedSync();
+    return idx + 1 > track.freeSteps && !productAccess.hasPurchasedSync(track.id);
   }
 
-  /** Première étape non validée, ou la dernière si tout est complété. */
-  private _currentPongStepId(): number | null {
-    const steps = this._pongSteps();
+  /** Première étape non validée d'un parcours, ou la dernière si tout est fait. */
+  private _currentTrackStepId(arenaName: string): number | null {
+    const steps = this._trackStepsByName(arenaName);
     if (steps.length === 0) return null;
     for (const c of steps) {
       if (!storage.isCompleted(c.id)) return c.id;
@@ -293,15 +310,17 @@ export class ChallengeManager {
     return steps[steps.length - 1]!.id;
   }
 
-  private _loadPongStep(id: number, pushHistory: boolean): void {
+  private _loadTrackStep(id: number, pushHistory: boolean): void {
     const challenge = this._challenges.get(id);
     if (!challenge) return;
-    const steps = this._pongSteps();
+    const track = trackOf(challenge);
+    if (!track) return;
+    const steps = this._trackStepsByName(track.name);
     const stepIndex = steps.findIndex((c) => c.id === id) + 1;
     const stepCount = steps.length;
 
     this._current = challenge;
-    this._currentItem = pongStepToContentItem(challenge, stepIndex, stepCount);
+    this._currentItem = trackStepToContentItem(challenge, track.id, stepIndex, stepCount);
 
     const saved = storage.loadCode(id);
     const medal = storage.getMedal(id);
@@ -310,23 +329,23 @@ export class ChallengeManager {
       code: saved ?? challenge.template,
       fromStorage: saved !== null,
       medal: medal ?? undefined,
-      pong: { stepIndex, stepCount },
+      track: { trackId: track.id, stepIndex, stepCount },
     });
-    this._emitPongSteps();
+    this._emitTrackSteps(track);
     if (stepIndex === 1) {
       bus.emit("chuck:funnel-step", {
         step: "pong-basic-started",
-        meta: { stepId: id },
+        meta: { stepId: id, trackId: track.id },
       });
     }
     void pushHistory; // la sync URL est gérée par l'appelant (_loadById)
   }
 
-  /** Émet la liste des étapes Pong pour l'écran "🏓 Coder Pong". */
-  private _emitPongSteps(): void {
-    const steps = this._pongSteps();
-    const currentId = this._currentPongStepId();
-    const items: import("../types/challenge.js").PongStepListItem[] = steps.map(
+  /** Émet la liste des étapes d'un parcours pour l'écran roadmap. */
+  private _emitTrackSteps(track: TrackMeta): void {
+    const steps = this._trackStepsByName(track.name);
+    const currentId = this._currentTrackStepId(track.name);
+    const items: import("../types/challenge.js").TrackStepListItem[] = steps.map(
       (c, i) => ({
         id: c.id,
         stepIndex: i + 1,
@@ -334,12 +353,13 @@ export class ChallengeManager {
         title: c.title,
         completed: storage.isCompleted(c.id),
         medal: storage.getMedal(c.id),
-        accessible: this.isPongStepAccessible(c.id),
-        premiumLocked: this.isPongStepPremiumLocked(c.id),
+        accessible: this.isTrackStepAccessible(c.id),
+        premiumLocked: this.isTrackStepPremiumLocked(c.id),
         current: c.id === currentId,
       }),
     );
-    bus.emit("chuck:pong-steps", { items });
+    const config: TrackConfig = track;
+    bus.emit("chuck:track-steps", { trackId: track.id, trackName: track.name, config, items });
   }
 
   private _loadContentItem(item: ContentItem): void {
@@ -372,7 +392,7 @@ export class ChallengeManager {
   private _emitChallengesList(): void {
     const currentId = this.currentChallenge();
     const items: ChallengeListItem[] = Array.from(this._challenges.values())
-      .filter((c) => !isPongArena(c))
+      .filter((c) => !isTrackStep(c))
       .sort((a, b) => a.id - b.id)
       .map((c) => {
         const sequentialLocked = !this.isAccessible(c.id);
@@ -401,7 +421,7 @@ export class ChallengeManager {
    */
   currentChallenge(): number {
     const regularIds = Array.from(this._challenges.values())
-      .filter((c) => !isPongArena(c))
+      .filter((c) => !isTrackStep(c))
       .map((c) => c.id);
     if (regularIds.length === 0) return 1;
     const maxId = Math.max(...regularIds);
@@ -416,8 +436,9 @@ export class ChallengeManager {
     const medal: Medal = hintsUsed === 0 ? "🥇" : hintsUsed === 1 ? "🥈" : "🥉";
     storage.saveCompletion(id, medal, hintsUsed);
     bus.emit("chuck:challenge-completed" as any, { id, medal, hintsUsed });
-    if (this._isPongStepId(id)) {
-      this._emitPongSteps();
+    if (this._isTrackStepId(id)) {
+      const track = trackOf(this._challenges.get(id));
+      if (track) this._emitTrackSteps(track);
     } else {
       this._emitChallengesList();
     }
@@ -474,16 +495,25 @@ export class ChallengeManager {
         text: `✓ Défi réussi en ${run.cycles} cycle(s) !`,
         level: "ok",
       });
-      if (this._isPongStepId(challenge.id) && this._isLastFreePongStep(challenge.id)) {
+      if (this._isTrackStepId(challenge.id) && this._isLastFreeStep(challenge.id)) {
+        const track = trackOf(challenge)!;
         bus.emit("chuck:funnel-step", {
           step: "pong-basic-completed",
-          meta: { stepId: challenge.id },
+          meta: { stepId: challenge.id, trackId: track.id },
         });
-        // Mur premium : affiché à la fin de Pong Light (lead magnet consommé,
-        // raison de payer encore intacte — cf. stratégie §2). N'apparaît pas
+        // Mur premium : affiché à la fin des étapes gratuites (lead magnet
+        // consommé, raison de payer encore intacte — cf. stratégie §2).
+        // N'apparaît pas pour un parcours gratuit (priceCents == null), ni
         // si l'utilisateur a déjà acheté l'accès avancé.
-        if (!premiumProduct.hasPurchasedSync()) {
-          bus.emit("chuck:pong-completed", { stepCount: this._pongSteps().length });
+        if (
+          track.priceCents != null &&
+          !productAccess.hasPurchasedSync(track.id)
+        ) {
+          bus.emit("chuck:track-completed", {
+            trackId: track.id,
+            config: track,
+            trackName: track.name,
+          });
         }
       }
     } else {
@@ -580,6 +610,15 @@ export class ChallengeManager {
       bus.on("chuck:goto-challenge", ({ id }) => {
         this._loadById(id, true);
       }),
+      bus.on("chuck:track-completed-request", ({ trackId }) => {
+        const track = tracksService.getTrackById(trackId);
+        if (!track) return;
+        bus.emit("chuck:track-completed", {
+          trackId: track.id,
+          config: track,
+          trackName: track.name,
+        });
+      }),
       bus.on("chuck:ide-free", () => {
         // Sortie d'un défi / Pong vers le mode libre : on oublie l'item courant
         // pour que validation, autosave et assemblage ne ciblent plus l'ancien id.
@@ -636,14 +675,15 @@ function challengeToContentItem(c: Challenge): ChallengeItem {
   };
 }
 
-/** Adaptateur Challenge (arène "Projet Pong") → PongStepItem.
- *  Mêmes blocs pédagogiques qu'un défi classique, mais type 'pong-step'
+/** Adaptateur Challenge (étape de parcours) → TrackStepItem.
+ *  Mêmes blocs pédagogiques qu'un défi classique, mais type 'track-step'
  *  pour un affichage et une navigation dédiés dans <chuck-side-panel>. */
-function pongStepToContentItem(
+function trackStepToContentItem(
   c: Challenge,
+  trackId: string,
   stepIndex: number,
   stepCount: number,
-): import("../types/content.js").PongStepItem {
+): import("../types/content.js").TrackStepItem {
   const blocks: ContentBlock[] = [];
 
   if (c.description) {
@@ -657,8 +697,9 @@ function pongStepToContentItem(
   }
 
   return {
-    type: "pong-step",
+    type: "track-step",
     id: c.id,
+    trackId,
     title: c.title,
     subtitle: c.arena_name,
     blocks,
