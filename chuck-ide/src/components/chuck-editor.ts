@@ -1213,6 +1213,15 @@ export class ChuckEditor extends ChuckComponent {
       this._log(`Défi #${challenge.id} — ${challenge.title}`, "info");
     });
 
+    this.sub("chuck:ide-free", () => {
+      // Sortie d'un défi / Pong vers le mode libre : on repart sur un buffer vierge.
+      this._currentId = 0;            // désactive l'autosave de défi (cf. _scheduleAutosave)
+      this._currentProjectId = null;
+      this._tabLabel.textContent = "untitled.asm";
+      this.setSource("; Nouveau programme\n\n");
+      this._emitCursor();
+    });
+
     // Erreur d'assemblage → log + surlignage de la ligne fautive
     this.sub(
       "chuck:assemble-err" as any,
