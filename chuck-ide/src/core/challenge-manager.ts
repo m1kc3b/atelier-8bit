@@ -302,13 +302,13 @@ export class ChallengeManager {
   isTrackStepAccessible(id: number): boolean {
     const track = trackOf(this._challenges.get(id));
     if (!track) return false;
+    if (superAdmin.active) return true;
     const steps = this._trackStepsByName(track.name);
     const idx = steps.findIndex((c) => c.id === id);
     if (idx < 0) return false;
 
     // Palier premium : au-delà des étapes gratuites, accès réservé aux acheteurs.
     if (
-      !superAdmin.active &&
       track.priceCents != null &&
       idx + 1 > track.freeSteps &&
       !productAccess.hasPurchasedSync(track.id)
@@ -416,6 +416,7 @@ export class ChallengeManager {
   /** Dernier défi accessible */
   /** Dernier défi accessible */
   isAccessible(id: number): boolean {
+    if (superAdmin.active) return true;
     if (id <= 1) return true;
     return storage.isCompleted(id - 1);
   }
