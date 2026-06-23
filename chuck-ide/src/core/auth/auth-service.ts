@@ -22,6 +22,18 @@ class AuthService {
     supabase.auth.onAuthStateChange((event, session) => {
       this._session = session;
       this._notify();
+      if (event === "SIGNED_IN" && session?.user) {
+        // Relie le visitor_id anonyme au compte (signup ET login).
+        // Import dynamique : évite la dépendance circulaire avec
+        // funnel-tracker (qui importe `supabase` depuis ce module).
+        // Fire-and-forget : n'interrompt jamais le flux d'auth.
+        const userId = session.user.id;
+        void import("../funnel-tracker.js")
+          .then(({ funnelTracker }) => funnelTracker.linkIdentity(userId))
+          .catch(() => {
+            /* module indisponible — ignore */
+          });
+      }
       if (event === "PASSWORD_RECOVERY") {
         this._recoveryListeners.forEach((cb) => cb());
       }

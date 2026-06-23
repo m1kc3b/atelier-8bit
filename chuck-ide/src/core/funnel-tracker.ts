@@ -25,6 +25,14 @@
 
    Aucune policy SELECT n'est exposée : la lecture des ratios se fait
    côté admin (SQL console / service role), pas depuis le client.
+
+   Liaison anonyme ↔ inscrit (cf. user_identities.sql) :
+   le visitor_id N'EST PAS effacé à l'inscription — il reste vivant
+   pour capter d'éventuelles sessions anonymes ultérieures du même
+   appareil. Au signed-in, linkIdentity() crée (idempotent) le pont
+   visitor_id → user_id dans la table `user_identities`, ce qui permet
+   de reconstituer le parcours complet (avant + après signup) sans
+   jamais réécrire les events.
    ───────────────────────────────────────────────────────────── */
 
 import { bus } from "./bus.js";
@@ -91,6 +99,38 @@ class FunnelTracker {
     } catch {
       /* localStorage indisponible — ignore */
     }
+  }
+
+  /**
+   * Relie le visitor_id anonyme courant au user_id fraîchement connecté.
+   *
+   * À appeler à chaque SIGNED_IN (signup ET login) : le visitor_id n'étant
+   * pas effacé à l'inscription, un même appareil peut produire de l'activité
+   * anonyme APRÈS un premier compte — on rattache donc le lien à chaque
+   * connexion. L'upsert est idempotent (clé primaire user_id+visitor_id),
+   * les ré-appels sont sans effet.
+   *
+   * Fire-and-forget : aucune erreur ne remonte au flux d'authentification.
+   * Le visitor_id reste volontairement vivant en localStorage.
+   */
+  linkIdentity(userId: string): void {
+    if (!userId) return;
+    const visitorId = this.visitorId;
+    void (async () => {
+      try {
+        await supabase
+          .from("user_identities")
+          .upsert(
+            { user_id: userId, visitor_id: visitorId },
+            { onConflict: "user_id,visitor_id" },
+          );
+        // supabase-js résout avec { data, error } sans throw : une erreur
+        // éventuelle (RLS / table absente / réseau) est ignorée ici, le
+        // tracking ne doit jamais interrompre l'authentification.
+      } catch {
+        // Réseau indisponible : on n'interrompt jamais le flux auth.
+      }
+    })();
   }
 
   // ── Interne ────────────────────────────────────────────────
