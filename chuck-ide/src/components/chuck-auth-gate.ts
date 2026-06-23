@@ -32,77 +32,94 @@ export class ChuckAuthGate extends ChuckComponent {
    *  pour ne pas compter une conversion comme un abandon. */
   private _converted = false;
 
+  /** Le formulaire est rendu dans le LIGHT DOM (projeté via <slot>) pour que
+   *  Proton Pass et les autres gestionnaires de mots de passe puissent détecter
+   *  et remplir les champs — ils ne traversent pas le Shadow DOM. La coquille
+   *  (overlay + carte) est rendue dans le Shadow DOM. */
+  private _shadowEl<T extends HTMLElement = HTMLElement>(id: string): T {
+    return this.shadow.getElementById(id) as T;
+  }
+  private _lightEl<T extends HTMLElement = HTMLElement>(id: string): T {
+    return this.querySelector(`#${id}`) as T;
+  }
+
+  /** CSS des éléments projetés (light DOM) : ::slotted ne pouvant styler que
+   *  les enfants directs projetés, les règles des champs/boutons internes au
+   *  <form> sont injectées une seule fois dans <head>. Déterministe, avec
+   *  fallback sur chaque var(). */
+  private static _stylesInjected = false;
+  private static _injectLightStyles(): void {
+    if (ChuckAuthGate._stylesInjected) return;
+    ChuckAuthGate._stylesInjected = true;
+    const style = document.createElement("style");
+    style.id = "chuck-auth-gate-light-styles";
+    style.textContent = `
+      chuck-auth-gate form#auth-form { margin:0; }
+      chuck-auth-gate #auth-form input { width:100%; height:36px; margin-bottom:10px; padding:0 10px;
+              background:var(--surface-3, #272727); border:1px solid var(--border, #2a2a2a);
+              border-radius:6px; color:var(--text, #e2e2e2); font-size:13px; box-sizing:border-box; }
+      chuck-auth-gate .forgot { text-align:right; margin:-4px 0 14px; }
+      chuck-auth-gate .forgot a { font-size:11px; color:var(--text-dim, #bebbbb); cursor:pointer; }
+      chuck-auth-gate .forgot a:hover { color:var(--accent, #7c6af7); }
+      chuck-auth-gate .error { color:var(--red, #f87171); font-size:11px; min-height:14px; margin-bottom:8px; }
+      chuck-auth-gate button.submit { width:100%; height:38px; border-radius:6px;
+                      background:var(--accent, #7c6af7); color:#fff; font-weight:600;
+                      border:none; cursor:pointer; }
+      chuck-auth-gate .switch { text-align:center; margin-top:14px; font-size:12px; color:var(--text-dim, #bebbbb); }
+      chuck-auth-gate .switch a { color:var(--accent, #7c6af7); cursor:pointer; }
+      chuck-auth-gate .github-login-button {
+        display:inline-flex; align-items:center; justify-content:center; gap:8px;
+        width:100%; height:38px; padding:12px 24px; margin-top:16px;
+        background-color:#24292e; color:white; border:none; border-radius:6px;
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        font-weight:500; text-align:center; cursor:pointer;
+        transition:background-color .2s ease, opacity .2s ease; }
+      chuck-auth-gate .github-login-button:hover { background-color:#1a1f2e; opacity:.9; }
+      chuck-auth-gate .github-login-button:active { opacity:.8; }
+      chuck-auth-gate .github-login-button svg { width:20px; height:20px; fill:currentColor; }
+    `;
+    document.head.appendChild(style);
+  }
+
   protected render(): void {
-    this.shadow.innerHTML = `<style>@import '/src/styles/tokens.css';
+    ChuckAuthGate._injectLightStyles();
+
+    // Coquille dans le Shadow DOM : overlay + carte + <slot> qui projette le
+    // formulaire light DOM (visible pour les gestionnaires de mots de passe).
+    this.shadow.innerHTML = `<style>
       :host { position:fixed; inset:0; z-index:9800; display:none;
               align-items:center; justify-content:center;
               background:rgba(0,0,0,.7); }
       :host(.open) { display:flex; }
-      .modal { position:relative; width:360px; background:var(--surface);
-               border:1px solid var(--border); border-radius:var(--modal-radius);
-               padding:28px; font-family:var(--font-ui); }
+      .modal { position:relative; width:360px;
+               background:var(--surface, #161616);
+               border:1px solid var(--border, #2a2a2a);
+               border-radius:var(--modal-radius, 10px);
+               padding:28px; font-family:var(--font-ui, 'Inter', sans-serif); box-sizing:border-box; }
       .close-btn { position:absolute; top:14px; right:14px; width:24px; height:24px;
-                   border-radius:50%; background:var(--surface-3); border:none;
-                   color:var(--text-muted); font-size:13px; display:flex;
+                   border-radius:50%; background:var(--surface-3, #272727); border:none;
+                   color:var(--text-muted, #8f8e8e); font-size:13px; display:flex;
                    align-items:center; justify-content:center; cursor:pointer;
-                   transition:background var(--t-fast), color var(--t-fast); }
-      .close-btn:hover { background:var(--red); color:#fff; }
-      h2 { font-size:16px; margin-bottom:6px; color:var(--text); }
-      p.sub { color:var(--text-dim); font-size:12px; margin-bottom:18px; }
-      input { width:100%; height:36px; margin-bottom:10px; padding:0 10px;
-              background:var(--surface-3); border:1px solid var(--border);
-              border-radius:6px; color:var(--text); font-size:13px; }
-      .forgot { text-align:right; margin:-4px 0 14px; }
-      .forgot a { font-size:11px; color:var(--text-dim); cursor:pointer; }
-      .forgot a:hover { color:var(--accent); }
-      .error { color:var(--red); font-size:11px; min-height:14px; margin-bottom:8px; }
-      button.submit { width:100%; height:38px; border-radius:6px; background:var(--accent);
-                      color:#fff; font-weight:600; }
-      .switch { text-align:center; margin-top:14px; font-size:12px; color:var(--text-dim); }
-      .switch a { color:var(--accent); cursor:pointer; }
-      .github-login-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        width:100%; 
-        height:38px;
-        padding: 12px 24px;
-        margin-top: 16px;
-        background-color: #24292e; /* Couleur principale de GitHub */
-        color: white;
-        border: none;
-        border-radius: 6px; /* Bordure légèrement arrondie */
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        font-weight: 500;
-        text-align: center;
-        cursor: pointer;
-        transition: background-color 0.2s ease, opacity 0.2s ease;
-      }
-
-      .github-login-button:hover {
-        background-color: #1a1f2e; /* Couleur légèrement plus foncée au survol */
-        opacity: 0.9;
-      }
-
-      .github-login-button:active {
-        opacity: 0.8;
-      }
-
-      .github-login-button svg {
-        width: 20px;
-        height: 20px;
-        fill: currentColor; /* Utilise la couleur du texte (blanc) */
-      }
+                   transition:background var(--t-fast, .1s ease), color var(--t-fast, .1s ease); }
+      .close-btn:hover { background:var(--red, #f87171); color:#fff; }
+      ::slotted(h2) { font-size:16px; margin:0 0 6px; color:var(--text, #e2e2e2); }
+      ::slotted(p.sub) { color:var(--text-dim, #bebbbb); font-size:12px; margin:0 0 18px; }
+      /* Les champs et boutons projetés sont stylés via le <style> light DOM
+         injecté dans <head> (::slotted ne traverse pas les sous-arbres). */
     </style>
     <div class="modal">
-      <button class="close-btn" id="close-btn" title="Fermer">✕</button>
+      <button class="close-btn" id="close-btn" title="Fermer">\u2715</button>
+      <slot></slot>
+    </div>`;
+
+    // Formulaire dans le LIGHT DOM (projeté via le <slot> ci-dessus).
+    this.innerHTML = `
       <h2 id="title">Sauvegarde ta progression</h2>
-      <p class="sub" id="sub">Crée un compte pour retrouver tes réalisations et continuer.</p>
+      <p class="sub" id="sub">Cr\u00e9e un compte pour retrouver tes r\u00e9alisations et continuer.</p>
       <form id="auth-form" autocomplete="on">
         <input id="email" name="email" type="email" placeholder="Email" autocomplete="username" required>
         <input id="password" name="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
-        <div class="forgot" id="forgot-wrap"><a id="forgot-link">Mot de passe oublié ?</a></div>
+        <div class="forgot" id="forgot-wrap"><a id="forgot-link">Mot de passe oubli\u00e9 ?</a></div>
         <div class="error" id="error"></div>
         <button class="submit" type="submit" id="submit-btn">Se connecter</button>
       </form>
@@ -116,26 +133,23 @@ export class ChuckAuthGate extends ChuckComponent {
 
       <div class="switch">
         <span id="switch-text">Pas encore de compte ?</span>
-        <a id="switch-link">Créer un compte</a>
-      </div>
-    </div>`;
+        <a id="switch-link">Cr\u00e9er un compte</a>
+      </div>`;
   }
 
   protected setup(): void {
-    const switchLink = this.shadow.getElementById("switch-link")!;
-    const forgotLink = this.shadow.getElementById("forgot-link")!;
+    const switchLink = this._lightEl("switch-link");
+    const forgotLink = this._lightEl("forgot-link");
 
-    this.shadow.getElementById("auth-form")!.addEventListener("submit", (e) => {
+    this._lightEl("auth-form").addEventListener("submit", (e) => {
       e.preventDefault();
       this._submit();
     });
-    this.shadow.getElementById("github-btn")!.addEventListener("click", () => this.signInWithGithub());
+    this._lightEl("github-btn").addEventListener("click", () => this.signInWithGithub());
     switchLink.addEventListener("click", () => this._toggleMode());
     forgotLink.addEventListener("click", () => this._forgotPassword());
 
-    this.shadow
-      .getElementById("close-btn")!
-      .addEventListener("click", () => this.close());
+    this._shadowEl("close-btn").addEventListener("click", () => this.close());
 
     document.addEventListener(
       "keydown",
@@ -161,15 +175,15 @@ export class ChuckAuthGate extends ChuckComponent {
     this._pendingChallengeId = challengeId;
     this._converted = false;
 
-    const titleEl = this.shadow.getElementById("title")!;
-    const subEl = this.shadow.getElementById("sub")!;
+    const titleEl = this._lightEl("title");
+    const subEl = this._lightEl("sub");
     titleEl.textContent = title ?? DEFAULT_GATE_COPY.title;
     subEl.textContent = sub ?? DEFAULT_GATE_COPY.sub;
     this._contextSub = sub ?? DEFAULT_GATE_COPY.sub;
 
     // Bouton fermer visible uniquement pour une connexion volontaire.
     this._dismissible = dismissible;
-    const closeBtn = this.shadow.getElementById("close-btn") as HTMLElement;
+    const closeBtn = this._shadowEl("close-btn");
     closeBtn.style.display = dismissible ? "" : "none";
 
     // Toujours rouvrir en mode "signin".
@@ -199,7 +213,7 @@ export class ChuckAuthGate extends ChuckComponent {
   async signInWithGithub(): Promise<void> {
     const { error } = await authService.signInWithGithub();    
     if (error) {
-      const errorEl = this.shadow.getElementById("error")!;
+      const errorEl = this._lightEl("error");
       errorEl.style.color = "var(--red)";
       errorEl.textContent = "";
       errorEl.textContent = error;
@@ -213,12 +227,13 @@ export class ChuckAuthGate extends ChuckComponent {
 
   private _toggleMode(): void {
     this._mode = this._mode === "signin" ? "signup" : "signin";
-    const title = this.shadow.getElementById("title")!;
-    const sub = this.shadow.getElementById("sub")!;
-    const submitBtn = this.shadow.getElementById("submit-btn")!;
-    const switchText = this.shadow.getElementById("switch-text")!;
-    const switchLink = this.shadow.getElementById("switch-link")!;
-    const forgotWrap = this.shadow.getElementById("forgot-wrap") as HTMLElement;
+    const title = this._lightEl("title");
+    const sub = this._lightEl("sub");
+    const submitBtn = this._lightEl("submit-btn");
+    const switchText = this._lightEl("switch-text");
+    const switchLink = this._lightEl("switch-link");
+    const forgotWrap = this._lightEl("forgot-wrap");
+    const passwordInput = this._lightEl<HTMLInputElement>("password");
 
     if (this._mode === "signup") {
       title.textContent = "Crée ton compte";
@@ -228,6 +243,8 @@ export class ChuckAuthGate extends ChuckComponent {
       switchText.textContent = "Déjà un compte ?";
       switchLink.textContent = "Se connecter";
       forgotWrap.style.display = "none";
+      // Indique au gestionnaire de mots de passe qu'il s'agit d'un nouveau mdp.
+      passwordInput.setAttribute("autocomplete", "new-password");
     } else {
       title.textContent = DEFAULT_GATE_COPY.title;
       sub.textContent = this._contextSub;
@@ -235,17 +252,14 @@ export class ChuckAuthGate extends ChuckComponent {
       switchText.textContent = "Pas encore de compte ?";
       switchLink.textContent = "Créer un compte";
       forgotWrap.style.display = "block";
+      passwordInput.setAttribute("autocomplete", "current-password");
     }
   }
 
   private async _submit(): Promise<void> {
-    const email = (
-      this.shadow.getElementById("email") as HTMLInputElement
-    ).value.trim();
-    const password = (
-      this.shadow.getElementById("password") as HTMLInputElement
-    ).value;
-    const errorEl = this.shadow.getElementById("error")!;
+    const email = this._lightEl<HTMLInputElement>("email").value.trim();
+    const password = this._lightEl<HTMLInputElement>("password").value;
+    const errorEl = this._lightEl("error");
     errorEl.style.color = "var(--red)";
     errorEl.textContent = "";
 
@@ -274,10 +288,8 @@ export class ChuckAuthGate extends ChuckComponent {
   }
 
   private async _forgotPassword(): Promise<void> {
-    const email = (
-      this.shadow.getElementById("email") as HTMLInputElement
-    ).value.trim();
-    const errorEl = this.shadow.getElementById("error")!;
+    const email = this._lightEl<HTMLInputElement>("email").value.trim();
+    const errorEl = this._lightEl("error");
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errorEl.style.color = "var(--red)";
