@@ -29,6 +29,7 @@ import { Emulator } from "./core/emulator.js";
 import { ChallengeManager } from "./core/challenge-manager.js";
 import { storage } from "./core/storage/storage-service.js";
 import { funnelTracker } from "./core/funnel-tracker.js";
+import { superAdmin } from "./core/super-admin.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   // ── Tracking funnel ──────────────────────────────────────
@@ -214,6 +215,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // ── ChallengeManager ─────────────────────────────────────
+  // Charge le flag super-admin AVANT le premier render des défis.
+  // Les gardes isUnlocked() / hasPurchasedSync() / isTrackStepAccessible()
+  // sont synchrones et lues au moment où init() émet chuck:challenge-loaded ;
+  // sans cet await, elles verraient encore active=false et rien ne serait
+  // débloqué tant qu'un re-render n'a pas lieu.
+  await superAdmin.refresh();
   const challengeManager = new ChallengeManager();
   await challengeManager.init(await Emulator.create());
 

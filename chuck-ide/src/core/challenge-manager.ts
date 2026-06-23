@@ -58,6 +58,20 @@ export class ChallengeManager {
   private _unsubs: Array<() => void> = [];
   private _emulator: Emulator | null = null;
 
+  constructor() {
+    // Quand le flag super-admin bascule APRÈS le boot (login/logout en
+    // cours de session), les gardes synchrones changent de résultat mais
+    // rien ne re-render tout seul : on ré-émet la liste des défis et les
+    // rosters de parcours. Le désabonnement est poussé dans _unsubs pour
+    // être nettoyé par destroy().
+    this._unsubs.push(
+      superAdmin.onChange(() => {
+        this._emitChallengesList();
+        this._emitAllTrackSteps();
+      }),
+    );
+  }
+
   // ── Initialisation ────────────────────────────────────────
 
   async init(emulator: Emulator): Promise<void> {
