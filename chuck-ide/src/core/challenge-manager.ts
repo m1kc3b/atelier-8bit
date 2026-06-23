@@ -283,6 +283,26 @@ export class ChallengeManager {
     return isTrackStep(this._challenges.get(id));
   }
 
+  /** True si `id` est le DERNIER challenge classique (hors parcours) de la
+   *  série. Déterminé dynamiquement (max des ids non-track) pour survivre à
+   *  l'ajout de challenges 19+ sans toucher ce code. */
+  private _isLastFoundationChallenge(id: number): boolean {
+    const foundationIds = Array.from(this._challenges.values())
+      .filter((c) => !isTrackStep(c))
+      .map((c) => c.id);
+    if (foundationIds.length === 0) return false;
+    return id === Math.max(...foundationIds);
+  }
+
+  /** Id de l'étape 1 du parcours Pong (la plus petite par step_index), ou null
+   *  si le parcours n'est pas chargé. Jamais codé en dur (cf. ids non contigus). */
+  private _firstPongStepId(): number | null {
+    const track = tracksService.getTrackById("pong");
+    if (!track) return null;
+    const steps = this._trackStepsByName(track.name);
+    return steps[0]?.id ?? null;
+  }
+
   /** True si `id` est la DERNIÈRE étape gratuite de son parcours (fin du lead
    *  magnet). C'est là qu'on déclenche le mur premium + funnel basic-completed.
    *  Si le parcours a moins de freeSteps étapes, c'est sa dernière étape. */
@@ -528,6 +548,14 @@ export class ChallengeManager {
         text: `✓ Défi réussi en ${run.cycles} cycle(s) !`,
         level: "ok",
       });
+      // Fin des fondations : si ce défi classique (hors parcours) est le dernier
+      // de la série, on déclenche la célébration spéciale → invite à Pong.
+      if (!this._isTrackStepId(challenge.id) && this._isLastFoundationChallenge(challenge.id)) {
+        bus.emit("chuck:foundations-completed", {
+          lastChallengeId: challenge.id,
+          firstPongStepId: this._firstPongStepId(),
+        });
+      }
       if (this._isTrackStepId(challenge.id) && this._isLastFreeStep(challenge.id)) {
         const track = trackOf(challenge)!;
         bus.emit("chuck:funnel-step", {

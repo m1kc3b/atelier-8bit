@@ -21,6 +21,7 @@ import "./components/chuck-onboarding-tour.js";
 import "./components/chuck-challenges-list.js";
 import "./components/chuck-track-roadmap.js";
 import "./components/chuck-track-paywall.js";
+import "./components/chuck-foundations-celebration";
 
 import { authService } from "./core/auth/auth-service.js";
 

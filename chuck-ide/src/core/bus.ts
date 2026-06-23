@@ -113,6 +113,14 @@ export interface ChuckEventMap {
   /** Demande de (ré)ouverture du paywall (ex. « revoir la célébration »).
    *  Le manager résout la config et ré-émet chuck:track-completed. */
   'chuck:track-completed-request': { trackId: string };
+  /** Fin des fondations : le DERNIER challenge classique vient d'être validé.
+   *  Déclenche la célébration spéciale (pop-up confettis + Pong) qui invite à
+   *  démarrer le parcours Pong. `firstPongStepId` est l'id de l'étape 1 du
+   *  parcours Pong (résolu par le manager, jamais codé en dur). */
+  'chuck:foundations-completed': {
+    lastChallengeId: number;
+    firstPongStepId: number | null;
+  };
 
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
   'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'pong' };
