@@ -19,7 +19,7 @@
 import { supabase } from "./auth/auth-service.js";
 
 /** Passe à true pour voir la raison exacte d'un blocage dans la console. */
-const DEBUG = true;
+const DEBUG = false;
 
 class SuperAdmin {
   private _isAdmin = false;
