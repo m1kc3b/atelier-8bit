@@ -7,6 +7,7 @@ import type {
 } from './types.js';
 import { LocalStorageAdapter } from './local-storage-adapter.js';
 import { supabase, authService } from '../auth/auth-service.js';
+import { superAdmin } from "../super-admin.js";
 
 function fire(promise: PromiseLike<unknown>): void {
   Promise.resolve(promise)
@@ -42,7 +43,7 @@ export class SupabaseStorageAdapter implements IStorageService {
   }
 
   isUnlocked(): boolean {
-    return authService.isAuthenticated();
+    return superAdmin.active || authService.isAuthenticated();
   }
 
   loadCode(challengeId: number): string | null {

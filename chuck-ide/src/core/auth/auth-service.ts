@@ -17,10 +17,19 @@ class AuthService {
   constructor() {
     supabase.auth.getSession().then(({ data }) => {
       this._session = data.session;
+      void import("../super-admin.js")
+        .then(({ superAdmin }) => superAdmin.refresh())
+        .catch(() => {});
       this._notify();
     });
+
     supabase.auth.onAuthStateChange((event, session) => {
       this._session = session;
+      void import("../super-admin.js")
+        .then(({ superAdmin }) =>
+          session ? superAdmin.refresh() : superAdmin.reset(),
+        )
+        .catch(() => {});
       this._notify();
       if (event === "SIGNED_IN" && session?.user) {
         // Relie le visitor_id anonyme au compte (signup ET login).

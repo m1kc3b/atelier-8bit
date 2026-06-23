@@ -22,6 +22,7 @@ import { challengesService } from "./challenges/challenges-service.js";
 import { tracksService } from "./challenges/tracks-service.js";
 import type { TrackMeta, TrackConfig } from "./challenges/tracks-service.js";
 import { productAccess } from "./product-access.js";
+import { superAdmin } from "./super-admin.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -293,6 +294,7 @@ export class ChallengeManager {
 
     // Palier premium : au-delà des étapes gratuites, accès réservé aux acheteurs.
     if (
+      !superAdmin.active &&
       track.priceCents != null &&
       idx + 1 > track.freeSteps &&
       !productAccess.hasPurchasedSync(track.id)
@@ -313,7 +315,7 @@ export class ChallengeManager {
     const steps = this._trackStepsByName(track.name);
     const idx = steps.findIndex((c) => c.id === id);
     if (idx < 0) return false;
-    return idx + 1 > track.freeSteps && !productAccess.hasPurchasedSync(track.id);
+    return !superAdmin.active && idx + 1 > track.freeSteps && !productAccess.hasPurchasedSync(track.id);
   }
 
   /** Première étape non validée d'un parcours, ou la dernière si tout est fait. */
@@ -522,6 +524,7 @@ export class ChallengeManager {
         // N'apparaît pas pour un parcours gratuit (priceCents == null), ni
         // si l'utilisateur a déjà acheté l'accès avancé.
         if (
+          !superAdmin.active &&
           track.priceCents != null &&
           !productAccess.hasPurchasedSync(track.id)
         ) {
