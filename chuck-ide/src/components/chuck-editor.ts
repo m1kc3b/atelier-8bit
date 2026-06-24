@@ -23,6 +23,7 @@ import {
   crosshairCursor,
   gutter,
   GutterMarker,
+  hoverTooltip,
 } from "@codemirror/view";
 import {
   defaultKeymap,
@@ -36,7 +37,7 @@ import {
   HighlightStyle,
 } from "@codemirror/language";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+import { autocompletion, completionKeymap, acceptCompletion } from "@codemirror/autocomplete";
 import { StateField, StateEffect, RangeSet } from "@codemirror/state";
 import { tags as t } from "@lezer/highlight";
 import { StreamLanguage, type StreamParser } from "@codemirror/language";
@@ -282,6 +283,36 @@ const chuckTheme = EditorView.theme(
     ".cm-scroller::-webkit-scrollbar-thumb": {
       background: "#2f2f2f",
       borderRadius: "3px",
+    },
+
+    // Info-bulles au survol
+    ".cm-tooltip": {
+      border: "1px solid var(--border, #2a2a2a)",
+      borderRadius: "6px",
+      background: "var(--surface, #1a1a1a)",
+      boxShadow: "0 6px 20px rgba(0,0,0,0.45)",
+    },
+    ".cm-chuck-tooltip": {
+      padding: "8px 10px",
+      maxWidth: "340px",
+      fontFamily: "'Hack','Fira Code','Cascadia Code','Consolas',monospace",
+    },
+    ".cm-chuck-tooltip-title": {
+      fontSize: "12.5px",
+      fontWeight: "600",
+      color: "var(--accent, #7c6af7)",
+    },
+    ".cm-chuck-tooltip-detail": {
+      fontSize: "11px",
+      color: "var(--text-dim, #999)",
+      marginTop: "1px",
+    },
+    ".cm-chuck-tooltip-info": {
+      fontSize: "11.5px",
+      color: "var(--text, #e2e2e2)",
+      marginTop: "5px",
+      lineHeight: "1.5",
+      whiteSpace: "normal",
     },
   },
   { dark: true },
@@ -634,6 +665,61 @@ const CHUCK8_COMPLETIONS = [
     detail: "$F069 · numéro frame",
     info: "JSR SYS_FRAME_NUM — Retourne compteur frames: A=lo, X=hi.",
   },
+  {
+    label: "SYS_GET_PIXEL",
+    detail: "$F015 · lit pixel",
+    info: "JSR SYS_GET_PIXEL — X=px, Y=py → A=couleur (non destructif).",
+  },
+  {
+    label: "SYS_BLIT",
+    detail: "$F00F · copie zone",
+    info: "JSR SYS_BLIT — src=$80/$81, dst=$82/$83, w=$84, h=$85.",
+  },
+  {
+    label: "SYS_DRAW_SPR",
+    detail: "$F012 · sprite",
+    info: "JSR SYS_DRAW_SPR — A=tile, X=x, Y=y (8×8 depuis TileROM).",
+  },
+  {
+    label: "SYS_GET_CURSOR",
+    detail: "$F02D · lit curseur",
+    info: "JSR SYS_GET_CURSOR — Retourne col→X, ligne→Y.",
+  },
+  {
+    label: "SYS_PLAY_SFX",
+    detail: "$F03F · effet sonore",
+    info: "JSR SYS_PLAY_SFX — A=effet (banque ROM), X=voix.",
+  },
+  {
+    label: "SYS_SET_VOL",
+    detail: "$F042 · volume voix",
+    info: "JSR SYS_SET_VOL — X=voix, A=volume (0–15).",
+  },
+  {
+    label: "SYS_MASTER_VOL",
+    detail: "$F045 · volume master",
+    info: "JSR SYS_MASTER_VOL — A=volume master (0–15).",
+  },
+  {
+    label: "SYS_KEY_DOWN",
+    detail: "$F054 · touche enfoncée",
+    info: "JSR SYS_KEY_DOWN — A=scancode → A=$FF si enfoncé, $00 sinon.",
+  },
+  {
+    label: "SYS_MEMCMP",
+    detail: "$F066 · compare mémoire",
+    info: "JSR SYS_MEMCMP — src1=$80/$81, src2=$82/$83, $84=len → Z=1 si égal.",
+  },
+  {
+    label: "SYS_SOFT_RESET",
+    detail: "$F06C · reset logiciel",
+    info: "JSR SYS_SOFT_RESET — Redémarre la machine (saut vecteur RESET).",
+  },
+  {
+    label: "SYS_VERSION",
+    detail: "$F06F · version ROM",
+    info: "JSR SYS_VERSION — Retourne A=major, X=minor.",
+  },
   // ── Registres VPU ───────────────────────────────────────────
   {
     label: "VPU_CTRL",
@@ -738,6 +824,41 @@ const CHUCK8_COMPLETIONS = [
     detail: "$D305 · frames hi",
     info: "Octet haut du compteur de frames.",
   },
+  {
+    label: "SYS_TIMER_LO",
+    detail: "$D300 · timer lo",
+    info: "Timer 16-bit (cycles CPU), octet bas. Lecture seule.",
+  },
+  {
+    label: "SYS_TIMER_HI",
+    detail: "$D301 · timer hi",
+    info: "Octet haut du timer (reset à 0 après lecture de $D301).",
+  },
+  {
+    label: "SYS_IRQ_RATE",
+    detail: "$D302 · fréquence IRQ",
+    info: "Fréquence IRQ timer : 0=désactivé, N=toutes les N×256 cycles.",
+  },
+  {
+    label: "SYS_IRQ_CTRL",
+    detail: "$D303 · contrôle IRQ",
+    info: "bit0 = enable IRQ timer.",
+  },
+  {
+    label: "SYS_RAND_SEED",
+    detail: "$D307 · seed PRNG",
+    info: "Écriture : réinitialise le LFSR 16-bit du générateur aléatoire.",
+  },
+  {
+    label: "SYS_RESET_REG",
+    detail: "$D308 · reset registre",
+    info: "Écriture $C7 → RESET logiciel de la machine.",
+  },
+  {
+    label: "SYS_CAPS",
+    detail: "$D309 · capacités",
+    info: "Capacités machine (lecture seule).",
+  },
   // ── Couleurs ────────────────────────────────────────────────
   { label: "COLOR_BLACK", detail: "0", info: "Couleur 0 : Noir  #000000" },
   { label: "COLOR_WHITE", detail: "1", info: "Couleur 1 : Blanc #FFFFFF" },
@@ -834,6 +955,123 @@ function asm6502Completions(
     options: all.filter((c) => c.label.toUpperCase().startsWith(q)),
   };
 }
+
+// ─────────────────────────────────────────────────────────────
+// Info-bulles au survol (hover tooltips)
+// ─────────────────────────────────────────────────────────────
+
+// Directives de l'assembleur (telles que gérées par chuck-core/parser.rs).
+const DIRECTIVE_DOCS: Record<string, { detail: string; info: string }> = {
+  ".org": {
+    detail: "directive · adresse d'assemblage",
+    info: ".org $E000 — Fixe l'adresse où le code suivant est assemblé.",
+  },
+  ".byte": {
+    detail: "directive · octets (alias db, dcb)",
+    info: ".byte $01, $02, 'A' — Émet des octets bruts. Alias : db, dcb.",
+  },
+  ".word": {
+    detail: "directive · mots 16-bit (alias dw)",
+    info: ".word $E000, label — Émet des mots 16-bit (little-endian). Alias : dw.",
+  },
+  ".ascii": {
+    detail: "directive · chaîne",
+    info: '.ascii "HELLO" — Émet les octets ASCII de la chaîne (sans terminateur).',
+  },
+  ".asciiz": {
+    detail: "directive · chaîne terminée par 0",
+    info: '.asciiz "HELLO" — Comme .ascii, suivie d\'un octet $00.',
+  },
+  ".res": {
+    detail: "directive · réserve des octets",
+    info: ".res N[, fill] — Réserve N octets, optionnellement remplis avec fill (défaut $00).",
+  },
+  ".define": {
+    detail: "directive · constante",
+    info: ".define NOM valeur — Définit une constante symbolique (équivaut à NOM = valeur).",
+  },
+  ".include": {
+    detail: "directive · inclusion",
+    info: '.include "chuck.inc" — Injecte les constantes Chuck-8 (registres + API) au moment de l\'assemblage.',
+  },
+  ".segment": {
+    detail: "directive · segment (compat ca65)",
+    info: '.segment "CODE" — Accepté pour compatibilité ca65, sans effet sur l\'assemblage.',
+  },
+  ".proc": {
+    detail: "directive · ignorée (compat ca65)",
+    info: ".proc nom — Accepté pour compatibilité ca65, ignoré silencieusement.",
+  },
+  ".endproc": {
+    detail: "directive · ignorée (compat ca65)",
+    info: ".endproc — Accepté pour compatibilité ca65, ignoré silencieusement.",
+  },
+  ".macro": {
+    detail: "directive · ignorée (compat ca65)",
+    info: ".macro — Accepté pour compatibilité ca65, ignoré silencieusement.",
+  },
+  ".endmacro": {
+    detail: "directive · ignorée (compat ca65)",
+    info: ".endmacro — Accepté pour compatibilité ca65, ignoré silencieusement.",
+  },
+};
+
+// Index unique mot (MAJUSCULES) → { detail, info }, construit à partir
+// des trois sources de documentation existantes.
+const HOVER_DOCS = new Map<string, { detail: string; info: string }>();
+for (const op of OPCODES_6502) {
+  const doc = OPCODE_DOCS[op];
+  HOVER_DOCS.set(op, {
+    detail: doc?.detail ?? "Instruction 6502",
+    info: doc?.info ?? `Instruction 6502 : ${op}`,
+  });
+}
+for (const c of CHUCK8_COMPLETIONS) {
+  HOVER_DOCS.set(c.label.toUpperCase(), {
+    detail: c.detail ?? "",
+    info: c.info ?? "",
+  });
+}
+for (const [name, doc] of Object.entries(DIRECTIVE_DOCS)) {
+  HOVER_DOCS.set(name.toUpperCase(), doc);
+}
+
+// Extension : affiche une info-bulle au survol d'un opcode, d'une fonction
+// SYS_, d'un registre, d'une constante ou d'une directive.
+const asm6502Hover = hoverTooltip((view, pos) => {
+  const { text, from: lineFrom } = view.state.doc.lineAt(pos);
+  // Mot incluant un éventuel point initial (pour les directives) et underscores.
+  const re = /\.?[A-Za-z_][A-Za-z0-9_]*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const start = lineFrom + m.index;
+    const end = start + m[0].length;
+    if (pos < start || pos > end) continue;
+    const doc = HOVER_DOCS.get(m[0].toUpperCase());
+    if (!doc) return null;
+    return {
+      pos: start,
+      end,
+      above: true,
+      create() {
+        const dom = document.createElement("div");
+        dom.className = "cm-chuck-tooltip";
+        const title = document.createElement("div");
+        title.className = "cm-chuck-tooltip-title";
+        title.textContent = m![0];
+        const detail = document.createElement("div");
+        detail.className = "cm-chuck-tooltip-detail";
+        detail.textContent = doc.detail;
+        const info = document.createElement("div");
+        info.className = "cm-chuck-tooltip-info";
+        info.textContent = doc.info;
+        dom.append(title, detail, info);
+        return { dom };
+      },
+    };
+  }
+  return null;
+});
 
 // ─────────────────────────────────────────────────────────────
 // Styles Shadow DOM (wrapper + console)
@@ -1182,6 +1420,9 @@ export class ChuckEditor extends ChuckComponent {
             ...defaultKeymap,
             ...historyKeymap,
             ...searchKeymap,
+            // Espace accepte la complétion si la popup est ouverte ;
+            // sinon acceptCompletion renvoie false et l'espace s'insère normalement.
+            { key: " ", run: acceptCompletion },
             ...completionKeymap,
             indentWithTab,
           ]),
@@ -1202,6 +1443,8 @@ export class ChuckEditor extends ChuckComponent {
           syntaxHighlighting(chuckHighlight),
           // Autocompletion
           autocompletion({ override: [asm6502Completions] }),
+          // Info-bulles au survol
+          asm6502Hover,
           // Thème
           chuckTheme,
           // Listener de changement
