@@ -25,10 +25,10 @@ pub const FRAMEBUF_A_END: u16 = 0x5FFF;
 pub const FRAMEBUF_B    : u16 = 0x6000;
 pub const FRAMEBUF_B_END: u16 = 0x7FFF;
 
-pub const VRAM_TEXT     : u16 = 0x4800; // mode texte 32×32
-pub const VRAM_TEXT_END : u16 = 0x4BFF;
-pub const VRAM_ATTR     : u16 = 0x4C00; // attributs couleur
-pub const VRAM_ATTR_END : u16 = 0x4FFF;
+pub const VRAM_TEXT     : u16 = 0x4800; // mode texte 16×16 (256 octets)
+pub const VRAM_TEXT_END : u16 = 0x48FF;
+pub const VRAM_ATTR     : u16 = 0x4900; // attributs couleur (256 octets)
+pub const VRAM_ATTR_END : u16 = 0x49FF;
 pub const VRAM_SPRITES  : u16 = 0x5000; // 8 sprites × 256 octets
 pub const VRAM_SPR_END  : u16 = 0x5FFF;
 pub const VRAM_TILES    : u16 = 0x6000; // 256 tuiles 8×8
@@ -46,8 +46,8 @@ pub const ENTRY_POINT   : u16 = 0xE000;
 // ── Largeur et hauteur de l'écran ─────────────────────────────────────────────
 pub const SCREEN_W      : u16 = 128;
 pub const SCREEN_H      : u16 = 128;
-pub const TEXT_COLS     : u16 = 32;
-pub const TEXT_ROWS     : u16 = 32;
+pub const TEXT_COLS     : u16 = 16;
+pub const TEXT_ROWS     : u16 = 16;
 
 pub struct Memory {
     /// RAM principale 64 Ko (inclut VRAM, ROM mappée, tout)
@@ -304,9 +304,9 @@ impl Memory {
 
     /// Affiche un caractère à (col, row) en mode texte
     pub fn put_char(&mut self, ch: u8, col: u8, row: u8, ink: u8, paper: u8) {
-        if col >= 32 || row >= 32 { return; }
-        let text_addr = VRAM_TEXT + (row as u16) * 32 + (col as u16);
-        let attr_addr = VRAM_ATTR + (row as u16) * 32 + (col as u16);
+        if col >= TEXT_COLS as u8 || row >= TEXT_ROWS as u8 { return; }
+        let text_addr = VRAM_TEXT + (row as u16) * TEXT_COLS + (col as u16);
+        let attr_addr = VRAM_ATTR + (row as u16) * TEXT_COLS + (col as u16);
         self.ram[text_addr as usize] = ch;
         self.ram[attr_addr as usize] = (paper << 4) | (ink & 0x0F);
         self.mark_dirty(text_addr);
@@ -344,9 +344,9 @@ impl Memory {
                     // Newline : retour chariot + avance ligne
                     self.io.vpu.cursor_x = 0;
                     let next_row = row + 1;
-                    if next_row >= 32 {
+                    if next_row >= TEXT_ROWS as u8 {
                         self.scroll_text_up();
-                        self.io.vpu.cursor_y = 31;
+                        self.io.vpu.cursor_y = TEXT_ROWS as u8 - 1;
                     } else {
                         self.io.vpu.cursor_y = next_row;
                     }
@@ -362,12 +362,12 @@ impl Memory {
                     self.put_char(ch, col, row, ink, paper);
                     // Avancer le curseur
                     let next_col = col + 1;
-                    if next_col >= 32 {
+                    if next_col >= TEXT_COLS as u8 {
                         self.io.vpu.cursor_x = 0;
                         let next_row = row + 1;
-                        if next_row >= 32 {
+                        if next_row >= TEXT_ROWS as u8 {
                             self.scroll_text_up();
-                            self.io.vpu.cursor_y = 31;
+                            self.io.vpu.cursor_y = TEXT_ROWS as u8 - 1;
                         } else {
                             self.io.vpu.cursor_y = next_row;
                         }
@@ -465,13 +465,14 @@ impl Memory {
         self.scroll_text_up();
     }
     fn scroll_text_up(&mut self) {
-        // Copie lignes 1-31 → lignes 0-30
-        for row in 0u16..31 {
-            for col in 0u16..32 {
-                let src_t = VRAM_TEXT + (row + 1) * 32 + col;
-                let dst_t = VRAM_TEXT +  row      * 32 + col;
-                let src_a = VRAM_ATTR + (row + 1) * 32 + col;
-                let dst_a = VRAM_ATTR +  row      * 32 + col;
+        // Copie lignes 1..ROWS-1 → lignes 0..ROWS-2
+        let last = TEXT_ROWS - 1;
+        for row in 0u16..last {
+            for col in 0u16..TEXT_COLS {
+                let src_t = VRAM_TEXT + (row + 1) * TEXT_COLS + col;
+                let dst_t = VRAM_TEXT +  row      * TEXT_COLS + col;
+                let src_a = VRAM_ATTR + (row + 1) * TEXT_COLS + col;
+                let dst_a = VRAM_ATTR +  row      * TEXT_COLS + col;
                 self.ram[dst_t as usize] = self.ram[src_t as usize];
                 self.ram[dst_a as usize] = self.ram[src_a as usize];
             }
@@ -479,9 +480,9 @@ impl Memory {
         // Efface la dernière ligne
         let ink   = self.io.vpu.ink;
         let paper = self.io.vpu.paper;
-        for col in 0u16..32 {
-            let t = VRAM_TEXT + 31 * 32 + col;
-            let a = VRAM_ATTR + 31 * 32 + col;
+        for col in 0u16..TEXT_COLS {
+            let t = VRAM_TEXT + last * TEXT_COLS + col;
+            let a = VRAM_ATTR + last * TEXT_COLS + col;
             self.ram[t as usize] = 0x20;
             self.ram[a as usize] = (paper << 4) | ink;
         }
@@ -595,8 +596,8 @@ mod tests {
     fn put_char_mode_text() {
         let mut m = Memory::new();
         m.put_char(b'A', 3, 2, 1, 0);
-        let text_addr = VRAM_TEXT + 2 * 32 + 3;
-        let attr_addr = VRAM_ATTR + 2 * 32 + 3;
+        let text_addr = VRAM_TEXT + 2 * TEXT_COLS + 3;
+        let attr_addr = VRAM_ATTR + 2 * TEXT_COLS + 3;
         assert_eq!(m.peek(text_addr), b'A');
         assert_eq!(m.peek(attr_addr), 0x01); // paper=0<<4 | ink=1
     }
@@ -624,13 +625,13 @@ mod tests {
     #[test]
     fn scroll_on_last_row() {
         let mut m = Memory::new();
-        m.io.vpu.cursor_x = 31;
-        m.io.vpu.cursor_y = 31;
+        m.io.vpu.cursor_x = 15;
+        m.io.vpu.cursor_y = 15;
         // Écrire un char en dernière position
         m.put_char(b'X', 0, 0, 1, 0);
         m.write(0xD00F, b'Z'); // force avance à la fin de la ligne
-        // Le curseur y reste à 31 (scroll a eu lieu)
-        assert_eq!(m.io.vpu.cursor_y, 31);
+        // Le curseur y reste en dernière ligne (scroll a eu lieu)
+        assert_eq!(m.io.vpu.cursor_y, 15);
     }
 
     #[test]

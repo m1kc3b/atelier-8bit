@@ -392,7 +392,7 @@ pub fn build_rom() -> [u8; ROM_SIZE] {
     // ── SYS_CLEAR ($F000 → H_CLEAR $F080) ────────────────────────────────
     // A = couleur (mode gfx) ou char (mode texte)
     // En mode gfx : remplit FRAMEBUF_A $4000–$5FFF avec nibble-packing
-    // En mode texte : remplit VRAM_TEXT $4800–$4BFF avec le char
+    // En mode texte : remplit VRAM_TEXT $4800–$48FF avec le char (256 octets = 16×16)
     //
     // Version courte : on vérifie le mode et on dispatch
     // Pour la ROM : deux boucles séparées
@@ -406,18 +406,14 @@ pub fn build_rom() -> [u8; ROM_SIZE] {
         // Lire mode VPU
         0xAD, 0x00, 0xD0, // LDA $D000 (VPU_CTRL)
         0x29, 0x01,       // AND #$01
-        0xD0, 0x20,       // BNE GFX_CLEAR (+32 → mode gfx)
-        // ── MODE TEXTE : remplir $4800–$4BFF ───────────────────────
+        0xD0, 0x0A,       // BNE GFX_CLEAR (saute le bloc texte, 10 octets)
+        // ── MODE TEXTE : remplir $4800–$48FF (1 page = 256 octets = 16×16) ─
         0x68,             // PLA (récupère le char)
         0xA2, 0x00,       // LDX #$00
-        0xA0, 0x00,       // LDY #$00
-        // boucle : STA $4800,X + INX + BNE + INY + CPY #$10 + BNE
+        // boucle : STA $4800,X + INX + BNE (256 fois)
         0x9D, 0x00, 0x48, // STA $4800,X
         0xE8,             // INX
         0xD0, 0xFA,       // BNE -4 (256 fois)
-        0xC8,             // INY
-        0xC0, 0x10,       // CPY #$10 (16 pages = 4096 octets = 32×128 chars, trop)
-        0xD0, 0xF4,       // BNE -10
         0x60,             // RTS
         // ── MODE GFX : remplir $4000–$5FFF ─────────────────────────
         // offset +32 depuis H_CLEAR

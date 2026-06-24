@@ -610,9 +610,9 @@ const CHUCK8_COMPLETIONS = [
     info: "JSR SYS_WAIT_VBLANK — Bloque jusqu'au prochain VBlank (NMI). Sync frame.",
   },
   {
-    label: "SYS_RAND",
+    label: "SYS_GET_RAND",
     detail: "$F05A · octet aléatoire",
-    info: "JSR SYS_RAND — Retourne octet pseudo-aléatoire dans A.",
+    info: "JSR SYS_GET_RAND — Retourne octet pseudo-aléatoire dans A.",
   },
   {
     label: "SYS_RAND16",
@@ -724,9 +724,9 @@ const CHUCK8_COMPLETIONS = [
   },
   // ── Registres SYSTEM ────────────────────────────────────────
   {
-    label: "SYS_RAND",
+    label: "SYS_RAND_REG",
     detail: "$D306 · PRNG",
-    info: "Lecture : octet pseudo-aléatoire (LFSR 16-bit). Écriture : seed.",
+    info: "Lecture : octet pseudo-aléatoire (LFSR 16-bit). Voir SYS_RAND_SEED ($D307) pour réinitialiser.",
   },
   {
     label: "SYS_FRAME_LO",
@@ -802,12 +802,12 @@ const CHUCK8_COMPLETIONS = [
   {
     label: "VRAM_TEXT",
     detail: "$4800",
-    info: "Mémoire texte — 32×32 chars. Adresse = $4800 + ligne*32 + col.",
+    info: "Mémoire texte — 16×16 chars. Adresse = $4800 + ligne*16 + col.",
   },
   {
     label: "VRAM_ATTR",
-    detail: "$4C00",
-    info: "Attributs couleur texte. Bits 7-4=paper, 3-0=ink.",
+    detail: "$4900",
+    info: "Attributs couleur texte ($4900–$49FF). Bits 7-4=paper, 3-0=ink.",
   },
   {
     label: "ZP_PARAMS",
@@ -1066,7 +1066,7 @@ const DEFAULT_SOURCE = `; ══════════════════
 
 SYS_CLEAR      = $F000
 SYS_DRAW_PIXEL = $F003
-SYS_RAND       = $F05A
+SYS_GET_RAND   = $F05A
 VPU_CTRL       = $D000
 
   .org $E000
@@ -1080,19 +1080,19 @@ INIT:
 
 LOOP:
   ; Couleur aléatoire (évite le noir)
-  JSR SYS_RAND
+  JSR SYS_GET_RAND
   AND #$0F
   BEQ LOOP
 
   PHA
 
   ; X aléatoire (0-127)
-  JSR SYS_RAND
+  JSR SYS_GET_RAND
   AND #$7F
   TAX
 
   ; Y aléatoire (0-127)
-  JSR SYS_RAND
+  JSR SYS_GET_RAND
   AND #$7F
   TAY
 

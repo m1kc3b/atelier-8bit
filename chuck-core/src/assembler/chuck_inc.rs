@@ -7,7 +7,7 @@
 // intégrée au binaire et injectée par le parser comme une série de
 // définitions `NOM = valeur` (équivalent `.define`).
 //
-// SOURCE AUTORITATIVE : Chuck-8_specs-2.0.md, Annexe A — alignée sur la ROM
+// SOURCE AUTORITATIVE : Chuck-8_specs-1.2.md — alignée sur la ROM
 // réelle (chuck-core/src/rom.rs) pour les cas où la spec se contredit :
 //   - SYS_RAND  était défini 2× ($D306 registre / $F05A routine)
 //     → désambiguïsé en SYS_RAND_REG et SYS_GET_RAND.
@@ -57,16 +57,16 @@ pub const CHUCK_INC_CONSTANTS: &[(&str, u16)] = &[
     ("VPU_PAPER", 0xD00E),
     ("VPU_CHAR_OUT", 0xD00F),
 
-    // ── SPU — Registres ($D100–$D125) ───────────────────────────────
+    // ── SPU — Registres ($D100–$D11D) ───────────────────────────────
     ("SPU_V0_BASE", 0xD100),
     ("SPU_V1_BASE", 0xD108),
     ("SPU_V2_BASE", 0xD110),
-    ("SPU_MASTER_VOL", 0xD120),
-    ("SPU_STATUS", 0xD121),
-    ("SPU_SAMPLE_LO", 0xD122),
-    ("SPU_SAMPLE_HI", 0xD123),
-    ("SPU_SAMPLE_LEN", 0xD124),
-    ("SPU_SAMPLE_CTRL", 0xD125),
+    ("SPU_MASTER_VOL", 0xD118),
+    ("SPU_STATUS", 0xD119),
+    ("SPU_SAMPLE_LO", 0xD11A),
+    ("SPU_SAMPLE_HI", 0xD11B),
+    ("SPU_SAMPLE_LEN", 0xD11C),
+    ("SPU_SAMPLE_CTRL", 0xD11D),
 
     // ── INPUT — Registres ($D200–$D225) ─────────────────────────────
     ("KEY_ASCII", 0xD200),
@@ -111,7 +111,7 @@ pub const CHUCK_INC_CONSTANTS: &[(&str, u16)] = &[
     ("SYS_FILL_RECT", 0xF00C),
     ("SYS_BLIT", 0xF00F),
     ("SYS_DRAW_SPR", 0xF012),
-    ("SYS_SET_PIXEL", 0xF015),
+    ("SYS_GET_PIXEL", 0xF015),
     ("SYS_FLIP", 0xF018),
     ("SYS_SET_MODE", 0xF01B),
     ("SYS_PRINT_CHAR", 0xF01E),
@@ -127,6 +127,7 @@ pub const CHUCK_INC_CONSTANTS: &[(&str, u16)] = &[
     ("SYS_STOP_ALL", 0xF03C),
     ("SYS_PLAY_SFX", 0xF03F),
     ("SYS_SET_VOL", 0xF042),
+    ("SYS_MASTER_VOL", 0xF045),
     ("SYS_READ_PAD", 0xF048),
     ("SYS_READ_KEY", 0xF04B),
     ("SYS_WAIT_KEY", 0xF04E),
@@ -147,8 +148,8 @@ pub const CHUCK_INC_CONSTANTS: &[(&str, u16)] = &[
     ("ZP_PTR0", 0x00F0),        // pointeurs volatiles ($F0–$FF)
     ("FRAMEBUF_A", 0x4000),
     ("FRAMEBUF_B", 0x6000),
-    ("VRAM_TEXT", 0x4800),
-    ("VRAM_ATTR", 0x4C00),
+    ("VRAM_TEXT", 0x4800),      // mémoire texte 16×16 ($4800–$48FF)
+    ("VRAM_ATTR", 0x4900),      // attributs couleur texte ($4900–$49FF)
 ];
 
 #[cfg(test)]

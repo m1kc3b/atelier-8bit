@@ -32,6 +32,10 @@ pub const SPU_V1_BASE   : u16 = 0xD108;
 pub const SPU_V2_BASE   : u16 = 0xD110;
 pub const SPU_MASTER_VOL: u16 = 0xD118;
 pub const SPU_STATUS    : u16 = 0xD119;
+pub const SPU_SAMPLE_LO : u16 = 0xD11A;
+pub const SPU_SAMPLE_HI : u16 = 0xD11B;
+pub const SPU_SAMPLE_LEN: u16 = 0xD11C;
+pub const SPU_SAMPLE_CTRL: u16 = 0xD11D;
 
 // INPUT $D200–$D2FF
 pub const KEY_ASCII     : u16 = 0xD200;
@@ -176,6 +180,10 @@ pub struct SpuState {
     pub voices:     [SpuVoice; 3],
     pub master_vol: u8,
     pub status:     u8,  // bit N = voix N active
+    pub sample_lo:   u8,
+    pub sample_hi:   u8,
+    pub sample_len:  u8,
+    pub sample_ctrl: u8,
 }
 
 impl Default for SpuState {
@@ -184,6 +192,10 @@ impl Default for SpuState {
             voices:     [SpuVoice::default(), SpuVoice::default(), SpuVoice::default()],
             master_vol: 15,
             status:     0,
+            sample_lo:   0,
+            sample_hi:   0,
+            sample_len:  0,
+            sample_ctrl: 0,
         }
     }
 }
@@ -303,6 +315,10 @@ impl IoState {
             VPU_PAPER    => self.vpu.paper,
             SPU_MASTER_VOL => self.spu.master_vol,
             SPU_STATUS     => self.spu.status,
+            SPU_SAMPLE_LO  => self.spu.sample_lo,
+            SPU_SAMPLE_HI  => self.spu.sample_hi,
+            SPU_SAMPLE_LEN => self.spu.sample_len,
+            SPU_SAMPLE_CTRL => self.spu.sample_ctrl,
             0xD100..=0xD117 => self.peek_spu_voice(addr),
             KEY_ASCII    => self.kbd.ascii,
             KEY_STATUS   => self.kbd.status,
@@ -359,6 +375,10 @@ impl IoState {
             // SPU lectures
             SPU_MASTER_VOL => self.spu.master_vol,
             SPU_STATUS     => self.spu.status,
+            SPU_SAMPLE_LO  => self.spu.sample_lo,
+            SPU_SAMPLE_HI  => self.spu.sample_hi,
+            SPU_SAMPLE_LEN => self.spu.sample_len,
+            SPU_SAMPLE_CTRL => self.spu.sample_ctrl,
 
             // Voix SPU
             0xD100..=0xD117 => self.read_spu_voice(addr),
@@ -423,6 +443,10 @@ impl IoState {
 
             // SPU
             SPU_MASTER_VOL => { self.spu.master_vol = val & 0x0F; None }
+            SPU_SAMPLE_LO  => { self.spu.sample_lo   = val; None }
+            SPU_SAMPLE_HI  => { self.spu.sample_hi   = val; None }
+            SPU_SAMPLE_LEN => { self.spu.sample_len  = val; None }
+            SPU_SAMPLE_CTRL => { self.spu.sample_ctrl = val; None }
             0xD100..=0xD117 => { self.write_spu_voice(addr, val); None }
 
             // Clavier — acquitter

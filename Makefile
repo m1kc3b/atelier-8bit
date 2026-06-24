@@ -20,11 +20,11 @@ test-core:
 	cd chuck-core && cargo test
 
 test-ide:
-	cd chuck-ide && npm run test
+	cd chuck-ide && yarn test
 
 # ── Setup initial ──────────────────────────────────────────
 setup:
-	cd chuck-ide && npm install
+	cd chuck-ide && yarn install
 	rustup target add wasm32-unknown-unknown
 	cargo install wasm-pack
 	make build-core
