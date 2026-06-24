@@ -6,106 +6,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from '../core/base-component.js';
-
-// ── Rendu Markdown ────────────────────────────────────────────
-
-function renderMd(raw: string): string {
-  // Stocke { lang, escaped } pour chaque bloc fencé
-  const codeBlocks: Array<{ lang: string; code: string }> = [];
-
-  // 1. Extraire les blocs de code en capturant le langage
-  let s = raw.replace(/```([\w]*)\n?([\s\S]*?)```/g, (_, lang: string, code: string) => {
-    const escaped = code.trimEnd()
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const idx = codeBlocks.length;
-    codeBlocks.push({ lang: lang.toLowerCase(), code: escaped });
-    return `\x00CODE${idx}\x00`;
-  });
-
-  // 2. Échapper HTML
-  s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-  // 3. Code inline
-  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-
-  // 4. Titres
-  s = s.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
-  s = s.replace(/^### (.+)$/gm,  '<h3>$1</h3>');
-  s = s.replace(/^## (.+)$/gm,   '<h2>$1</h2>');
-  s = s.replace(/^# (.+)$/gm,    '<h1>$1</h1>');
-
-  // 5. Séparateur
-  s = s.replace(/^---$/gm, '<hr>');
-
-  // 6. Notes [note]...[/note] → <blockquote>
-  //    Syntaxe custom, sans ambiguïté avec l'échappement HTML.
-  s = s.replace(/\[note\]([\s\S]*?)\[\/note\]/g, (_m: string, inner: string) => {
-    return `<blockquote>${inner.trim()}</blockquote>`;
-  });
-
-  // 7. Gras / italique
-  s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  s = s.replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>');
-  s = s.replace(/\*(.+?)\*/g,         '<em>$1</em>');
-
-  // 8. Tableaux
-  s = s.replace(
-    /(\|.+\|\n)((?:\|[-:| ]+\|\n))((?:\|.+\|\n?)*)/g,
-    (_, head, _sep, body) => {
-      const parseRow = (r: string) =>
-        r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-      const headers = parseRow(head);
-      const rows    = body.trim().split('\n').filter(Boolean).map(parseRow);
-      const th = headers.map((h: string) => `<th>${h}</th>`).join('');
-      const tr = rows.map((row: string[]) =>
-        `<tr>${row.map((c: string) => `<td>${c}</td>`).join('')}</tr>`
-      ).join('');
-      return `<table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
-    }
-  );
-
-  // 9. Listes
-  s = s.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
-  s = s.replace(/(<li>[\s\S]*?<\/li>(\n|$))+/g, m => `<ul>${m}</ul>`);
-  s = s.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-
-  // 10. Paragraphes
-  s = s.split(/\n{2,}/).map(block => {
-    block = block.trim();
-    if (!block) return '';
-    if (/^(\x00CODE|\<(h[1-6]|ul|ol|li|hr|table|blockquote))/.test(block)) return block;
-    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
-  }).join('\n');
-
-  // 11. Réinjecter les blocs de code
-  //     - ```asm  → .code-block avec bouton Copier (code assembleur)
-  //     - ```      → <pre class="pre-plain"> sans bouton (diagrammes, cartes mémoire…)
-  s = s.replace(/\x00CODE(\d+)\x00/g, (_, i) => {
-    const entry = codeBlocks[Number(i)];
-    if (!entry) return '';
-    const { lang, code } = entry;
-
-    if (lang === 'asm') {
-      const plain = code
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-      const b64 = btoa(unescape(encodeURIComponent(plain)));
-      return `<div class="code-block">
-        <button class="copy-btn" data-code="${b64}" title="Copier dans l'éditeur">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          Copier
-        </button>
-        <pre>${code}</pre>
-      </div>`;
-    } else {
-      return `<pre class="pre-plain">${code}</pre>`;
-    }
-  });
-
-  return s;
-}
+import { renderDocs } from '../core/markdown.js';
 
 // ── Structure TOC ─────────────────────────────────────────────
 
@@ -649,7 +550,7 @@ export class ChuckHelpModal extends ChuckComponent {
     try {
       const res  = await fetch('/docs.md');
       const text = await res.text();
-      const html = renderMd(text);
+      const html = renderDocs(text);
 
       const content = this.shadow.getElementById('content')!;
       content.innerHTML = html;
