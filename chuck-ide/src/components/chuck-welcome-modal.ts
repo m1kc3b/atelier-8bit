@@ -62,7 +62,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
       .cta-arrow { margin-top:4px; font-size:11.5px; color:var(--card, var(--accent)); opacity:0; transition:opacity var(--t-fast); }
       .cta-card:hover .cta-arrow { opacity:1; }
       .choice-view { display:flex; flex-direction:column; min-height:100%; }
-      .stats-strip { margin-top:auto; display:flex; justify-content:center; gap:26px; padding:18px 40px 8px;
+      .stats-strip { margin-top:auto; display:flex; justify-content:center; gap:26px; padding:18px 40px 8px; font-size: 20px;
                border-top:1px solid var(--border); font-size:11px; color:var(--text-muted); flex-wrap:wrap; }
       .stats-strip strong { color:var(--text-dim); font-weight:700; }
 
@@ -175,7 +175,7 @@ export class ChuckWelcomeModal extends ChuckComponent {
       <div class="choice-view">
         <div class="hero">
           <h1>Apprends à programmer comme en 1980.</h1>
-          <p>La rétro-informatique est le chemin le plus rapide pour comprendre comment les machines fonctionnent vraiment. Écris de l'assembleur 6502 pour un ordinateur 8-bit fictif, directement dans ton navigateur.</p>
+          <p>Écris de l’assembleur 6502 sur un ordinateur 8-bit fictif, directement dans ton navigateur, pour te reconnecter à la réalité physique du code, comprendre enfin comment la machine fonctionne, et développer une intuition système solide.</p>
         </div>
         <div class="cta-grid">
           <button class="cta-card" data-choice="free">
@@ -198,9 +198,9 @@ export class ChuckWelcomeModal extends ChuckComponent {
           </button>
         </div>
         <div class="stats-strip">
-          <span><strong>${this._challengeCount}</strong> défis</span>
-          <span><strong>MOS 6502</strong> émulé en Rust/WASM</span>
-          <span><strong>🥇🥈🥉</strong> système de médailles</span>
+          
+          <span><strong>Une machine, des contraintes, et ton cerveau.</strong></span>
+          
         </div>
       </div>`;
   }
