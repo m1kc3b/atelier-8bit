@@ -1,5 +1,5 @@
-# CHUCK-8 **Computer System Specification  —  v1.2
-## Version 1.2 — Corrigée & Révisée*
+# CHUCK-8 **Computer System Specification  —  v1.2.1
+## Version 1.2.1 — Corrigée & Révisée*
 
 
 ```
@@ -13,11 +13,11 @@
 ```
 
 
-Révision : 1.2
+Révision : 1.2.1
 
 Statut : Reference Document
 
-*Modifications v1.1 → v1.2 : 8 corrections de cohérence interne (grille texte, charset, décompte jump table)*
+*Modifications v1.2 → v1.2.1 : 4 corrections vérifiées contre le moteur réel chuck-core (macro SET_COLOR, démo Pong réécrite, idiomes garde-frame / piège du drapeau Z / effacement avant déplacement)*
 
 # **CHANGELOG v1.0 → v1.1**
 
@@ -70,6 +70,19 @@ Statut : Reference Document
 | 6     | Important    | Curseur texte VPU_CURSOR_X/Y : plage **0–15** (16 colonnes/lignes), remplace 0–31          |
 | 7     | Important    | MOUSE_X/Y en mode texte : plage **0–15**, remplace 0–31                                     |
 | 8     | Mineur       | Exemple SYS_PLAY_NOTE : ordre des registres clarifié (note dans A en dernier avant JSR)     |
+
+---
+
+# **CHANGELOG v1.2 → v1.2.1**
+
+*Corrections vérifiées par assemblage et exécution contre le moteur réel chuck-core (assembleur + CPU + I/O). Chaque point a été reproduit puis revalidé.*
+
+| **#** | **Sévérité** | **Problème corrigé**                                                                                          |
+| ----- | ------------ | ------------------------------------------------------------------------------------------------------------- |
+| 1     | Critique     | Macro SET_COLOR : `.shl()` **et** `<<` rejetés par l'assembleur (« `)` attendu »). CORRIGÉ : multiplication `* 16` |
+| 2     | Critique     | Démo Pong (Annexe B) : entrée via `SYS_READ_PAD` impilotable au clavier → remplacée par `SYS_KEY_DOWN`         |
+| 3     | Critique     | Démo Pong : raquette dessinée en boucle pixel — `TYA` écrasait la couleur (dégradé arc-en-ciel). CORRIGÉ : bloc `SYS_FILL_RECT` |
+| 4     | Critique     | Démo Pong : `SYS_WAIT_VBLANK` ne bloque pas → boucle ×milliers/frame (raquette trop rapide, traînée balle). CORRIGÉ : garde-frame `SYS_FRAME_NUM` + effacement avant déplacement |
 
 ---
 
@@ -933,7 +946,7 @@ La ROM contient une jump table : chaque entrée fait 3 octets (JMP $xxxx). L'adr
 
 | **Adresse** | **Nom**         | **Description**                                                 |
 | ----------- | --------------- | --------------------------------------------------------------- |
-| $F057       | SYS_WAIT_VBLANK | Bloque jusqu'au prochain VBlank (sync frame)                    |
+| $F057       | SYS_WAIT_VBLANK | **Ne bloque PAS** : retour immédiat. La cadence 60 Hz est pilotée par l'hôte (rAF). Voir Annexe B, garde-frame |
 | $F05A       | SYS_GET_RAND    | Retourne octet pseudo-aléatoire dans A (LFSR)                   |
 | $F05D       | SYS_RAND16      | Retourne 16-bit aléatoire : A=lo, X=hi                          |
 | $F060       | SYS_MEMCPY      | Copie $84/$85 octets de src=$80/$81 vers dst=$82/$83            |
@@ -1151,7 +1164,7 @@ Le vecteur RESET pointe vers entry (défaut $E000). Si nmi est déclaré, le vec
 | **⛔ ERREUR CORRIGÉE : **v1.0 : les macros utilisaient .param (syntaxe invalide ca65). CORRIGÉ : les paramètres de macro s'écrivent sans point. |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 
-| **⛔ ERREUR CORRIGÉE : **v1.0 : l'opérateur << (inexistant en ca65) était utilisé. CORRIGÉ : .shl(n, bits) ou multiplication par puissance de 2. |
+| **⛔ ERREUR CORRIGÉE (v1.2.1) : **l'opérateur `<<` ET la pseudo-fonction `.shl()` sont tous deux rejetés par l'assembleur chuck-core (« `)` attendu »). Pour un décalage gauche de 4 bits dans une expression constante, utiliser la **multiplication par 16** : `LDA #(ink * 16 | paper)`. Vérifié : produit bien `$75` pour ink=7, paper=5. |
 | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 
 | **⛔ ERREUR CORRIGÉE : **v1.0 : SYS_FLIP, SYS_DRAW_LINE et 10 autres routines absentes. CORRIGÉES : toutes les routines de la jump table sont définies. |
@@ -1449,7 +1462,7 @@ VRAM_TILES     = $6000
 
 .macro SET_COLOR ink, paper
 
-  LDA #(.shl(ink, 4) | paper)   ; ca65 : .shl(val, bits)
+  LDA #(ink * 16 | paper)   ; chuck-core : ni << ni .shl() ne sont supportés — utiliser * 16 (= décalage de 4 bits)
 
   JSR SYS_SET_COLOR
 
@@ -1521,180 +1534,211 @@ VRAM_TILES     = $6000
 
 .endmacro
 
-# ANNEXE B — EXEMPLE COMPLET : PONG MINIMAL (v1.1 corrigé)
+# ANNEXE B — EXEMPLE COMPLET : PONG MINIMAL (v1.2.1 — vérifié moteur réel)
 
-| **⛔ ERREUR CORRIGÉE : **v1.0 : variables en .segment BSS avec .byte (invalide — doit être .res). CORRIGÉ : .org $0200 avec .res. |
-| -------------------------------------------------------------------------------------------------------------------------------- |
+Cette version a été **assemblée et exécutée contre le moteur chuck-core** (assembleur + CPU + I/O), en reproduisant le pilote temps-réel du navigateur (`vblank_tick()` puis `run(budget)` à chaque frame). Trois pièges de la machine, invisibles à la simple lecture, sont corrigés ici.
 
-| **⛔ ERREUR CORRIGÉE : **v1.0 : double .org $E000 causait superposition code/données. CORRIGÉ : variables en $0200, code en $E000. |
-| --------------------------------------------------------------------------------------------------------------------------------- |
+## Les trois pièges du Chuck-8 illustrés par Pong
 
-| **⛔ ERREUR CORRIGÉE : **v1.0 : logique reset balle : BALL_X testée après déplacement. CORRIGÉ : test avant déplacement. |
-| ----------------------------------------------------------------------------------------------------------------------- |
+**1. `SYS_WAIT_VBLANK` ne bloque pas — le piège de la boucle folle**
+Sur Chuck-8, la synchronisation 60 Hz est pilotée côté hôte (requestAnimationFrame). `SYS_WAIT_VBLANK` **revient immédiatement** : la boucle de jeu tourne donc des milliers de fois par frame affichée. Si on déplace la balle ou la raquette à chaque tour, un seul appui envoie la raquette d'un bord à l'autre, et la balle laisse une traînée. **Idiome du garde-frame** : lire `SYS_FRAME_NUM` en tête de boucle et ne traiter la logique qu'au changement de numéro de frame.
 
-; pong.asm — Démo Chuck-8 v1.1 : balle rebondissante + raquette
+**2. Le piège du drapeau Z**
+`SYS_KEY_DOWN` écrit son résultat dans A **sans mettre à jour le drapeau Z**. Un `BEQ`/`BNE` placé juste après teste un Z périmé. **Toujours** intercaler `CMP #0` entre `JSR SYS_KEY_DOWN` et la branche.
 
+**3. Effacer avant de déplacer**
+Pour effacer la balle proprement, on l'efface à sa position **courante**, *avant* de la déplacer — pas à une position « dernière dessinée » mémorisée après coup, qui contient déjà la position d'arrivée et provoque une traînée diagonale.
+
+## Choix de rendu
+
+La balle et la raquette sont dessinées en **blocs pleins** via `SYS_FILL_RECT` (et non `SYS_DRAW_PIXEL`, qui ne pose qu'un seul pixel invisible sur 128×128). La raquette utilise un dirty-check : elle n'est redessinée que lorsqu'elle bouge. L'entrée se fait **au clavier** (`SYS_KEY_DOWN`, scancodes Haut=$80 / Bas=$81), conformément au track pédagogique.
+
+```asm
+; pong.asm — Chuck-8 v1.2.1 : efface la balle a sa position courante avant de bouger
+; Garde-frame via SYS_FRAME_NUM : la boucle tourne des milliers de fois par
+; frame réelle ; on ne met à jour le jeu qu'au changement de numéro de frame.
   .include "chuck.inc"
 
-; ── Variables en RAM programme ($0200) ───────────────────────
+KEY_UP   = $80
+KEY_DOWN = $81
 
   .org $0200
-
-BALL_X:   .res 1
-
-BALL_Y:   .res 1
-
-BALL_DX:  .res 1        ; +1 ou $FF (-1 en complément à deux)
-
-BALL_DY:  .res 1
-
-PAD_Y:    .res 1
-
-SCORE:    .res 1
-
-; ── Init ────────────────────────────────────────────────────
+BALL_X:    .res 1
+BALL_Y:    .res 1
+BALL_DX:   .res 1
+BALL_DY:   .res 1
+PAD_Y:     .res 1
+PAD_LAST:  .res 1       ; dernière raquette dessinée (dirty-check)
+FRAME_LAST:.res 1       ; dernier numéro de frame traité (garde-frame)
 
   .org $E000
-
 INIT:
-
-  LDA #1 : JSR SYS_SET_MODE   ; mode graphique
-
-  LDA #COLOR_BLACK : JSR SYS_CLEAR
-
-  LDA #64 : STA BALL_X
-
-  LDA #64 : STA BALL_Y
-
-  LDA #1  : STA BALL_DX
-
-  LDA #1  : STA BALL_DY
-
-  LDA #56 : STA PAD_Y
+  LDA #1
+  JSR SYS_SET_MODE
+  LDA #COLOR_BLACK
+  JSR SYS_CLEAR
+  LDA #64
+  STA BALL_X
+  LDA #64
+  STA BALL_Y
+  LDA #1
+  STA BALL_DX
+  LDA #1
+  STA BALL_DY
+  LDA #56
+  STA PAD_Y
+  LDA #255
+  STA PAD_LAST
+  STA FRAME_LAST
 
 MAIN_LOOP:
-
   JSR SYS_WAIT_VBLANK
 
-  ; ── INPUT ──────────────────────────────────────────────
+  ; ── GARDE-FRAME : ne traiter qu'une fois par frame réelle ──
+  JSR SYS_FRAME_NUM        ; A = frame_lo
+  CMP FRAME_LAST
+  BEQ MAIN_LOOP            ; même frame → on re-boucle sans rien faire
+  STA FRAME_LAST           ; nouvelle frame → on la marque et on joue
 
-  LDA #0 : JSR SYS_READ_PAD
-
-  STA $10
-
-  LDA $10 : EOR #$FF : AND #PAD_UP
-
-  BEQ @no_up
-
-  LDA PAD_Y : BEQ @no_up
-
+  ; ── INPUT CLAVIER (Haut) ───────────────────────────────
+  LDA #KEY_UP
+  JSR SYS_KEY_DOWN
+  CMP #0                   ; piège du drapeau Z
+  BEQ no_up
+  LDA PAD_Y
+  BEQ no_up
   DEC PAD_Y
+no_up:
 
-@no_up:
-
-  LDA $10 : EOR #$FF : AND #PAD_DOWN
-
-  BEQ @no_down
-
-  LDA PAD_Y : CMP #118 : BCS @no_down
-
+  ; ── INPUT CLAVIER (Bas) ────────────────────────────────
+  LDA #KEY_DOWN
+  JSR SYS_KEY_DOWN
+  CMP #0
+  BEQ no_down
+  LDA PAD_Y
+  CMP #117
+  BCS no_down
   INC PAD_Y
+no_down:
 
-@no_down:
-
-  ; ── UPDATE BALLE ──────────────────────────────────────
-
-  ; Effacer ancienne position
-
+  ; ── EFFACER LA BALLE A SA POSITION COURANTE (avant de bouger) ──
+  LDA BALL_X
+  STA $80
+  LDA BALL_Y
+  STA $81
+  LDA #2
+  STA $82
+  LDA #2
+  STA $83
   LDA #COLOR_BLACK
+  JSR SYS_FILL_RECT
 
-  LDX BALL_X : LDY BALL_Y : JSR SYS_DRAW_PIXEL
+  ; ── DEPLACEMENT + REBONDS (une seule fois par frame) ───
+  LDA BALL_X
+  CMP #2
+  BCS no_reset
+  LDA BALL_DX
+  BPL no_reset
+  LDA #64
+  STA BALL_X
+  LDA #64
+  STA BALL_Y
+  LDA #1
+  STA BALL_DX
+  LDA #1
+  STA BALL_DY
+  JMP after_move
+no_reset:
+  LDA BALL_X
+  CLC
+  ADC BALL_DX
+  STA BALL_X
+  LDA BALL_Y
+  CLC
+  ADC BALL_DY
+  STA BALL_Y
 
-  ; Test sortie gauche AVANT déplacement
+  LDA BALL_Y
+  BEQ flip_dy
+  CMP #125
+  BCC no_flip_dy
+flip_dy:
+  LDA #0
+  SEC
+  SBC BALL_DY
+  STA BALL_DY
+no_flip_dy:
 
-  LDA BALL_X : CMP #1 : BNE @no_reset
+  LDA BALL_X
+  CMP #125
+  BCC no_right
+  LDA #0
+  SEC
+  SBC BALL_DX
+  STA BALL_DX
+no_right:
 
-  LDA BALL_DX : BMI @do_reset   ; si DX négatif (vers la gauche)
+  LDA BALL_X
+  CMP #10
+  BCS no_pad
+  LDA BALL_Y
+  CMP PAD_Y
+  BCC no_pad
+  LDA PAD_Y
+  CLC
+  ADC #10
+  CMP BALL_Y
+  BCC no_pad
+  LDA #0
+  SEC
+  SBC BALL_DX
+  STA BALL_DX
+no_pad:
+after_move:
 
-  JMP @no_reset
+  ; ── REDESSINER BALLE ───────────────────────────────────
+  LDA BALL_X
+  STA $80
+  LDA BALL_Y
+  STA $81
+  LDA #2
+  STA $82
+  LDA #2
+  STA $83
+  LDA #COLOR_WHITE
+  JSR SYS_FILL_RECT
 
-@do_reset:
-
-  LDA #64 : STA BALL_X
-
-  LDA #64 : STA BALL_Y
-
-  LDA #1  : STA BALL_DX
-
-  LDA #1  : STA BALL_DY
+  ; ── RAQUETTE (dirty-check) ─────────────────────────────
+  LDA PAD_Y
+  CMP PAD_LAST
+  BEQ skip_pad
+  LDA #8
+  STA $80
+  LDA PAD_LAST
+  STA $81
+  LDA #2
+  STA $82
+  LDA #11
+  STA $83
+  LDA #COLOR_BLACK
+  JSR SYS_FILL_RECT
+  LDA #8
+  STA $80
+  LDA PAD_Y
+  STA $81
+  LDA #2
+  STA $82
+  LDA #11
+  STA $83
+  LDA #COLOR_WHITE
+  JSR SYS_FILL_RECT
+  LDA PAD_Y
+  STA PAD_LAST
+skip_pad:
 
   JMP MAIN_LOOP
+```
 
-@no_reset:
-
-  ; Déplacer
-
-  LDA BALL_X : CLC : ADC BALL_DX : STA BALL_X
-
-  LDA BALL_Y : CLC : ADC BALL_DY : STA BALL_Y
-
-  ; Rebond bords haut/bas
-
-  LDA BALL_Y : BEQ @flip_dy
-
-  CMP #127   : BEQ @flip_dy
-
-  JMP @no_flip_dy
-
-@flip_dy:
-
-  LDA #0 : SEC : SBC BALL_DY : STA BALL_DY
-
-@no_flip_dy:
-
-  ; Rebond bord droit
-
-  LDA BALL_X : CMP #127 : BNE @no_right
-
-  LDA #0 : SEC : SBC BALL_DX : STA BALL_DX
-
-@no_right:
-
-  ; Collision raquette (x=8, y=PAD_Y à PAD_Y+10)
-
-  LDA BALL_X : CMP #8 : BNE @no_pad
-
-  LDA BALL_Y : CMP PAD_Y : BCC @no_pad
-
-  LDA PAD_Y : CLC : ADC #10 : CMP BALL_Y : BCC @no_pad
-
-  LDA #0 : SEC : SBC BALL_DX : STA BALL_DX
-
-@no_pad:
-
-  ; ── DRAW ─────────────────────────────────────────────
-
-  LDA #COLOR_WHITE
-
-  LDX BALL_X : LDY BALL_Y : JSR SYS_DRAW_PIXEL
-
-  ; Raquette (ligne verticale x=8, y=PAD_Y à PAD_Y+10)
-
-  LDA #COLOR_WHITE
-
-  LDX #8
-
-  LDY PAD_Y
-
-@draw_pad:
-
-  JSR SYS_DRAW_PIXEL
-
-  INY
-
-  TYA : SEC : SBC PAD_Y : CMP #10 : BCC @draw_pad
-
-  JMP MAIN_LOOP
 
 # ANNEXE C — TABLEAU DE RÉFÉRENCE RAPIDE
 
