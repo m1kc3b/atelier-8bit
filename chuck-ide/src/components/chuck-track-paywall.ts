@@ -116,7 +116,7 @@ export class ChuckTrackPaywall extends ChuckComponent {
     this.shadow.getElementById("close-btn")!.addEventListener("click", () => this.close());
     this.shadow.getElementById("goto-track")!.addEventListener("click", () => {
       this.close();
-      this.emit("chuck:open-welcome", { view: "pong" });
+      this.emit("chuck:open-welcome", undefined);
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.classList.contains("open")) this.close();

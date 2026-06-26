@@ -42,17 +42,9 @@ export class ModalRouter {
       root: true,
       factory: () => document.createElement("chuck-welcome-view"),
     },
-    challenges: {
+    tutos: {
       title: "🏆 Les Tutos",
       factory: () => document.createElement("chuck-challenges-list"),
-    },
-    pong: {
-      title: "🎮 Défis du mois",
-      factory: () => {
-        const el = document.createElement("chuck-track-roadmap");
-        el.setAttribute("track-id", "pong");
-        return el;
-      },
     },
     help: {
       title: "❔ Aide",
@@ -75,15 +67,9 @@ export class ModalRouter {
     // Cliquer un tuto / une étape ferme la modale (l'IDE prend le relais).
     bus.on("chuck:goto-challenge", () => this.close());
 
-    // ── Alias rétro-compat (retirés au chantier rename) ──────────
-    bus.on("chuck:open-welcome", (p) => {
-      const v = p?.view;
-      void this.show(
-        v === "challenges" ? "challenges" : v === "pong" ? "pong" : "welcome",
-      );
-    });
-    bus.on("chuck:show-challenges", () => void this.show("challenges"));
-    bus.on("chuck:show-pong", () => void this.show("pong"));
+    // Repli (paywall « revoir le parcours », célébration fondations) :
+    // rouvre simplement la modale d'accueil.
+    bus.on("chuck:open-welcome", () => void this.show("welcome"));
   }
 
   /**

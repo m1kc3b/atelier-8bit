@@ -6,7 +6,7 @@
    EventTarget dédié (pas le document global, évite les fuites).
    ───────────────────────────────────────────────────────────── */
 
-export type ModalView = 'welcome' | 'challenges' | 'pong' | 'help';
+export type ModalView = 'welcome' | 'tutos' | 'help';
 
 /* ── Types des événements ────────────────────────────────────── */
 export interface CpuState {
@@ -125,7 +125,7 @@ export interface ChuckEventMap {
   };
 
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
-  'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'pong' };
+  'chuck:view-changed':      { view: 'atelier' | 'tutos' | 'defis' };
 
   // ── Tracking funnel (cf. core/funnel-tracker.ts) ────────────
   'chuck:funnel-step': {
@@ -137,17 +137,19 @@ export interface ChuckEventMap {
   'chuck:start-tour': undefined;
 
   // ── Auth ────────────────────────────────────
-  'chuck:require-auth': { reason: 'save' | 'new-project' | 'challenge' | 'pong' };
+  'chuck:require-auth': { reason: 'save' | 'new-project' | 'challenge' | 'defis' };
   'chuck:load-project':  { id: string; name: string; code: string };
   'chuck:signed-out':    undefined;
   'chuck:open-account': undefined;
 
   // ── Navigation modale générique ─────────────────────────────
   'chuck:ide-free':     undefined;
+  /** 3e choix « Défi du mois » : va directement à l'IDE + side-panel
+   *  (instructions en haut / leaderboard en bas), sans roadmap. */
+  'chuck:ide-defi':     undefined;
   'chuck:modal-show':   { view: ModalView; params?: Record<string, unknown>; gate?: boolean };
-  'chuck:open-welcome':    { view?: 'choice' | 'challenges' | 'pong' } | undefined;
-  'chuck:show-challenges': undefined;
-  'chuck:show-pong':       undefined;
+  /** Repli depuis paywall / célébration : rouvre la modale d'accueil. */
+  'chuck:open-welcome': undefined;
   'chuck:modal-back':   undefined;
   'chuck:modal-opened': undefined;
   'chuck:modal-closed': undefined;

@@ -1397,7 +1397,7 @@ export class ChuckEditor extends ChuckComponent {
       this._emitCursor();
       // Couleur figée selon le mode déduit de l'event (track → pong, sinon
       // challenges) — indépendant de l'ordre des listeners qui posent data-mode.
-      this._log(`Défi #${challenge.id} — ${challenge.title}`, "mode", track ? "pong" : "challenges");
+      this._log(`Défi #${challenge.id} — ${challenge.title}`, "mode", track ? "defi" : "tutos");
     });
 
     this.sub("chuck:ide-free", () => {

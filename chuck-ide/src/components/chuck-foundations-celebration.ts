@@ -143,7 +143,7 @@ export class ChuckFoundationsCelebration extends ChuckComponent {
     startBtn.addEventListener("click", () => {
       if (this._firstPongStepId == null) {
         // Repli : le parcours n'est pas résolu — on ouvre la présentation Pong.
-        this.emit("chuck:open-welcome", { view: "pong" });
+        this.emit("chuck:open-welcome", undefined);
       } else {
         this.emit("chuck:goto-challenge", { id: this._firstPongStepId });
       }

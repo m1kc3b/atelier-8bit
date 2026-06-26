@@ -28,9 +28,9 @@ const STYLES = /* css */ `
     border-radius:14px; cursor:pointer; text-align:left;
     transition:border-color var(--t-fast), background var(--t-fast), transform .12s;
   }
-  .cta-card[data-choice="free"]       { --card:var(--mode-free);       --card-dim:var(--mode-free-dim); }
-  .cta-card[data-choice="challenges"] { --card:var(--mode-challenges); --card-dim:var(--mode-challenges-dim); }
-  .cta-card[data-choice="pong"]       { --card:var(--mode-pong);       --card-dim:var(--mode-pong-dim); }
+  .cta-card[data-choice="free"]   { --card:var(--mode-free);  --card-dim:var(--mode-free-dim); }
+  .cta-card[data-choice="tutos"]  { --card:var(--mode-tutos); --card-dim:var(--mode-tutos-dim); }
+  .cta-card[data-choice="defi"]   { --card:var(--mode-defi);  --card-dim:var(--mode-defi-dim); }
   .cta-card:hover { border-color:var(--card); color:var(--text); background:var(--card-dim); transform:translateY(-2px); }
   .cta-card strong { font-size:13.5px; }
   .cta-card span { font-size:11.5px; line-height:1.55; }
@@ -93,7 +93,7 @@ export class ChuckWelcomeView extends ChuckComponent {
             <span class="cta-arrow">Commencer →</span>
           </button>
 
-          <button class="cta-card" data-choice="challenges">
+          <button class="cta-card" data-choice="tutos">
             <picture class="cta-icon">
               <source srcset="/images/tutos.gif" type="image/webp">
               <img src="/images/pencil.gif" alt="✏" width="32" height="32">
@@ -103,14 +103,14 @@ export class ChuckWelcomeView extends ChuckComponent {
             <span class="cta-arrow">Explorer →</span>
           </button>
 
-          <button class="cta-card" data-choice="pong">
+          <button class="cta-card" data-choice="defis">
             <picture class="cta-icon">
               <source srcset="/images/defis.gif" type="image/webp">
               <img src="/images/pencil.gif" alt="✏" width="32" height="32">
             </picture>
             <strong>Défis du mois</strong>
-            <span>Construis ton premier jeu vidéo en assembleur, étape par étape.</span>
-            <span class="cta-arrow">Explorer →</span>
+            <span>Entre dans l'arène : optimise ton code et grimpe au classement.</span>
+            <span class="cta-arrow">Entrer →</span>
           </button>
         </div>
       </div>`;
@@ -128,13 +128,16 @@ export class ChuckWelcomeView extends ChuckComponent {
     });
 
     // Liste des tutos : accès libre (le gate s'applique AU LANCEMENT d'un tuto).
-    root.querySelector('[data-choice="challenges"]')?.addEventListener("click", () => {
-      this.emit("chuck:modal-show", { view: "challenges" });
+    root.querySelector('[data-choice="tutos"]')?.addEventListener("click", () => {
+      this.emit("chuck:modal-show", { view: "tutos" });
     });
 
-    // Défis du mois : accès libre, side-panel comme les challenges.
-    root.querySelector('[data-choice="pong"]')?.addEventListener("click", () => {
-      this.emit("chuck:modal-show", { view: "pong" });
+    // Défi du mois : accès libre, va directement à l'IDE + side-panel
+    // (instructions en haut / leaderboard en bas). Le péage est au moment
+    // de soumettre, pas à l'entrée.
+    root.querySelector('[data-choice="defi"]')?.addEventListener("click", () => {
+      this.emit("chuck:ide-defi", undefined);
+      this.emit("chuck:modal-close", undefined);
     });
   }
 

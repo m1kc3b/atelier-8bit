@@ -60,4 +60,11 @@
   /* ── Transitions ──────────────────────────────────────── */
   --t-fast:   0.1s ease;
   --t-normal: 0.18s ease;
+
+  --mode-free:         var(--accent);
+  --mode-free-dim:     var(--accent-dim);
+  --mode-tutos:        var(--cyan);
+  --mode-tutos-dim:    var(--cyan-dim);
+  --mode-defi:         var(--amber);
+  --mode-defi-dim:     var(--amber-dim);
 }

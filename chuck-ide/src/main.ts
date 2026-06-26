@@ -20,7 +20,6 @@ import "./components/chuck-main-modal.js";
 import "./components/chuck-welcome-view.js";
 import "./components/chuck-onboarding-tour.js";
 import "./components/chuck-challenges-list.js";
-import "./components/chuck-track-roadmap.js";
 import "./components/chuck-track-paywall.js";
 import "./components/chuck-foundations-celebration";
 
@@ -45,6 +44,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     | null;
   const modalRouter = mainModal ? new ModalRouter(mainModal as any) : null;
 
+  // Fermeture demandée par une vue interne (ex. « Mode libre »).
+  mainModal?.addEventListener("chuck:request-close", () => mainModal.close());
+
   // Vue initiale selon l'URL (?challenge=N charge un tuto sans passer par l'accueil).
   {
     const urlParams = new URLSearchParams(window.location.search);
@@ -57,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       urlParams.has("parcours") || urlParams.has("challenge") || urlParams.has("lesson");
     const isBareChallenge = hasParcours && !isNumericChallenge;
     if (!isNumericChallenge) {
-      void modalRouter?.show(isBareChallenge ? "challenges" : "welcome");
+      void modalRouter?.show(isBareChallenge ? "tutos" : "welcome");
     }
   }
 
@@ -142,7 +144,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   // doivent exister avant l'appel.
 
   // Couleur du mode actif, propagée à tout l'UI via --mode-color sur :root.
-  type ModeName = "free" | "challenges" | "pong";
+  type ModeName = "free" | "tutos" | "defis";
+
   function setMode(mode: ModeName): void {
     const root = document.documentElement;
     root.style.setProperty("--mode-color", `var(--mode-${mode})`);
@@ -166,7 +169,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   bus.on("chuck:challenge-loaded", ({ challenge, track }) => {
-    setMode(track ? "pong" : "challenges");
+    setMode(track ? "defis" : "tutos");
     const label = track
       ? `${parcoursName(track.trackId)} ${track.stepIndex} — ${challenge.title}`
       : `Défi ${challenge.id} — ${challenge.title}`;
@@ -211,6 +214,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     titlebarFile.textContent = "mode libre";
     document.title = "L'atelier 8-bit — Chuck IDE";
     closeSidePanel();
+  });
+
+  // 3e choix « Défi du mois » : IDE + side-panel ouvert directement.
+  // Le side-panel présentera classement (haut) + instructions/soumettre (bas).
+  bus.on("chuck:ide-defi", () => {
+    setMode("defis");
+    titlebarFile.textContent = "défi du mois";
+    document.title = "Défi du mois — Chuck IDE";
+    openSidePanel();
   });
 
   // Lancement d'un tuto : compte GitHub obligatoire. On intercepte AVANT le
