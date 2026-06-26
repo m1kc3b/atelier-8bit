@@ -1,0 +1,17 @@
+[package]
+name    = "ck1801-core"
+version = "0.1.0"
+edition = "2021"
+description = "Cœur émulateur de l'ISA CK-1801 (Chuck-8). Implémentation normative v2.0-FINAL."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+
+[dev-dependencies]
+# Les "property tests" du cœur sont des balayages exhaustifs (256×256), plus forts
+# qu'un échantillonnage. Pas de dépendance externe requise.
+
+[build-dependencies]
+

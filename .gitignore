@@ -1,7 +1,7 @@
 # Rust
-chuck-core/target/
-chuck-core/pkg/
-!chuck-core/pkg/*.d.ts   # garde les types TS en repo
+*/target/
+*/pkg/
+!*/pkg/*.d.ts   # garde les types TS en repo
 
 # Node
 chuck-ide/node_modules/
