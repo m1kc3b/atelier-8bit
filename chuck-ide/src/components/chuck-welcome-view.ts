@@ -120,9 +120,7 @@ export class ChuckWelcomeView extends ChuckComponent {
     const root = this.shadow.getElementById("root")!;
 
     root.querySelector('[data-choice="free"]')?.addEventListener("click", () => {
-      bus.emit("chuck:modal-back", undefined); // no-op si racine
       this.emit("chuck:ide-free", undefined);
-      this._closeModal();
       if (!ChuckOnboardingTour.hasBeenSeen()) {
         this.emit("chuck:start-tour", undefined);
       }
@@ -139,13 +137,6 @@ export class ChuckWelcomeView extends ChuckComponent {
     });
   }
 
-  /** Demande la fermeture de la modale parente. */
-  private _closeModal(): void {
-    this.dispatchEvent(
-      new CustomEvent("chuck:request-close", { bubbles: true, composed: true }),
-    );
-  }
 }
 
-import { bus } from "../core/bus.js";
 customElements.define("chuck-welcome-view", ChuckWelcomeView);

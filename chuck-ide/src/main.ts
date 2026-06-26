@@ -45,9 +45,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     | null;
   const modalRouter = mainModal ? new ModalRouter(mainModal as any) : null;
 
-  // Fermeture demandée par une vue interne (ex. « Mode libre »).
-  mainModal?.addEventListener("chuck:request-close", () => mainModal.close());
-
   // Vue initiale selon l'URL (?challenge=N charge un tuto sans passer par l'accueil).
   {
     const urlParams = new URLSearchParams(window.location.search);
