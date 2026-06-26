@@ -7,8 +7,6 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import { authService } from "../core/auth/auth-service.js";
-import { projectsService } from "../core/projects/projects-service.js";
 
 // ── CodeMirror 6 ─────────────────────────────────────────────
 import { EditorState } from "@codemirror/state";
@@ -1213,81 +1211,6 @@ const STYLES = /* css */ `
   gap: 8px;
   }
 
-  .tab-save {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    margin-left: 8px;
-    border-radius: 5px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: background var(--t-fast), color var(--t-fast);
-    flex-shrink: 0;
-  }
-  .tab-save:hover {
-    color: var(--green);
-    background: var(--green-dim);
-  }
-  .tab-save:active {
-    transform: scale(.92);
-  }
-
-  .tab-new {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 5px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    font-size: 15px;
-    line-height: 1;
-    cursor: pointer;
-    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
-    flex-shrink: 0;
-  }
-  .tab-new:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-dim);
-  }
-  .tab-new:active {
-    transform: scale(.92);
-  }
-  /* Pop-up (tooltip) au survol du bouton « + » */
-  .tab-new[data-tip]::after {
-    content: attr(data-tip);
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 50;
-    white-space: nowrap;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-size: 11.5px;
-    font-weight: 600;
-    font-family: var(--font-ui);
-    box-shadow: 0 4px 14px rgba(0,0,0,.35);
-    opacity: 0;
-    transform: translateY(-4px);
-    pointer-events: none;
-    transition: opacity var(--t-fast), transform var(--t-fast);
-  }
-  .tab-new[data-tip]:hover::after {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
   ::-webkit-scrollbar       { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 3px; }
@@ -1462,14 +1385,6 @@ export class ChuckEditor extends ChuckComponent {
       this._log("Console effacée.", "dim");
     });
 
-    // this.shadow
-    //   .getElementById("save-btn")
-    //   ?.addEventListener("click", () => this._saveProject());
-
-    // this.shadow
-    //   .getElementById("new-project-btn")
-    //   ?.addEventListener("click", () => this._newProject());
-
     // ── Bus ───────────────────────────────────────────────
     this.sub("chuck:log", ({ text, level }) => this._log(text, level));
 
@@ -1486,10 +1401,8 @@ export class ChuckEditor extends ChuckComponent {
     });
 
     this.sub("chuck:ide-free", () => {
-      // Mode libre : on charge le code de démonstration (pas un buffer vierge).
-      // Créer un nouveau projet vide se fait explicitement via le bouton « + ».
+      // Mode libre : on charge le code de démonstration (bac à sable volatil).
       this._currentId = 0;            // désactive l'autosave de défi (cf. _scheduleAutosave)
-      this._currentProjectId = null;
       this._tabLabel.textContent = "demo.asm";
       this.setSource(DEFAULT_SOURCE);
       this._emitCursor();
@@ -1536,13 +1449,6 @@ export class ChuckEditor extends ChuckComponent {
       }
     });
 
-    this.sub('chuck:load-project', ({ id, name, code }) => {
-      this._currentProjectId = id;
-      this._tabLabel.textContent = `${name}.asm`;
-      this.setSource(code);
-      this._log(`Projet "${name}" chargé.`, 'info');
-    });
-
     // Mettre le focus sur l'éditeur au chargement
     requestAnimationFrame(() => this._view.focus());
   }
@@ -1559,38 +1465,6 @@ export class ChuckEditor extends ChuckComponent {
       }
     }, 800);
   }
-
-  // ── Export .asm (Tâche 6.2) ─────────────────────────────
-//   private async _saveProject(): Promise<void> {
-//   if (!authService.isAuthenticated()) {
-//     this.emit("chuck:require-auth" as any, { reason: "save" });
-//     return;
-//   }
-//   const code = this.getSource();
-//   if (!this._currentProjectId) {
-//     const name = prompt("Nom du projet :", "Sans titre") ?? "Sans titre";
-//     const project = await projectsService.create(name, code);
-//     if (project) {
-//       this._currentProjectId = project.id;
-//       this._tabLabel.textContent = `${project.name}.asm`;
-//       this._log(`Projet "${project.name}" sauvegardé.`, "ok");
-//     }
-//   } else {
-//     await projectsService.save(this._currentProjectId, code);
-//     this._log("Projet sauvegardé.", "ok");
-//   }
-// }
-
-// private _newProject(): void {
-//   if (!authService.isAuthenticated()) {
-//     this.emit("chuck:require-auth" as any, { reason: "new-project" });
-//     return;
-//   }
-//   this._currentProjectId = null;
-//   this._tabLabel.textContent = "untitled.asm";
-//   this.setSource("; Nouveau programme\n\n");
-//   this._log("Nouveau projet.", "info");
-// }
 
   // ── Helpers ──────────────────────────────────────────────
   private _emitCursor(): void {
@@ -1631,8 +1505,6 @@ export class ChuckEditor extends ChuckComponent {
     if (this._autosaveTimer) clearTimeout(this._autosaveTimer);
     this._view?.destroy();
   }
-
-  private _currentProjectId: string | null = null;
 }
 
 customElements.define("chuck-editor", ChuckEditor);

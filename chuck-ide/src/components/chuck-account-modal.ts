@@ -1,17 +1,12 @@
 import { ChuckComponent } from "../core/base-component.js";
 import { authService } from "../core/auth/auth-service.js";
-import {
-  projectsService,
-  type Project,
-} from "../core/projects/projects-service.js";
 import { challengesService } from "../core/challenges/challenges-service.js";
 import { storage } from "../core/storage/storage-service.js";
 
-type Tab = "profile" | "projects" | "medals";
+type Tab = "profile" | "medals";
 
 export class ChuckAccountModal extends ChuckComponent {
   private _tab: Tab = "profile";
-  private _projects: Project[] = [];
   private _challengeTitles = new Map<number, string>();
 
   protected render(): void {
@@ -55,18 +50,11 @@ export class ChuckAccountModal extends ChuckComponent {
                          border:1px solid var(--border); color:var(--text-dim); font-size:12px; cursor:pointer; }
       .signout button:hover { color:var(--red); border-color:var(--red); }
       .empty { color:var(--text-muted); font-size:12px; text-align:center; padding:30px 0; }
-      .project-row, .medal-row {
+      .medal-row {
         display:flex; align-items:center; gap:10px; padding:10px 0;
         border-bottom:1px solid var(--border);
       }
-      .project-row:last-child, .medal-row:last-child { border-bottom:none; }
-      .project-name { flex:1; font-size:13px; color:var(--text); }
-      .project-date { font-size:10px; color:var(--text-muted); margin-right:6px; }
-      .project-actions { display:flex; gap:6px; }
-      .icon-btn { width:26px; height:26px; border-radius:5px; background:none; border:none;
-                  color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; }
-      .icon-btn:hover { background:var(--surface-3); color:var(--text); }
-      .icon-btn.danger:hover { color:var(--red); background:var(--red-dim); }
+      .medal-row:last-child { border-bottom:none; }
       .medal-icon { font-size:16px; width:24px; text-align:center; flex-shrink:0; }
       .medal-title { flex:1; font-size:13px; color:var(--text); }
       .medal-summary { display:flex; gap:16px; padding:0 0 18px; font-size:12px; color:var(--text-dim); flex-wrap:wrap; }
@@ -80,7 +68,6 @@ export class ChuckAccountModal extends ChuckComponent {
       </div>
       <div class="tabs">
         <button class="tab-btn active" data-tab="profile">Profil</button>
-        <button class="tab-btn" data-tab="projects">Mes projets</button>
         <button class="tab-btn" data-tab="medals">Mes médailles</button>
       </div>
       <div class="body" id="body"></div>
@@ -127,7 +114,6 @@ export class ChuckAccountModal extends ChuckComponent {
   }
 
   private async _loadData(): Promise<void> {
-    this._projects = await projectsService.list();
     if (this._challengeTitles.size === 0) {
       const list = await challengesService.getAll();
       for (const c of list) this._challengeTitles.set(c.id, c.title);
@@ -147,7 +133,6 @@ export class ChuckAccountModal extends ChuckComponent {
   private _renderBody(): void {
     const body = this.shadow.getElementById("body")!;
     if (this._tab === "profile") body.innerHTML = this._renderProfile();
-    else if (this._tab === "projects") body.innerHTML = this._renderProjects();
     else body.innerHTML = this._renderMedals();
     this._bindBodyEvents();
   }
@@ -175,26 +160,6 @@ export class ChuckAccountModal extends ChuckComponent {
       <div class="signout">
         <button id="signout-btn">Se déconnecter</button>
       </div>`;
-  }
-
-  // ── Projets ─────────────────────────────────────────────
-  private _renderProjects(): string {
-    if (this._projects.length === 0) {
-      return `<div class="empty">Aucun projet sauvegardé pour le moment.</div>`;
-    }
-    return this._projects
-      .map(
-        (p) => `
-      <div class="project-row">
-        <span class="project-name">${p.name}</span>
-        <span class="project-date">${new Date(p.updatedAt).toLocaleDateString("fr-FR")}</span>
-        <div class="project-actions">
-          <button class="icon-btn" data-action="open" data-id="${p.id}" title="Ouvrir">📂</button>
-          <button class="icon-btn danger" data-action="delete" data-id="${p.id}" title="Supprimer">🗑</button>
-        </div>
-      </div>`,
-      )
-      .join("");
   }
 
   // ── Médailles ───────────────────────────────────────────
@@ -251,21 +216,6 @@ export class ChuckAccountModal extends ChuckComponent {
     body
       .querySelector("#signout-btn")
       ?.addEventListener("click", () => this._signOut());
-
-    body
-      .querySelectorAll<HTMLButtonElement>('[data-action="open"]')
-      .forEach((btn) => {
-        btn.addEventListener("click", () =>
-          this._openProject(btn.dataset["id"]!),
-        );
-      });
-    body
-      .querySelectorAll<HTMLButtonElement>('[data-action="delete"]')
-      .forEach((btn) => {
-        btn.addEventListener("click", () =>
-          this._deleteProject(btn.dataset["id"]!),
-        );
-      });
   }
 
   private async _saveEmail(): Promise<void> {
@@ -296,24 +246,6 @@ export class ChuckAccountModal extends ChuckComponent {
     await authService.signOut();
     this.close();
     this.emit("chuck:signed-out", undefined);
-  }
-
-  private _openProject(id: string): void {
-    const project = this._projects.find((p) => p.id === id);
-    if (!project) return;
-    this.emit("chuck:load-project", {
-      id: project.id,
-      name: project.name,
-      code: project.code,
-    });
-    this.close();
-  }
-
-  private async _deleteProject(id: string): Promise<void> {
-    if (!confirm("Supprimer ce projet ?")) return;
-    await projectsService.remove(id);
-    this._projects = this._projects.filter((p) => p.id !== id);
-    this._renderBody();
   }
 }
 
