@@ -1382,15 +1382,9 @@ export class ChuckEditor extends ChuckComponent {
       <div class="tab active">
         <span class="tab-dot"></span>
         <span id="tab-label">demo.asm</span>
-        <button class="tab-save" id="save-btn" title="Sauvegarder le projet">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-        </button>
+        
       </div>
-      <button class="tab-new" id="new-project-btn" data-tip="Créer un nouveau projet" title="Créer un nouveau projet">+</button>
+      
     </div>
     <div id="cm-host"></div>
     <div class="console-strip">
@@ -1468,13 +1462,13 @@ export class ChuckEditor extends ChuckComponent {
       this._log("Console effacée.", "dim");
     });
 
-    this.shadow
-      .getElementById("save-btn")
-      ?.addEventListener("click", () => this._saveProject());
+    // this.shadow
+    //   .getElementById("save-btn")
+    //   ?.addEventListener("click", () => this._saveProject());
 
-    this.shadow
-      .getElementById("new-project-btn")
-      ?.addEventListener("click", () => this._newProject());
+    // this.shadow
+    //   .getElementById("new-project-btn")
+    //   ?.addEventListener("click", () => this._newProject());
 
     // ── Bus ───────────────────────────────────────────────
     this.sub("chuck:log", ({ text, level }) => this._log(text, level));
@@ -1567,36 +1561,36 @@ export class ChuckEditor extends ChuckComponent {
   }
 
   // ── Export .asm (Tâche 6.2) ─────────────────────────────
-  private async _saveProject(): Promise<void> {
-  if (!authService.isAuthenticated()) {
-    this.emit("chuck:require-auth" as any, { reason: "save" });
-    return;
-  }
-  const code = this.getSource();
-  if (!this._currentProjectId) {
-    const name = prompt("Nom du projet :", "Sans titre") ?? "Sans titre";
-    const project = await projectsService.create(name, code);
-    if (project) {
-      this._currentProjectId = project.id;
-      this._tabLabel.textContent = `${project.name}.asm`;
-      this._log(`Projet "${project.name}" sauvegardé.`, "ok");
-    }
-  } else {
-    await projectsService.save(this._currentProjectId, code);
-    this._log("Projet sauvegardé.", "ok");
-  }
-}
+//   private async _saveProject(): Promise<void> {
+//   if (!authService.isAuthenticated()) {
+//     this.emit("chuck:require-auth" as any, { reason: "save" });
+//     return;
+//   }
+//   const code = this.getSource();
+//   if (!this._currentProjectId) {
+//     const name = prompt("Nom du projet :", "Sans titre") ?? "Sans titre";
+//     const project = await projectsService.create(name, code);
+//     if (project) {
+//       this._currentProjectId = project.id;
+//       this._tabLabel.textContent = `${project.name}.asm`;
+//       this._log(`Projet "${project.name}" sauvegardé.`, "ok");
+//     }
+//   } else {
+//     await projectsService.save(this._currentProjectId, code);
+//     this._log("Projet sauvegardé.", "ok");
+//   }
+// }
 
-private _newProject(): void {
-  if (!authService.isAuthenticated()) {
-    this.emit("chuck:require-auth" as any, { reason: "new-project" });
-    return;
-  }
-  this._currentProjectId = null;
-  this._tabLabel.textContent = "untitled.asm";
-  this.setSource("; Nouveau programme\n\n");
-  this._log("Nouveau projet.", "info");
-}
+// private _newProject(): void {
+//   if (!authService.isAuthenticated()) {
+//     this.emit("chuck:require-auth" as any, { reason: "new-project" });
+//     return;
+//   }
+//   this._currentProjectId = null;
+//   this._tabLabel.textContent = "untitled.asm";
+//   this.setSource("; Nouveau programme\n\n");
+//   this._log("Nouveau projet.", "info");
+// }
 
   // ── Helpers ──────────────────────────────────────────────
   private _emitCursor(): void {
