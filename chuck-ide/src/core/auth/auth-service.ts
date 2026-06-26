@@ -43,9 +43,9 @@ class AuthService {
             /* module indisponible — ignore */
           });
       }
-      if (event === "PASSWORD_RECOVERY") {
-        this._recoveryListeners.forEach((cb) => cb());
-      }
+      // if (event === "PASSWORD_RECOVERY") {
+      //   this._recoveryListeners.forEach((cb) => cb());
+      // }
     });
   }
 
@@ -68,24 +68,24 @@ class AuthService {
     return !!this._session;
   }
 
-  async signUp(
-    email: string,
-    password: string,
-  ): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
-  }
+  // async signUp(
+  //   email: string,
+  //   password: string,
+  // ): Promise<{ error: string | null }> {
+  //   const { error } = await supabase.auth.signUp({ email, password });
+  //   return { error: error?.message ?? null };
+  // }
 
-  async signIn(
-    email: string,
-    password: string,
-  ): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error?.message ?? null };
-  }
+  // async signIn(
+  //   email: string,
+  //   password: string,
+  // ): Promise<{ error: string | null }> {
+  //   const { error } = await supabase.auth.signInWithPassword({
+  //     email,
+  //     password,
+  //   });
+  //   return { error: error?.message ?? null };
+  // }
 
   async signInWithGithub(): Promise<{ error: string | null }> {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -111,22 +111,22 @@ class AuthService {
     return { error: error?.message ?? null };
   }
 
-  private _recoveryListeners = new Set<() => void>();
+  // private _recoveryListeners = new Set<() => void>();
 
   /** Appelé quand l'utilisateur revient sur l'app via le lien de réinitialisation. */
-  onPasswordRecovery(cb: () => void): () => void {
-    this._recoveryListeners.add(cb);
-    return () => this._recoveryListeners.delete(cb);
-  }
+  // onPasswordRecovery(cb: () => void): () => void {
+  //   this._recoveryListeners.add(cb);
+  //   return () => this._recoveryListeners.delete(cb);
+  // }
 
-  async resetPasswordForEmail(
-    email: string,
-  ): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
-    return { error: error?.message ?? null };
-  }
+  // async resetPasswordForEmail(
+  //   email: string,
+  // ): Promise<{ error: string | null }> {
+  //   const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  //     redirectTo: window.location.origin,
+  //   });
+  //   return { error: error?.message ?? null };
+  // }
 
   
 }

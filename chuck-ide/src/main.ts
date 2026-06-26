@@ -124,9 +124,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     | (HTMLElement & { open(): void })
     | null;
 
-  authService.onPasswordRecovery(() => {
-    accountModal?.open();
-  });
+  // authService.onPasswordRecovery(() => {
+  //   accountModal?.open();
+  // });
 
   bus.on("chuck:open-account", () => {
     if (authService.isAuthenticated()) {

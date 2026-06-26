@@ -1,7 +1,7 @@
 import { ChuckComponent } from "../core/base-component.js";
 import { authService } from "../core/auth/auth-service.js";
 
-type Mode = "signin" | "signup";
+// type Mode = "signin" | "signup";
 
 /** Options d'ouverture de la gate. Le copy (title/sub) est fourni par
  *  l'appelant pour s'adapter au contexte (défi verrouillé, sauvegarde,
@@ -27,7 +27,8 @@ const DEFAULT_GATE_COPY = {
 
 export class ChuckAuthGate extends ChuckComponent {
   private _pendingChallengeId = 4;
-  private _mode: Mode = "signin";
+  // private _mode: Mode = "signin";
+
   /** true entre une connexion/inscription réussie et le close() qui suit,
    *  pour ne pas compter une conversion comme un abandon. */
   private _converted = false;
@@ -116,38 +117,27 @@ export class ChuckAuthGate extends ChuckComponent {
     this.innerHTML = `
       <h2 id="title">Sauvegarde ta progression</h2>
       <p class="sub" id="sub">Cr\u00e9e un compte pour retrouver tes r\u00e9alisations et continuer.</p>
-      <form id="auth-form" autocomplete="on">
-        <input id="email" name="email" type="email" placeholder="Email" autocomplete="username" required>
-        <input id="password" name="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
-        <div class="forgot" id="forgot-wrap"><a id="forgot-link">Mot de passe oubli\u00e9 ?</a></div>
-        <div class="error" id="error"></div>
-        <button class="submit" type="submit" id="submit-btn">Se connecter</button>
-      </form>
+      
 
       <button id="github-btn" class="github-login-button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="fill: white;">
           <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
         </svg>
         Se connecter avec GitHub
-      </button>
-
-      <div class="switch">
-        <span id="switch-text">Pas encore de compte ?</span>
-        <a id="switch-link">Cr\u00e9er un compte</a>
-      </div>`;
+      </button>`;
   }
 
   protected setup(): void {
-    const switchLink = this._lightEl("switch-link");
-    const forgotLink = this._lightEl("forgot-link");
+    // const switchLink = this._lightEl("switch-link");
+    // const forgotLink = this._lightEl("forgot-link");
 
-    this._lightEl("auth-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      this._submit();
-    });
+    // this._lightEl("auth-form").addEventListener("submit", (e) => {
+    //   e.preventDefault();
+    //   this._submit();
+    // });
     this._lightEl("github-btn").addEventListener("click", () => this.signInWithGithub());
-    switchLink.addEventListener("click", () => this._toggleMode());
-    forgotLink.addEventListener("click", () => this._forgotPassword());
+    // switchLink.addEventListener("click", () => this._toggleMode());
+    // forgotLink.addEventListener("click", () => this._forgotPassword());
 
     this._shadowEl("close-btn").addEventListener("click", () => this.close());
 
@@ -165,7 +155,7 @@ export class ChuckAuthGate extends ChuckComponent {
   }
 
   /** Sous-titre du contexte courant — restauré quand on revient en mode "signin". */
-  private _contextSub: string = DEFAULT_GATE_COPY.sub;
+  // private _contextSub: string = DEFAULT_GATE_COPY.sub;
 
   /** true si l'utilisateur a le droit de fermer sans s'authentifier. */
   private _dismissible = false;
@@ -179,7 +169,7 @@ export class ChuckAuthGate extends ChuckComponent {
     const subEl = this._lightEl("sub");
     titleEl.textContent = title ?? DEFAULT_GATE_COPY.title;
     subEl.textContent = sub ?? DEFAULT_GATE_COPY.sub;
-    this._contextSub = sub ?? DEFAULT_GATE_COPY.sub;
+    // this._contextSub = sub ?? DEFAULT_GATE_COPY.sub;
 
     // Bouton fermer visible uniquement pour une connexion volontaire.
     this._dismissible = dismissible;
@@ -187,7 +177,7 @@ export class ChuckAuthGate extends ChuckComponent {
     closeBtn.style.display = dismissible ? "" : "none";
 
     // Toujours rouvrir en mode "signin".
-    this._mode = "signin";
+    // this._mode = "signin";
 
     this.classList.add("open");
     this.emit("chuck:funnel-step", {
@@ -225,82 +215,82 @@ export class ChuckAuthGate extends ChuckComponent {
     return authService.isAuthenticated();
   }
 
-  private _toggleMode(): void {
-    this._mode = this._mode === "signin" ? "signup" : "signin";
-    const title = this._lightEl("title");
-    const sub = this._lightEl("sub");
-    const submitBtn = this._lightEl("submit-btn");
-    const switchText = this._lightEl("switch-text");
-    const switchLink = this._lightEl("switch-link");
-    const forgotWrap = this._lightEl("forgot-wrap");
-    const passwordInput = this._lightEl<HTMLInputElement>("password");
+  // private _toggleMode(): void {
+  //   this._mode = this._mode === "signin" ? "signup" : "signin";
+  //   const title = this._lightEl("title");
+  //   const sub = this._lightEl("sub");
+  //   const submitBtn = this._lightEl("submit-btn");
+  //   const switchText = this._lightEl("switch-text");
+  //   const switchLink = this._lightEl("switch-link");
+  //   const forgotWrap = this._lightEl("forgot-wrap");
+  //   const passwordInput = this._lightEl<HTMLInputElement>("password");
 
-    if (this._mode === "signup") {
-      title.textContent = "Crée ton compte";
-      sub.textContent =
-        "Gratuit. Ta progression et tes réalisations sont sauvegardées.";
-      submitBtn.textContent = "S'inscrire";
-      switchText.textContent = "Déjà un compte ?";
-      switchLink.textContent = "Se connecter";
-      forgotWrap.style.display = "none";
-      // Indique au gestionnaire de mots de passe qu'il s'agit d'un nouveau mdp.
-      passwordInput.setAttribute("autocomplete", "new-password");
-    } else {
-      title.textContent = DEFAULT_GATE_COPY.title;
-      sub.textContent = this._contextSub;
-      submitBtn.textContent = "Se connecter";
-      switchText.textContent = "Pas encore de compte ?";
-      switchLink.textContent = "Créer un compte";
-      forgotWrap.style.display = "block";
-      passwordInput.setAttribute("autocomplete", "current-password");
-    }
-  }
+  //   if (this._mode === "signup") {
+  //     title.textContent = "Crée ton compte";
+  //     sub.textContent =
+  //       "Gratuit. Ta progression et tes réalisations sont sauvegardées.";
+  //     submitBtn.textContent = "S'inscrire";
+  //     switchText.textContent = "Déjà un compte ?";
+  //     switchLink.textContent = "Se connecter";
+  //     forgotWrap.style.display = "none";
+  //     // Indique au gestionnaire de mots de passe qu'il s'agit d'un nouveau mdp.
+  //     passwordInput.setAttribute("autocomplete", "new-password");
+  //   } else {
+  //     title.textContent = DEFAULT_GATE_COPY.title;
+  //     sub.textContent = this._contextSub;
+  //     submitBtn.textContent = "Se connecter";
+  //     switchText.textContent = "Pas encore de compte ?";
+  //     switchLink.textContent = "Créer un compte";
+  //     forgotWrap.style.display = "block";
+  //     passwordInput.setAttribute("autocomplete", "current-password");
+  //   }
+  // }
 
-  private async _submit(): Promise<void> {
-    const email = this._lightEl<HTMLInputElement>("email").value.trim();
-    const password = this._lightEl<HTMLInputElement>("password").value;
-    const errorEl = this._lightEl("error");
-    errorEl.style.color = "var(--red)";
-    errorEl.textContent = "";
+  // private async _submit(): Promise<void> {
+  //   const email = this._lightEl<HTMLInputElement>("email").value.trim();
+  //   const password = this._lightEl<HTMLInputElement>("password").value;
+  //   const errorEl = this._lightEl("error");
+  //   errorEl.style.color = "var(--red)";
+  //   errorEl.textContent = "";
 
-    if (!email || !password) {
-      errorEl.textContent = "Email et mot de passe requis.";
-      return;
-    }
+  //   if (!email || !password) {
+  //     errorEl.textContent = "Email et mot de passe requis.";
+  //     return;
+  //   }
 
-    const { error } =
-      this._mode === "signup"
-        ? await authService.signUp(email, password)
-        : await authService.signIn(email, password);
+  //   const { error } =
+  //     this._mode === "signup"
+  //       ? await authService.signUp(email, password)
+  //       : await authService.signIn(email, password);
 
-    if (error) {
-      errorEl.textContent = error;
-      return;
-    }
+  //   if (error) {
+  //     errorEl.textContent = error;
+  //     return;
+  //   }
 
-    this._converted = true;
-    this.emit("chuck:funnel-step", {
-      step: "gate-converted",
-      meta: { challengeId: this._pendingChallengeId, mode: this._mode },
-    });
-    this.close();
-    this.emit("chuck:goto-challenge", { id: this._pendingChallengeId });
-  }
+  //   this._converted = true;
+  //   this.emit("chuck:funnel-step", {
+  //     step: "gate-converted",
+  //     meta: { challengeId: this._pendingChallengeId, mode: this._mode },
+  //   });
+  //   this.close();
+  //   this.emit("chuck:goto-challenge", { id: this._pendingChallengeId });
+  // }
 
-  private async _forgotPassword(): Promise<void> {
-    const email = this._lightEl<HTMLInputElement>("email").value.trim();
-    const errorEl = this._lightEl("error");
+  // private async _forgotPassword(): Promise<void> {
+  //   const email = this._lightEl<HTMLInputElement>("email").value.trim();
+  //   const errorEl = this._lightEl("error");
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errorEl.style.color = "var(--red)";
-      errorEl.textContent = "Entre ton email ci-dessus avant de cliquer.";
-      return;
-    }
+  //   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  //     errorEl.style.color = "var(--red)";
+  //     errorEl.textContent = "Entre ton email ci-dessus avant de cliquer.";
+  //     return;
+  //   }
 
-    const { error } = await authService.resetPasswordForEmail(email);
-    errorEl.style.color = error ? "var(--red)" : "var(--green)";
-    errorEl.textContent = error ?? "Email de réinitialisation envoyé.";
-  }
+  //   const { error } = await authService.resetPasswordForEmail(email);
+  //   errorEl.style.color = error ? "var(--red)" : "var(--green)";
+  //   errorEl.textContent = error ?? "Email de réinitialisation envoyé.";
+  // }
 }
 
 customElements.define("chuck-auth-gate", ChuckAuthGate);
