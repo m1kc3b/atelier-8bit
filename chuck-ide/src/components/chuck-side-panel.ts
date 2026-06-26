@@ -13,6 +13,11 @@ import type {
 import { isChallenge, isTrackStep } from "../types/content.js";
 import { storage } from '../core/storage/storage-service.js';
 import { renderMarkdown, renderMarkdownInline } from '../core/markdown.js';
+import { authService } from '../core/auth/auth-service.js';
+import { productAccess } from '../core/product-access.js';
+
+/** Slug du produit/arène mensuelle (clé d'abonnement dans `purchases`). */
+const DEFI_TRACK_ID = "defi";
 
 const STYLES = /* css */ `
   @import '/src/styles/tokens.css';
@@ -142,12 +147,53 @@ const STYLES = /* css */ `
   ::-webkit-scrollbar-thumb { background:var(--surface-4);border-radius:3px; }
   @keyframes pulse-success { 0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)} }
   .nav-btn.success { animation:pulse-success 0.5s ease-out; }
+
+  /* ── Mode « Défi du mois » : panneau scindé en deux ───────────── */
+  .defi { display:flex; flex-direction:column; height:100%; min-height:0; }
+  .defi-section { display:flex; flex-direction:column; min-height:0; }
+  /* Haut : classement (hauteur bornée, défile) */
+  .defi-rank { flex:0 1 42%; border-bottom:1px solid var(--border); }
+  /* Bas : instructions (défile) + zone soumettre (fixe) */
+  .defi-brief { flex:1 1 58%; }
+  .defi-section-head {
+    height:30px; display:flex; align-items:center; gap:6px; padding:0 12px;
+    background:var(--surface-2); border-bottom:1px solid var(--border); flex-shrink:0;
+    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-muted);
+  }
+  .defi-section-body { flex:1; overflow-y:auto; min-height:0; }
+  .defi-empty {
+    height:100%; min-height:120px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:6px; padding:20px 18px; text-align:center;
+  }
+  .defi-empty .defi-empty-icon { font-size:22px; opacity:.5; }
+  .defi-empty .defi-empty-title { font-size:12.5px; font-weight:600; color:var(--text-dim); }
+  .defi-empty .defi-empty-hint { font-size:11px; color:var(--text-muted); line-height:1.5; }
+  .defi-submit-zone {
+    padding:12px 16px; border-top:1px solid var(--border);
+    display:flex; flex-direction:column; gap:7px; flex-shrink:0;
+  }
+  .defi-submit-note { font-size:10.5px; color:var(--text-muted); line-height:1.45; text-align:center; }
+  .defi-submit-btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 14px; background:var(--mode-defi, var(--amber)); color:#1a1206;
+    font-weight:700; font-size:13px; font-family:var(--font-ui);
+    border:none; border-radius:8px; cursor:pointer;
+    transition:opacity .12s, transform .08s; width:100%;
+  }
+  .defi-submit-btn:hover:not(:disabled) { opacity:.88; }
+  .defi-submit-btn:active:not(:disabled) { transform:scale(.98); }
+  .defi-submit-btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
 `;
 
 export class ChuckSidePanel extends ChuckComponent {
   private _item: ContentItem | null = null;
   private _totalCount = 30;
   private _hintStates: boolean[] = [];
+  /** Données du défi du mois (null = pas de défi à afficher). */
+  private _defi: { title: string; instructionsHtml: string } | null = null;
+  /** Classement du mois (vide = pas de classement). */
+  private _ranking: Array<{ rank: number; name: string; score: number }> = [];
 
   protected render(): void {
     this.shadow.innerHTML = `<style>${STYLES}</style>
@@ -196,6 +242,14 @@ export class ChuckSidePanel extends ChuckComponent {
       this._showFeedback(result, false),
     );
     this.sub("chuck:code-changed", () => this._resetFeedback());
+
+    // ── Mode « Défi du mois » : panneau scindé (classement / brief) ──
+    // Pour l'instant, structure + états vides. Les données réelles
+    // (défi courant, classement) seront injectées plus tard.
+    this.sub("chuck:ide-defi", () => {
+      this._item = null;
+      this._renderDefi();
+    });
   }
 
   loadContent(item: ContentItem): void {
@@ -351,6 +405,91 @@ export class ChuckSidePanel extends ChuckComponent {
         }
       });
     });
+  }
+
+  /** Rendu du mode « Défi du mois » : haut = classement, bas = brief + soumettre. */
+  private _renderDefi(): void {
+    const headerTitle = this.shadow.getElementById("panel-title");
+    if (headerTitle) headerTitle.textContent = "Défi du mois";
+    // Pas de navigation séquentielle en mode défi : chevrons désactivés.
+    const prev = this.shadow.getElementById("prev-btn") as HTMLButtonElement | null;
+    const next = this.shadow.getElementById("next-btn") as HTMLButtonElement | null;
+    if (prev) prev.disabled = true;
+    if (next) next.disabled = true;
+
+    // ── Haut : classement ────────────────────────────────────────
+    const rankBody = this._ranking.length
+      ? `<table class="content-table">
+           <thead><tr><th>#</th><th>Joueur</th><th>Score</th></tr></thead>
+           <tbody>${this._ranking
+             .map(
+               (r) =>
+                 `<tr><td>${r.rank}</td><td>${this._esc(r.name)}</td><td>${r.score.toFixed(3)}</td></tr>`,
+             )
+             .join("")}</tbody>
+         </table>`
+      : `<div class="defi-empty">
+           <div class="defi-empty-icon">🏁</div>
+           <div class="defi-empty-title">Pas encore de classement</div>
+           <div class="defi-empty-hint">Sois le premier à soumettre une solution ce mois-ci.</div>
+         </div>`;
+
+    // ── Bas : instructions du défi ───────────────────────────────
+    const briefBody = this._defi
+      ? `<div class="item-header">
+           <div class="item-header-left">
+             <span class="type-badge challenge">🏆 Défi du mois</span>
+             <div class="item-title" style="margin-top:6px">${this._esc(this._defi.title)}</div>
+           </div>
+         </div>
+         <div class="blocks"><div class="block block-theory">${this._defi.instructionsHtml}</div></div>`
+      : `<div class="defi-empty">
+           <div class="defi-empty-icon">📭</div>
+           <div class="defi-empty-title">Pas de défi à afficher</div>
+           <div class="defi-empty-hint">Le défi du mois n'est pas encore disponible. Reviens bientôt.</div>
+         </div>`;
+
+    // ── Bouton soumettre : visible toujours, actif si connecté + abonné ──
+    const canSubmit =
+      authService.isAuthenticated() && productAccess.hasPurchasedSync(DEFI_TRACK_ID);
+    const submitNote = !authService.isAuthenticated()
+      ? "Connecte-toi et abonne-toi pour soumettre ton score."
+      : !productAccess.hasPurchasedSync(DEFI_TRACK_ID)
+        ? "Abonne-toi à l'arène pour soumettre ton score."
+        : "";
+    const submitZone = `
+      <div class="defi-submit-zone">
+        ${submitNote ? `<div class="defi-submit-note">${submitNote}</div>` : ""}
+        <button class="defi-submit-btn" id="defi-submit-btn" ${canSubmit ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          Soumettre
+        </button>
+      </div>`;
+
+    this.shadow.getElementById("body")!.innerHTML = `
+      <div class="defi">
+        <div class="defi-section defi-rank">
+          <div class="defi-section-head">🏆 Classement</div>
+          <div class="defi-section-body">${rankBody}</div>
+        </div>
+        <div class="defi-section defi-brief">
+          <div class="defi-section-head">📋 Instructions</div>
+          <div class="defi-section-body">${briefBody}</div>
+          ${submitZone}
+        </div>
+      </div>`;
+
+    this.shadow
+      .getElementById("defi-submit-btn")
+      ?.addEventListener("click", () => {
+        if (!canSubmit) return;
+        this.emit("chuck:validate", {
+          source:
+            (document.getElementById("editor") as HTMLElement & {
+              getSource?: () => string;
+            })?.getSource?.() ?? "",
+        });
+      });
   }
 
   private _renderBlock(block: ContentBlock, idx: number): string {
