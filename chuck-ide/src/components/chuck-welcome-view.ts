@@ -135,7 +135,7 @@ export class ChuckWelcomeView extends ChuckComponent {
     // Défi du mois : accès libre, va directement à l'IDE + side-panel
     // (instructions en haut / leaderboard en bas). Le péage est au moment
     // de soumettre, pas à l'entrée.
-    root.querySelector('[data-choice="defi"]')?.addEventListener("click", () => {
+    root.querySelector('[data-choice="defis"]')?.addEventListener("click", () => {
       this.emit("chuck:ide-defi", undefined);
       this.emit("chuck:modal-close", undefined);
     });
