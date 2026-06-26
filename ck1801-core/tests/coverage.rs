@@ -156,11 +156,19 @@ fn ldxd_stxd_execution() {
 }
 
 #[test]
-fn sys_costs_eight_cycles_no_routine() {
-    // SYS #16 ($3C 16) : 8 cycles, aucun effet de routine au stade cœur.
+fn sys_cost_is_opcode_plus_routine() {
+    // SYS #16 ($3C 16) = PRINT_CHAR : 8 (opcode) + 6 (routine) = 14 cycles.
     let mut m = m_with(&[0x3C, 0x10]);
     m.cpu.step(&mut m.mem);
-    assert_eq!(m.cpu.cycles, 8, "SYS coûte 8 cycles de base");
+    assert_eq!(
+        m.cpu.cycles, 14,
+        "SYS = 8 (opcode) + coût routine (PRINT_CHAR = 6)"
+    );
+
+    // SYS d'un index non défini ($3C $FF) = 8 + 4 (no-op) = 12.
+    let mut m2 = m_with(&[0x3C, 0xFF]);
+    m2.cpu.step(&mut m2.mem);
+    assert_eq!(m2.cpu.cycles, 12, "SYS index non défini = 8 + 4 (no-op)");
 }
 
 #[test]

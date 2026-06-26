@@ -61,6 +61,8 @@ pub struct Io {
     pub cursor_x: u8,
     pub cursor_y: u8,
     pub scroll: u8,
+    /// Couleur texte courante (INK 7-4, PAPER 3-0), posée par SYS_SET_COLOR.
+    pub text_color: u8,
 
     // Entrées (injectées par le harnais, jamais lues d'un état hôte)
     pub key_raw: u8,
@@ -100,6 +102,7 @@ impl Io {
             cursor_x: 0,
             cursor_y: 0,
             scroll: 0,
+            text_color: 0x0F, // INK blanc / PAPER noir par défaut
             key_raw: 0,
             key_ascii: 0,
             pad0: 0,

@@ -10,6 +10,10 @@ pub mod cpu;
 pub mod io;
 pub mod isa;
 pub mod memory;
+pub mod sys;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use cpu::Cpu;
 pub use isa::Reg;

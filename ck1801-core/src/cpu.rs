@@ -316,9 +316,11 @@ impl Cpu {
             }
 
             SYS => {
-                let _n = self.fetch8(mem);
-                // API SYS (§18) non câblée à l'étape « cœur seul » : coût de base 8 cycles
-                // (8 + routine) ; les routines seront branchées avec io/rom ultérieurement.
+                let n = self.fetch8(mem);
+                // §18 : 8 cycles (opcode SYS) déjà comptés via info.cycles ;
+                // on ajoute le coût de la routine selon le barème normatif.
+                let routine_cost = crate::sys::dispatch(self, mem, n);
+                cyc += routine_cost;
             }
             SEI => {
                 self.irq_masked = true;
