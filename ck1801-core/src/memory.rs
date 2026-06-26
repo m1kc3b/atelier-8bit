@@ -1,33 +1,27 @@
 // memory.rs — Bus mémoire 64 Kio du CK-1801.
 //
 // Référence normative : §16 (memory map), §13 (cas limites déterministes),
-// §19 (adresse du registre debug $D309).
+// §19 (registres device, $D309 debug).
 //
-// Périmètre « cœur CPU » : la RAM 64 Kio est pleinement modélisée. Les
-// périphériques (VPU/SPU/I-O, RNG/LFSR, timer) ne sont PAS câblés ici ; ils
-// viendront dans un module `io` ultérieur. Les seules règles d'I-O appliquées
-// à ce stade sont celles que §13 impose pour le déterminisme :
-//   - écriture en zone clavier lecture seule ($D200–$D2FF) : ignorée (no-op) ;
-//   - registre debug $D309 : lecture seule côté programme, écriture ignorée ;
-//   - lecture d'une zone non mappée : $00 (garanti par la RAM zéro-initialisée).
+// Architecture : la RAM 64 Kio couvre tout l'espace d'adressage ; les accès aux
+// plages de périphériques (§19) sont délégués à `Io`. Le registre debug $D309
+// est maintenu hors RAM (lecture seule côté programme).
 //
-// Invariant : aucune opération mémoire ne peut paniquer — toute adresse 16 bits
-// est valide par construction (RAM de 0x10000 octets, indexation u16).
+// Invariant : aucune opération mémoire ne peut paniquer (adresses u16 bornées).
+
+use crate::io::Io;
 
 pub const MEM_SIZE: usize = 0x1_0000;
 
-// Registre de drapeaux d'erreur debug ($D309, §13/§19), hors RAM pour rester
-// strictement en lecture seule côté programme.
+// Registre de drapeaux d'erreur debug ($D309, §13/§19).
 pub const DBG_FLAGS_ADDR: u16 = 0xD309;
 pub const ILL_BIT: u8 = 0b0000_0001; // bit0 : instruction illégale rencontrée
 pub const STKERR_BIT: u8 = 0b0000_0010; // bit1 : erreur de pile (wrap)
 
-/// Zone clavier en lecture seule ($D200–$D2FF, §16/§19).
-const RO_KBD_START: u16 = 0xD200;
-const RO_KBD_END: u16 = 0xD2FF;
-
 pub struct Memory {
     ram: Box<[u8; MEM_SIZE]>,
+    /// Périphériques mémoire-mappés (VPU, entrées, timer, frames, RNG).
+    pub io: Io,
     /// Drapeaux d'erreur debug ($D309) ; lecture seule côté programme.
     dbg_flags: u8,
 }
@@ -42,33 +36,39 @@ impl Memory {
     pub fn new() -> Self {
         Memory {
             ram: Box::new([0u8; MEM_SIZE]),
+            io: Io::new(),
             dbg_flags: 0,
         }
     }
 
-    /// Lecture côté programme. Zone non mappée → $00 (RAM zéro-init). $D309 lisible.
+    /// Lecture côté programme. Ordre : $D309 debug, plages device, sinon RAM.
+    /// Zone non mappée → $00 (garanti par la RAM zéro-init et les défauts device).
     #[inline]
     pub fn read(&self, addr: u16) -> u8 {
         if addr == DBG_FLAGS_ADDR {
             return self.dbg_flags;
         }
+        if Io::handles(addr) {
+            return self.io.read(addr);
+        }
         self.ram[addr as usize]
     }
 
-    /// Écriture côté programme, avec règles §13 (clavier RO ignoré, $D309 RO).
+    /// Écriture côté programme, avec règles §13 ($D309 RO, entrées RO via Io).
     #[inline]
     pub fn write(&mut self, addr: u16, val: u8) {
-        if (RO_KBD_START..=RO_KBD_END).contains(&addr) {
-            return; // §13 : écriture en zone clavier ignorée
-        }
         if addr == DBG_FLAGS_ADDR {
             return; // §13 : $D309 lecture seule côté programme
+        }
+        if Io::handles(addr) {
+            self.io.write(addr, val); // Io applique la RO des entrées (§13)
+            return;
         }
         self.ram[addr as usize] = val;
     }
 
     /// Lecture 16 bits little-endian (vecteurs §14, immédiats 16 bits).
-    /// Le wrap d'adresse à $FFFF→$0000 est défini (jamais de panic).
+    /// Le wrap d'adresse $FFFF→$0000 est défini (jamais de panic).
     #[inline]
     pub fn read16(&self, addr: u16) -> u16 {
         let lo = self.read(addr) as u16;
@@ -83,19 +83,20 @@ impl Memory {
         self.write(addr.wrapping_add(1), (val >> 8) as u8);
     }
 
-    // ── Accès direct harnais (bypass des règles RO : chargement programme/état) ──
-    /// Charge des octets en mémoire sans appliquer les règles RO (usage harnais).
+    // ── Accès direct harnais (bypass des règles RO et du routage device) ──────
+    /// Charge des octets en RAM brute sans appliquer les règles RO (usage harnais).
+    /// N.B. : écrit la RAM sous-jacente, pas les registres device.
     pub fn load(&mut self, addr: u16, bytes: &[u8]) {
         for (i, &b) in bytes.iter().enumerate() {
             let a = addr.wrapping_add(i as u16) as usize;
             self.ram[a] = b;
         }
     }
-    /// Écriture brute (harnais/tests), ignore les règles RO.
+    /// Écriture RAM brute (harnais/tests), ignore RO et routage device.
     pub fn poke(&mut self, addr: u16, val: u8) {
         self.ram[addr as usize] = val;
     }
-    /// Lecture brute (harnais/tests), renvoie l'octet RAM sous-jacent.
+    /// Lecture RAM brute (harnais/tests), renvoie l'octet RAM sous-jacent.
     pub fn peek(&self, addr: u16) -> u8 {
         self.ram[addr as usize]
     }

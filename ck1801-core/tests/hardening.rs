@@ -2,7 +2,8 @@
 // sur entrée programme arbitraire (§13, Annexe C), que le boot est conforme (§14),
 // et que l'exécution est déterministe (même entrée → même état).
 
-use ck1801_core::cpu::{Cpu, VEC_RESET, VPU_MODE};
+use ck1801_core::cpu::{Cpu, VEC_RESET};
+use ck1801_core::io::reg::VPU_MODE;
 use ck1801_core::Machine;
 use ck1801_core::Memory;
 
@@ -107,7 +108,7 @@ fn reset_follows_spec_section_14() {
     mem.poke(VEC_RESET, 0x34);
     mem.poke(VEC_RESET + 1, 0x12);
     // Salir l'état VPU_MODE pour vérifier qu'il est remis à 0.
-    mem.poke(VPU_MODE, 0xAB);
+    mem.io.vpu_mode = 0xAB;
 
     let mut cpu = Cpu::new();
     // Salir les registres avant reset.
@@ -123,7 +124,7 @@ fn reset_follows_spec_section_14() {
     assert_eq!(cpu.r, [0, 0, 0], "R0=R1=R2←0");
     assert_eq!(cpu.ix, 0x0000, "IX←0");
     assert_eq!(cpu.pc, 0x1234, "PC←vecteur RESET little-endian");
-    assert_eq!(mem.peek(VPU_MODE), 0x00, "VPU_MODE←0 (mode texte, §14.2)");
+    assert_eq!(mem.read(VPU_MODE), 0x00, "VPU_MODE←0 (mode texte, §14.2)");
     assert_eq!(cpu.cycles, 0, "compteur cycles remis à 0");
 }
 

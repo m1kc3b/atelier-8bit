@@ -15,9 +15,6 @@ include!(concat!(env!("OUT_DIR"), "/opcodes_gen.rs"));
 
 pub const STACK_BASE: u16 = 0x0100;
 
-/// Registre VPU MODE ($D000, §19) — mis à 0 (texte) au boot (§14.2).
-pub const VPU_MODE: u16 = 0xD000;
-
 // Vecteurs (§14). Ordre CK-1801 : RESET en premier (≠ 6502).
 pub const VEC_RESET: u16 = 0xFFFA;
 pub const VEC_VBLANK: u16 = 0xFFFC;
@@ -72,7 +69,7 @@ impl Cpu {
         self.fl = 0;
         self.r = [0; 3];
         self.ix = 0;
-        mem.poke(VPU_MODE, 0); // §14.2 : mode texte au boot
+        mem.io.vpu_mode = 0; // §14.2 : mode texte au boot (registre device $D000)
         self.pc = mem.read16(VEC_RESET); // vecteur RESET little-endian
         self.cycles = 0;
         self.halted = false;
