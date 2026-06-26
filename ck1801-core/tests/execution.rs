@@ -103,7 +103,7 @@ fn stack_overflow_wraps_and_flags_stkerr() {
     m.cpu.r[0] = 0xAB;
     m.run_steps(1);
     assert_eq!(m.cpu.sp, 0xFF, "SP wrap $00→$FF");
-    assert_eq!(m.mem.peek(STACK_BASE + 0x00), 0xAB, "écriture en $0100");
+    assert_eq!(m.mem.peek(STACK_BASE), 0xAB, "écriture en $0100");
     assert!(
         m.mem.dbg_flags() & ck1801_core::memory::STKERR_BIT != 0,
         "STKERR levé"
