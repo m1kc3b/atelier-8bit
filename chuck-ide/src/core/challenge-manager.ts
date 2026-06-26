@@ -23,6 +23,7 @@ import { tracksService } from "./challenges/tracks-service.js";
 import type { TrackMeta, TrackConfig } from "./challenges/tracks-service.js";
 import { productAccess } from "./product-access.js";
 import { superAdmin } from "./super-admin.js";
+import { authService } from "./auth/auth-service.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -670,6 +671,8 @@ export class ChallengeManager {
         this.validate(source, hintsUsed ?? 0),
       ),
       bus.on("chuck:goto-challenge", ({ id }) => {
+        // Lancement gated : sans compte, on laisse main.ts ouvrir la gate.
+        if (!authService.isAuthenticated()) return;
         this._loadById(id, true);
       }),
       bus.on("chuck:goto-next-track-step", ({ fromId }) => {

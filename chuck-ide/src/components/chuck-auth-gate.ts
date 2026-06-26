@@ -17,6 +17,8 @@ export interface AuthGateOpenOptions {
    *  Seule la connexion volontaire (clic « Mon compte ») doit passer true,
    *  sinon l'utilisateur pourrait poursuivre les défis sans jamais s'authentifier. */
   dismissible?: boolean;
+  /** URL de retour après OAuth. Défaut : origine + ?challenge=<challengeId>. */
+  redirectTo?: string;
 }
 
 /** Copy par défaut si l'appelant n'en fournit pas. */
@@ -27,6 +29,7 @@ const DEFAULT_GATE_COPY = {
 
 export class ChuckAuthGate extends ChuckComponent {
   private _pendingChallengeId = 4;
+  private _redirectTo: string | null = null;
   // private _mode: Mode = "signin";
 
   /** true entre une connexion/inscription réussie et le close() qui suit,
@@ -163,6 +166,7 @@ export class ChuckAuthGate extends ChuckComponent {
   open(opts: AuthGateOpenOptions = {}): void {
     const { challengeId = 4, title, sub, dismissible = false } = opts;
     this._pendingChallengeId = challengeId;
+    this._redirectTo = opts.redirectTo ?? null;
     this._converted = false;
 
     const titleEl = this._lightEl("title");
@@ -201,11 +205,16 @@ export class ChuckAuthGate extends ChuckComponent {
   }
 
   async signInWithGithub(): Promise<void> {
-    const { error } = await authService.signInWithGithub();    
+    // Au retour OAuth la page est rechargée : on encode le tuto à lancer
+    // dans l'URL de retour (?challenge=<id>), relue au boot par le manager.
+    const redirectTo =
+      this._redirectTo ??
+      `${window.location.origin}/?challenge=${this._pendingChallengeId}`;
+
+    const { error } = await authService.signInWithGithub({ redirectTo });
     if (error) {
       const errorEl = this._lightEl("error");
       errorEl.style.color = "var(--red)";
-      errorEl.textContent = "";
       errorEl.textContent = error;
       return;
     }

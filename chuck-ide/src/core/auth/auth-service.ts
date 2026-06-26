@@ -87,13 +87,15 @@ class AuthService {
   //   return { error: error?.message ?? null };
   // }
 
-  async signInWithGithub(): Promise<{ error: string | null }> {
+  async signInWithGithub(
+    opts: { redirectTo?: string } = {},
+  ): Promise<{ error: string | null }> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: "https://atelier-8bit.fr"
-      }
-    })
+        redirectTo: opts.redirectTo ?? window.location.origin,
+      },
+    });
     return { error: error?.message ?? null };
   }
 
@@ -127,8 +129,6 @@ class AuthService {
   //   });
   //   return { error: error?.message ?? null };
   // }
-
-  
 }
 
 export const authService = new AuthService();

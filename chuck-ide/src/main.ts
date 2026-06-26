@@ -16,7 +16,8 @@ import "./components/chuck-help-modal.js";
 import "./components/chuck-learn-modal.js";
 import "./components/chuck-auth-gate.js";
 import "./components/chuck-account-modal.js";
-import "./components/chuck-welcome-modal.js";
+import "./components/chuck-main-modal.js";
+import "./components/chuck-welcome-view.js";
 import "./components/chuck-onboarding-tour.js";
 import "./components/chuck-challenges-list.js";
 import "./components/chuck-track-roadmap.js";
@@ -31,35 +32,35 @@ import { ChallengeManager } from "./core/challenge-manager.js";
 import { storage } from "./core/storage/storage-service.js";
 import { funnelTracker } from "./core/funnel-tracker.js";
 import { superAdmin } from "./core/super-admin.js";
+import { ModalRouter } from "./core/modal-router.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   // ── Tracking funnel ──────────────────────────────────────
   // Démarré en premier : visitor_id prêt avant la 1ère étape tracée.
   funnelTracker.start();
 
-  // ── Modale de bienvenue — affichée IMMÉDIATEMENT ─────────
-  // Ouverte avant le chargement de l'émulateur WASM et des défis, pour
-  // qu'elle apparaisse dès l'arrivée sur le site (pas après le réseau/WASM).
-  const welcomeModal = document.getElementById("modal-welcome") as
-    | (HTMLElement & {
-        open(view?: "choice" | "challenges" | "pong"): Promise<void>;
-      })
+  // ── Modale générique + router ────────────────────────────
+  const mainModal = document.getElementById("modal-main") as
+    | (HTMLElement & { open(): void; close(): void })
     | null;
+  const modalRouter = mainModal ? new ModalRouter(mainModal as any) : null;
+
+  // Fermeture demandée par une vue interne (ex. « Mode libre »).
+  mainModal?.addEventListener("chuck:request-close", () => mainModal.close());
+
+  // Vue initiale selon l'URL (?challenge=N charge un tuto sans passer par l'accueil).
   {
     const urlParams = new URLSearchParams(window.location.search);
     const rawChallenge =
       urlParams.get("parcours") ??
       urlParams.get("challenge") ??
       urlParams.get("lesson");
-    const isNumericChallenge =
-      rawChallenge !== null && /^\d+$/.test(rawChallenge);
+    const isNumericChallenge = rawChallenge !== null && /^\d+$/.test(rawChallenge);
     const hasParcours =
-      urlParams.has("parcours") ||
-      urlParams.has("challenge") ||
-      urlParams.has("lesson");
+      urlParams.has("parcours") || urlParams.has("challenge") || urlParams.has("lesson");
     const isBareChallenge = hasParcours && !isNumericChallenge;
     if (!isNumericChallenge) {
-      void welcomeModal?.open(isBareChallenge ? "challenges" : "choice");
+      void modalRouter?.show(isBareChallenge ? "challenges" : "welcome");
     }
   }
 
@@ -106,7 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Bouton « Menu » de la titlebar → rouvre la modale sur la dernière vue.
   document
     .getElementById("btn-show-welcome")
-    ?.addEventListener("click", () => bus.emit("chuck:open-welcome", undefined));
+    ?.addEventListener("click", () => bus.emit("chuck:modal-show", { view: "welcome" }));
 
   // ── Email gate — défis verrouillés (4+) ─────────────────────
   const gateEl = document.getElementById("modal-auth-gate") as
@@ -213,6 +214,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     titlebarFile.textContent = "mode libre";
     document.title = "L'atelier 8-bit — Chuck IDE";
     closeSidePanel();
+  });
+
+  // Lancement d'un tuto : compte GitHub obligatoire. On intercepte AVANT le
+  // chargement (le manager écoute aussi chuck:goto-challenge, mais la gate
+  // bloque d'abord si non authentifié). Au retour OAuth, ?challenge=<id>
+  // relance le tuto automatiquement via le manager.
+  bus.on("chuck:goto-challenge", ({ id }) => {
+    if (!authService.isAuthenticated()) {
+      gateEl?.open({
+        challengeId: id,
+        title: "Crée un compte pour lancer ce tuto",
+        sub: "Connecte-toi avec GitHub pour suivre les tutos et garder ta progression.",
+      });
+    }
   });
 
   // ── ChallengeManager ─────────────────────────────────────

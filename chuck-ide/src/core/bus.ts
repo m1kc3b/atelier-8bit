@@ -6,6 +6,8 @@
    EventTarget dédié (pas le document global, évite les fuites).
    ───────────────────────────────────────────────────────────── */
 
+export type ModalView = 'welcome' | 'challenges' | 'pong' | 'help';
+
 /* ── Types des événements ────────────────────────────────────── */
 export interface CpuState {
   A:  number;
@@ -140,8 +142,15 @@ export interface ChuckEventMap {
   'chuck:signed-out':    undefined;
   'chuck:open-account': undefined;
 
-  // ── Navigation modale (welcome héberge challenges + pong) ───
-  'chuck:ide-free':        undefined;
+  // ── Navigation modale générique ─────────────────────────────
+  'chuck:ide-free':     undefined;
+  /** Affiche une vue dans la modale générique. `params` est transmis à la
+   *  factory de la vue ; `gate` force l'auth GitHub AVANT d'afficher la vue. */
+  'chuck:modal-show':   { view: ModalView; params?: Record<string, unknown>; gate?: boolean };
+  /** Dépile la pile de navigation de la modale (bouton « ← »). */
+  'chuck:modal-back':   undefined;
+
+  // Alias rétro-compat (à retirer au chantier rename). Réémis vers modal-show.
   'chuck:open-welcome':    { view?: 'choice' | 'challenges' | 'pong' } | undefined;
   'chuck:show-challenges': undefined;
   'chuck:show-pong':       undefined;
