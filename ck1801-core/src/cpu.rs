@@ -37,6 +37,10 @@ pub struct Cpu {
     pub irq_masked: bool,
     /// Cadence VBlank (cycles/frame) pour HLT et déclenchement VBLANK.
     pub vblank_period: u64,
+    /// Cycle absolu du prochain front VBlank (ordonnancement déterministe §15.1).
+    next_vblank_at: u64,
+    /// Cycles accumulés vers l'expiration du timer (base TIMER_PERIOD×256, §15.1).
+    timer_accum: u64,
 }
 
 impl Default for Cpu {
@@ -57,7 +61,17 @@ impl Cpu {
             halted: false,
             irq_masked: false,
             vblank_period: DEFAULT_VBLANK_PERIOD,
+            next_vblank_at: DEFAULT_VBLANK_PERIOD,
+            timer_accum: 0,
         }
+    }
+
+    /// Définit la cadence VBlank (cycles/frame) et réaligne l'ordonnancement.
+    /// API harnais : à appeler avant de lancer un programme noté.
+    pub fn set_vblank_period(&mut self, period: u64) {
+        let p = period.max(1);
+        self.vblank_period = p;
+        self.next_vblank_at = self.cycles.wrapping_add(p);
     }
 
     /// Séquence de boot RESET (§14).
@@ -74,6 +88,8 @@ impl Cpu {
         self.cycles = 0;
         self.halted = false;
         self.irq_masked = false;
+        self.next_vblank_at = self.vblank_period;
+        self.timer_accum = 0;
     }
 
     #[inline]
@@ -139,6 +155,7 @@ impl Cpu {
             return true;
         }
 
+        let cycles_before = self.cycles;
         let opcode = self.fetch8(mem);
         let info: OpInfo = OPCODES[opcode as usize];
 
@@ -146,15 +163,63 @@ impl Cpu {
         if matches!(info.mnem, Mnemonic::RESERVED) {
             mem.raise_ill();
             self.cycles += info.cycles as u64;
+            self.service_interrupts(mem, cycles_before);
             return false;
         }
 
-        // Champ registre 11 illégal (§1/§13) : pour les formes reg, src/dst==255
-        // a déjà été filtré à la génération (seules les paires valides existent).
-        // Les opcodes définis n'ont donc jamais de champ 11 ; rien à faire ici.
-
         self.exec(mem, opcode, &info);
+
+        // Point de contrôle des interruptions, après l'instruction (§15.1).
+        self.service_interrupts(mem, cycles_before);
+
+        // Une demande de SYS_RESET ($D306) redémarre la machine à chaud.
+        if mem.io.reset_requested {
+            mem.io.reset_requested = false;
+            self.reset(mem);
+        }
+
         self.halted
+    }
+
+    /// Évalue et déclenche les interruptions horloge (§15.1), dans l'ordre
+    /// VBLANK (non masquable) puis TIMER (masquable). `cycles_before` est le
+    /// compteur de cycles avant l'instruction qui vient de s'exécuter.
+    fn service_interrupts(&mut self, mem: &mut Memory, cycles_before: u64) {
+        let elapsed = self.cycles.saturating_sub(cycles_before);
+
+        // ── VBLANK ──────────────────────────────────────────────────────────
+        // Un front survient à chaque frontière de vblank_period cycles. On gère
+        // le cas où une instruction a franchi une (ou plusieurs) frontières.
+        let period = self.vblank_period.max(1);
+        let mut vblank_fired = false;
+        while self.cycles >= self.next_vblank_at {
+            // Frontière franchie : front VBlank.
+            mem.io.tick_frame();
+            mem.io.vpu_status |= 0x01; // bit0 = VBlank en cours
+            self.next_vblank_at = self.next_vblank_at.wrapping_add(period);
+            vblank_fired = true;
+        }
+        if vblank_fired {
+            // Entrée VBLANK (non masquable) si handler installé.
+            self.enter_interrupt(mem, VEC_VBLANK);
+        }
+
+        // ── TIMER ───────────────────────────────────────────────────────────
+        if mem.io.timer_enabled() && mem.io.timer_period > 0 {
+            let threshold = (mem.io.timer_period as u64) * 256;
+            self.timer_accum = self.timer_accum.saturating_add(elapsed);
+            if self.timer_accum >= threshold {
+                self.timer_accum -= threshold;
+                // Reflète la valeur courante du timer (décompte) à titre indicatif.
+                mem.io.timer = mem.io.timer.wrapping_sub(1);
+                if !self.irq_masked {
+                    self.enter_interrupt(mem, VEC_TIMER);
+                }
+            }
+        } else {
+            // Timer désarmé : pas d'accumulation (déterminisme, période 0 = off).
+            self.timer_accum = 0;
+        }
     }
 
     fn exec(&mut self, mem: &mut Memory, opcode: u8, info: &OpInfo) {
@@ -312,12 +377,14 @@ impl Cpu {
                 self.pc = t;
             }
             RET => {
-                let is_irq = self.pop(mem);
+                let marker = self.pop(mem);
                 let target = self.pop16(mem);
-                if is_irq != 0 {
-                    // entrée d'interruption : restaurer FL (empilé avant is_irq)
+                if marker & 0x01 != 0 {
+                    // Entrée d'interruption : restaurer FL (empilé avant le marqueur)
+                    // et l'état du masque d'avant l'entrée (bit1 du marqueur).
                     let saved_fl = self.pop(mem);
                     self.fl = saved_fl & fl::VALID;
+                    self.irq_masked = marker & 0x02 != 0;
                 }
                 self.pc = target;
             }
@@ -418,18 +485,20 @@ impl Cpu {
     }
 
     // ── Interruptions (§15) ─────────────────────────────────────────────────
-    /// Entrée d'interruption : empile (PC, FL, is_irq=1) et saute au handler.
-    /// `RET` restaurera FL car is_irq est posé.
+    /// Entrée d'interruption : empile (FL, PC, marqueur) et saute au handler.
+    /// Le marqueur encode is_irq (bit0) et l'état du masque AVANT l'entrée (bit1),
+    /// pour que `RET` restaure à la fois FL et le masque (§15.1).
     pub fn enter_interrupt(&mut self, mem: &mut Memory, vector: u16) {
         let handler = mem.read16(vector);
         if handler == 0 {
-            return;
-        } // handler non installé → pas d'IT
+            return; // handler non installé → pas d'IT
+        }
+        let marker = 0x01 | if self.irq_masked { 0x02 } else { 0x00 };
         self.push(mem, self.fl); // FL empilé en premier (dépilé en dernier au RET)
         self.push16(mem, self.pc);
-        self.push(mem, 1); // is_irq = 1
+        self.push(mem, marker); // bit0=is_irq, bit1=masque précédent
         self.pc = handler;
-        self.irq_masked = true; // masque pendant le handler
+        self.irq_masked = true; // l'entrée pose le masque (§15.1)
     }
 
     /// Déclenche VBLANK si le handler est installé (non masquable).
