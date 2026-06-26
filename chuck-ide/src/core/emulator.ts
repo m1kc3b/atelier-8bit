@@ -8,6 +8,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { bus } from "./bus.js";
+import { superAdmin } from "./super-admin.js";
 
 /**
  * Nettoie les messages d'erreur bruts venant de l'assembleur Rust/WASM.
@@ -48,6 +49,29 @@ function cleanAsmError(raw: string): string {
       .replace(/Invalid operand/gi, "Opérande invalide")
       .replace(/Unknown mnemonic/gi, "Mnémonique inconnu")
   );
+}
+
+// ── Masquage des opcodes cachés ───────────────────────────────
+// L'émulateur Rust connaît les opcodes illégaux (LAX, SAX…) et les
+// opcodes réassignés secrets (MUL, MCP). On ne révèle jamais leur
+// mnémonique dans le désassemblage public : ils s'affichent en "???".
+// Le super-admin (toi) conserve un désassemblage complet pour le debug.
+const HIDDEN_MNEMONICS = new Set([
+  "LAX", "SAX", "DCP", "ISC",
+  "SLO", "RLA", "SRE", "RRA",
+  "ANC", "ALR", "ARR", "AXS",
+  "MUL", "MCP",
+]);
+
+/** Remplace un mnémonique caché par "???" dans une ligne désassemblée,
+ *  sauf si le super-admin est actif. */
+function maskDisasm(disasm: string): string {
+  if (superAdmin.active) return disasm;
+  const mnem = disasm.trimStart().split(/\s+/)[0]?.toUpperCase();
+  if (mnem && HIDDEN_MNEMONICS.has(mnem)) {
+    return "??? (instruction non documentée)";
+  }
+  return disasm;
 }
 
 // ── Types WASM ────────────────────────────────────────────────
@@ -431,7 +455,7 @@ export class Emulator {
   private _step(): void {
     const result = this.core.step();
     bus.emit("chuck:log", {
-      text: `→ $${hex4(result.state.pc)}  ${result.disasm}`,
+      text: `→ $${hex4(result.state.pc)}  ${maskDisasm(result.disasm)}`,
       level: "info",
     });
     this._emitRamSnapshot();
