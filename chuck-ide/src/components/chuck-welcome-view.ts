@@ -113,9 +113,6 @@ export class ChuckWelcomeView extends ChuckComponent {
             <span class="cta-arrow">Explorer →</span>
           </button>
         </div>
-        <div class="stats-strip">
-          <span><strong>Une machine, des contraintes, ton cerveau, et rien d'autre.</strong></span>
-        </div>
       </div>`;
   }
 

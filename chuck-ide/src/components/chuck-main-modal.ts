@@ -58,6 +58,7 @@ export class ChuckMainModal extends ChuckComponent {
         display: flex; align-items: center; justify-content: flex-end; gap: 12px;
         padding: 14px 22px; border-top: 1px solid var(--border); 
         background: var(--surface-2); flex-shrink: 0; 
+        text-align: center;
       }
       /* Cache la bottombar si aucun élément n'est injecté dedans */
       .bottombar:empty, .bottombar::slotted(:empty) { display: none; }
@@ -75,7 +76,11 @@ export class ChuckMainModal extends ChuckComponent {
       </div>
 
       <div class="bottombar" id="bottombar">
-        <slot name="bottombar"></slot>
+        <slot name="bottombar">
+        <div class="stats-strip">
+          <strong>Une machine, des contraintes, ton cerveau, et rien d'autre 😉</strong>
+        </div>
+        </slot>
       </div>
     </div>`;
   }

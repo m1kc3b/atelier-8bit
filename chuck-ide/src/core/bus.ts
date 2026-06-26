@@ -144,16 +144,13 @@ export interface ChuckEventMap {
 
   // ── Navigation modale générique ─────────────────────────────
   'chuck:ide-free':     undefined;
-  /** Affiche une vue dans la modale générique. `params` est transmis à la
-   *  factory de la vue ; `gate` force l'auth GitHub AVANT d'afficher la vue. */
   'chuck:modal-show':   { view: ModalView; params?: Record<string, unknown>; gate?: boolean };
-  /** Dépile la pile de navigation de la modale (bouton « ← »). */
-  'chuck:modal-back':   undefined;
-
-  // Alias rétro-compat (à retirer au chantier rename). Réémis vers modal-show.
   'chuck:open-welcome':    { view?: 'choice' | 'challenges' | 'pong' } | undefined;
   'chuck:show-challenges': undefined;
   'chuck:show-pong':       undefined;
+  'chuck:modal-back':   undefined;
+  'chuck:modal-opened': undefined;
+  'chuck:modal-closed': undefined;
   
 }
 
