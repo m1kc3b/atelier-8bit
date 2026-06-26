@@ -613,7 +613,6 @@ fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, _mode: AddrMode, op: Op
             0
         }
 
-        // Opcode illégal / non supporté : NOP silencieux
         // ── LAX (illégal) : A = X = M ─────────────────────────────────────
         0xA7 | 0xAF | 0xB3 => {
             cpu.a = op.value;
@@ -649,6 +648,125 @@ fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, _mode: AddrMode, op: Op
             cpu.a = result as u8;
             cpu.set_nz(cpu.a);
             0
+        }
+
+        // ── SLO (illégal) : ASL M puis ORA A ─────────────────────────────
+        0x07 | 0x0F => {
+            let v = op.value;
+            cpu.set_flag(flags::C, v & 0x80 != 0);
+            let result = v << 1;
+            mem.write(op.addr, result);
+            cpu.a |= result;
+            cpu.set_nz(cpu.a);
+            0
+        }
+
+        // ── RLA (illégal) : ROL M puis AND A ─────────────────────────────
+        0x27 | 0x2F => {
+            let old_c = if cpu.get_flag(flags::C) { 1u8 } else { 0 };
+            let v = op.value;
+            cpu.set_flag(flags::C, v & 0x80 != 0);
+            let result = (v << 1) | old_c;
+            mem.write(op.addr, result);
+            cpu.a &= result;
+            cpu.set_nz(cpu.a);
+            0
+        }
+
+        // ── SRE (illégal) : LSR M puis EOR A ─────────────────────────────
+        0x47 | 0x4F => {
+            let v = op.value;
+            cpu.set_flag(flags::C, v & 0x01 != 0);
+            let result = v >> 1;
+            mem.write(op.addr, result);
+            cpu.a ^= result;
+            cpu.set_nz(cpu.a);
+            0
+        }
+
+        // ── RRA (illégal) : ROR M puis ADC A ─────────────────────────────
+        // ADC binaire uniquement (pas de mode décimal — déterminisme du barème)
+        0x67 | 0x6F => {
+            let old_c = if cpu.get_flag(flags::C) { 0x80u8 } else { 0 };
+            let v = op.value;
+            let new_c_in = v & 0x01 != 0;
+            let result = (v >> 1) | old_c;
+            mem.write(op.addr, result);
+            let a = cpu.a as u16;
+            let m = result as u16;
+            let c = if new_c_in { 1u16 } else { 0 };
+            let sum = a + m + c;
+            cpu.set_flag(flags::C, sum > 0xFF);
+            cpu.set_flag(flags::V, !(a ^ m) & (a ^ sum) & 0x80 != 0);
+            cpu.a = sum as u8;
+            cpu.set_nz(cpu.a);
+            0
+        }
+
+        // ── ANC (illégal) : A &= imm ; C = bit7 du résultat ──────────────
+        0x0B => {
+            cpu.a &= op.value;
+            cpu.set_nz(cpu.a);
+            cpu.set_flag(flags::C, cpu.a & 0x80 != 0);
+            0
+        }
+
+        // ── ALR (illégal) : A &= imm ; puis LSR A ────────────────────────
+        0x4B => {
+            cpu.a &= op.value;
+            cpu.set_flag(flags::C, cpu.a & 0x01 != 0);
+            cpu.a >>= 1;
+            cpu.set_nz(cpu.a);
+            0
+        }
+
+        // ── ARR (illégal) : A &= imm ; ROR A ; flags spéciaux ────────────
+        // Variante STABLE, binaire (mode décimal ignoré sur Chuck-8).
+        // Après rotation : C = bit6 du résultat, V = bit6 XOR bit5.
+        0x6B => {
+            cpu.a &= op.value;
+            let carry_in = if cpu.get_flag(flags::C) { 0x80u8 } else { 0 };
+            cpu.a = (cpu.a >> 1) | carry_in;
+            cpu.set_nz(cpu.a);
+            let bit6 = (cpu.a >> 6) & 1;
+            let bit5 = (cpu.a >> 5) & 1;
+            cpu.set_flag(flags::C, bit6 != 0);
+            cpu.set_flag(flags::V, (bit6 ^ bit5) != 0);
+            0
+        }
+
+        // ── AXS / SBX (illégal) : X = (A & X) - imm ; C = NOT borrow ──────
+        0xCB => {
+            let lhs = (cpu.a & cpu.x) as u16;
+            let imm = op.value as u16;
+            let result = lhs.wrapping_sub(imm);
+            cpu.set_flag(flags::C, lhs >= imm);
+            cpu.x = result as u8;
+            cpu.set_nz(cpu.x);
+            0
+        }
+
+        // ── MUL (réassigné, SECRET) : A * X -> A=lo, X=hi ────────────────
+        0x80 => {
+            let product = (cpu.a as u16) * (cpu.x as u16);
+            cpu.a = (product & 0xFF) as u8;
+            cpu.x = (product >> 8) as u8;
+            cpu.set_nz(cpu.a);
+            0
+        }
+
+        // ── MCP (réassigné, SECRET) : memcpy court ───────────────────────
+        // Copie X octets depuis ptr source ($FB/$FC) vers ptr dest ($FD/$FE).
+        // Coût : 4 base (table) + 2 par octet copié.
+        0x89 => {
+            let src = mem.read(0x00FB) as u16 | ((mem.read(0x00FC) as u16) << 8);
+            let dst = mem.read(0x00FD) as u16 | ((mem.read(0x00FE) as u16) << 8);
+            let n = cpu.x as u16;
+            for i in 0..n {
+                let b = mem.read(src.wrapping_add(i));
+                mem.write(dst.wrapping_add(i), b);
+            }
+            (2 * n) as u64
         }
         _ => 0,
     }

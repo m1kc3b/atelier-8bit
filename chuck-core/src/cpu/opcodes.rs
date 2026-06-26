@@ -259,18 +259,36 @@ pub static OPCODE_TABLE: [OpcodeEntry; 256] = {
     t[0x9A] = e("TXS", Imp, 1, 2);
     t[0x98] = e("TYA", Imp, 1, 2);
     
-    // ── Opcodes non documentés (illégaux NMOS) ────────────────────
-    // Activés volontairement comme idiomes d'optimisation cachés.
+    // ── Opcodes non documentés (illégaux NMOS) — idiomes cachés ────
     // NE PAS exposer dans l'autocomplétion ni la doc publique.
-    t[0xA7] = e("LAX", Zp,  2, 3);   // A = X = M
+    // Lot 1
+    t[0xA7] = e("LAX", Zp,  2, 3);
     t[0xAF] = e("LAX", Abs, 3, 4);
-    t[0xB3] = e("LAX", Iny, 2, 5);   // +1 si page cross
-    t[0x87] = e("SAX", Zp,  2, 3);   // M = A & X (aucun flag)
+    t[0xB3] = e("LAX", Iny, 2, 5);
+    t[0x87] = e("SAX", Zp,  2, 3);
     t[0x8F] = e("SAX", Abs, 3, 4);
-    t[0xC7] = e("DCP", Zp,  2, 5);   // M = M-1 puis CMP A
+    t[0xC7] = e("DCP", Zp,  2, 5);
     t[0xCF] = e("DCP", Abs, 3, 6);
-    t[0xE7] = e("ISC", Zp,  2, 5);   // M = M+1 puis SBC A
+    t[0xE7] = e("ISC", Zp,  2, 5);
     t[0xEF] = e("ISC", Abs, 3, 6);
+    // Lot 2 (read-modify-write composés)
+    t[0x07] = e("SLO", Zp,  2, 5);
+    t[0x0F] = e("SLO", Abs, 3, 6);
+    t[0x27] = e("RLA", Zp,  2, 5);
+    t[0x2F] = e("RLA", Abs, 3, 6);
+    t[0x47] = e("SRE", Zp,  2, 5);
+    t[0x4F] = e("SRE", Abs, 3, 6);
+    t[0x67] = e("RRA", Zp,  2, 5);
+    t[0x6F] = e("RRA", Abs, 3, 6);
+    // Lot 3 (immédiats)
+    t[0x0B] = e("ANC", Imm, 2, 2);
+    t[0x4B] = e("ALR", Imm, 2, 2);
+    t[0x6B] = e("ARR", Imm, 2, 2);
+    t[0xCB] = e("AXS", Imm, 2, 2);
+    // Opcodes RÉASSIGNÉS (secrets propres au Chuck-8)
+    // Bâtis sur des NOP illégaux NMOS : inoffensifs si tapés par erreur.
+    t[0x80] = e("MUL", Imp, 1, 8);  // A*X -> A(lo):X(hi)
+    t[0x89] = e("MCP", Imp, 1, 4);  // memcpy X octets ($FB/$FC -> $FD/$FE)
 
     t
 };
