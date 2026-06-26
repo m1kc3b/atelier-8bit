@@ -2,24 +2,22 @@
    Chuck IDE — core/storage/types.ts
    Contrat de données partagé frontend ↔ backend.
    Toutes les structures ici sont sérialisables en JSON.
+
+   Le code source en cours n'est plus persisté (pas d'autosave ni de
+   reprise d'éditeur) : on ne stocke que la complétion des défis.
    ───────────────────────────────────────────────────────────── */
 
 // ── Session utilisateur ───────────────────────────────────────
 
 /**
- * Ce qu'on sait de l'utilisateur.
- * En local, seul `email` et `createdAt` sont renseignés.
- * Quand le backend existe, il ajoute `userId` + `sessionToken`.
+ * Ce qu'on sait de l'utilisateur. L'identité réelle vient de l'auth
+ * (GitHub OAuth via authService) : userId est la source de vérité.
  */
 export interface UserSession {
-  /** Email saisi dans la gate (identifiant humain) */
-  email:         string;
+  /** Identifiant opaque côté serveur (auth.users.id) */
+  userId:     string;
   /** Date de création de la session (ISO 8601) */
-  createdAt:     string;
-  /** Futur : identifiant opaque côté serveur */
-  userId?:       string;
-  /** Futur : JWT ou token de session retourné par l'API */
-  sessionToken?: string;
+  createdAt:  string;
 }
 
 // ── Progression par défi ──────────────────────────────────────
@@ -28,50 +26,41 @@ export type Medal = '🥇' | '🥈' | '🥉';
 
 /**
  * État de progression pour un défi donné.
- * Existe dès le premier autosave, même si le défi n'est pas validé.
+ * Créé uniquement à la validation : on ne garde aucune trace tant que
+ * le défi n'est pas complété.
  */
 export interface ChallengeProgress {
   /** ID du défi (correspond à Challenge.id) */
   challengeId:   number;
-  /** Dernier code source sauvegardé (autosave) */
-  code:          string;
-  /** Timestamp du dernier autosave (ISO 8601) */
-  savedAt:       string;
-  /** Renseigné uniquement si le défi a été validé */
-  completedAt?:  string;
+  /** Date de validation (ISO 8601) */
+  completedAt:   string;
   /** Médaille obtenue lors de la validation */
-  medal?:        Medal;
+  medal:         Medal;
   /** Nombre d'indices utilisés lors de la validation */
-  hintsUsed?:    number;
-  /** Futur : nombre de tentatives (analytics) */
-  attempts?:     number;
+  hintsUsed:     number;
 }
 
 // ── État global persisté ──────────────────────────────────────
 
 /**
  * Racine du snapshot de progression.
- * C'est ce qui est sérialisé dans localStorage (clé unique)
- * et ce que le backend recevra / renverra.
+ * Sérialisé dans localStorage (cache) et reflété côté backend.
  */
 export interface UserProgress {
   /** Version du schéma — pour migrations futures */
   schemaVersion: number;
-  /** Session courante (null si l'utilisateur n'a pas encore saisi son email) */
+  /** Session courante (null si non connecté) */
   session:       UserSession | null;
   /** Map challengeId → progression */
   challenges:    Record<number, ChallengeProgress>;
-  /**
-   * Timestamp du dernier write local (ISO 8601).
-   * Permet de détecter les conflits lors d'une future sync.
-   */
+  /** Timestamp du dernier write local (ISO 8601) */
   lastUpdated:   string;
 }
 
 // ── Interface du service ──────────────────────────────────────
 
 /**
- * Contrat commun entre LocalStorageAdapter et ApiStorageAdapter.
+ * Contrat commun entre LocalStorageAdapter et SupabaseStorageAdapter.
  * Le reste du code n'importe que cette interface.
  */
 export interface IStorageService {
@@ -80,22 +69,8 @@ export interface IStorageService {
   /** Retourne la session courante ou null */
   getSession(): UserSession | null;
 
-  /**
-   * Enregistre l'email de l'utilisateur et crée la session.
-   * Remplace un éventuel token partiel persisté en mode anonyme.
-   */
-  saveSession(email: string): UserSession;
-
-  /** true si une session avec email existe */
+  /** true si l'utilisateur est connecté */
   isUnlocked(): boolean;
-
-  // ── Code source (autosave) ───────────────────────────────
-
-  /** Retourne le dernier code sauvegardé pour ce défi, ou null */
-  loadCode(challengeId: number): string | null;
-
-  /** Sauvegarde le code source (appelé par l'autosave) */
-  saveCode(challengeId: number, code: string): void;
 
   // ── Progression / complétion ─────────────────────────────
 

@@ -27,7 +27,6 @@ import { authService } from "./auth/auth-service.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
-// const FREE_CHALLENGES = 3; // défis 1-3 accessibles sans restriction
 
 /** True si le challenge appartient à un parcours guidé (a une arène nommée
  *  correspondant à une track connue). La frontière gratuit/premium et le prix
@@ -249,12 +248,10 @@ export class ChallengeManager {
     this._current = challenge;
     const item = challengeToContentItem(challenge);
     this._currentItem = item;
-    const saved = storage.loadCode(id);
     const medal = storage.getMedal(id);
     bus.emit("chuck:challenge-loaded", {
       challenge,
-      code: saved ?? challenge.template,
-      fromStorage: saved !== null,
+      code: challenge.template,
       medal: medal ?? undefined,
     });
     this._emitChallengesList();
@@ -305,8 +302,8 @@ export class ChallengeManager {
   }
 
   /** True si `id` est la DERNIÈRE étape gratuite de son parcours (fin du lead
-   *  magnet). C'est là qu'on déclenche le mur premium + funnel basic-completed.
-   *  Si le parcours a moins de freeSteps étapes, c'est sa dernière étape. */
+   *  magnet). C'est là qu'on déclenche le mur premium. Si le parcours a moins
+   *  de freeSteps étapes, c'est sa dernière étape. */
   private _isLastFreeStep(id: number): boolean {
     const track = trackOf(this._challenges.get(id));
     if (!track) return false;
@@ -375,22 +372,19 @@ export class ChallengeManager {
     this._current = challenge;
     this._currentItem = trackStepToContentItem(challenge, track.id, stepIndex, stepCount);
 
-    const saved = storage.loadCode(id);
     const medal = storage.getMedal(id);
     bus.emit("chuck:challenge-loaded", {
       challenge,
-      code: saved ?? challenge.template,
-      fromStorage: saved !== null,
+      code: challenge.template,
       medal: medal ?? undefined,
       track: { trackId: track.id, stepIndex, stepCount },
     });
     this._emitTrackSteps(track);
-    if (stepIndex === 1) {
-      bus.emit("chuck:funnel-step", {
-        step: "pong-basic-started",
-        meta: { stepId: id, trackId: track.id },
-      });
-    }
+    // Tracking funnel : entrée sur une étape de tuto.
+    bus.emit("chuck:funnel-step", {
+      step: "tutorial-step",
+      meta: { stepId: id, trackId: track.id, stepIndex },
+    });
     void pushHistory; // la sync URL est gérée par l'appelant (_loadById)
   }
 
@@ -421,10 +415,7 @@ export class ChallengeManager {
     bus.emit("chuck:content-loaded" as any, { item });
   }
 
-  // ── localStorage ─────────────────────────────────────────
-  saveToStorage(id: number, code: string): void {
-    storage.saveCode(id, code);
-  }
+  // ── Progression ──────────────────────────────────────────
 
   getCompleted(): Record<number, ChallengeProgress> {
     return storage.getAllProgress();
@@ -434,7 +425,6 @@ export class ChallengeManager {
     return storage.getMedal(id);
   }
 
-  /** Dernier défi accessible */
   /** Dernier défi accessible */
   isAccessible(id: number): boolean {
     if (superAdmin.active) return true;
@@ -559,10 +549,6 @@ export class ChallengeManager {
       }
       if (this._isTrackStepId(challenge.id) && this._isLastFreeStep(challenge.id)) {
         const track = trackOf(challenge)!;
-        bus.emit("chuck:funnel-step", {
-          step: "pong-basic-completed",
-          meta: { stepId: challenge.id, trackId: track.id },
-        });
         // Mur premium : affiché à la fin des étapes gratuites (lead magnet
         // consommé, raison de payer encore intacte — cf. stratégie §2).
         // N'apparaît pas pour un parcours gratuit (priceCents == null), ni
@@ -666,7 +652,6 @@ export class ChallengeManager {
 
   private _bindBus(): void {
     this._unsubs.push(
-      bus.on("chuck:autosave", ({ id, code }) => this.saveToStorage(id, code)),
       bus.on("chuck:validate", ({ source, hintsUsed }) =>
         this.validate(source, hintsUsed ?? 0),
       ),
@@ -696,7 +681,7 @@ export class ChallengeManager {
       }),
       bus.on("chuck:ide-free", () => {
         // Sortie d'un défi / Pong vers le mode libre : on oublie l'item courant
-        // pour que validation, autosave et assemblage ne ciblent plus l'ancien id.
+        // pour que validation et assemblage ne ciblent plus l'ancien id.
         this._current = null;
         this._currentItem = null;
         // Nettoie l'URL (?challenge / ?lesson) pour ne pas recharger un défi au refresh.

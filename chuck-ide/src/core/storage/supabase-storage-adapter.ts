@@ -33,40 +33,11 @@ export class SupabaseStorageAdapter implements IStorageService {
   getSession(): UserSession | null {
     const user = authService.getUser();
     if (!user) return this._local.getSession();
-    return { email: user.email, createdAt: new Date().toISOString(), userId: user.id };
-  }
-
-  saveSession(email: string): UserSession {
-    // Conservé pour compat avec l'interface — l'auth réelle passe par
-    // authService.signIn / signUp, appelés depuis chuck-auth-gate.ts.
-    return this._local.saveSession(email);
+    return { userId: user.id, createdAt: new Date().toISOString() };
   }
 
   isUnlocked(): boolean {
     return superAdmin.active || authService.isAuthenticated();
-  }
-
-  loadCode(challengeId: number): string | null {
-    return this._local.loadCode(challengeId);
-  }
-
-  saveCode(challengeId: number, code: string): void {
-    this._local.saveCode(challengeId, code);
-    const user = authService.getUser();
-    if (!user) return;
-    const existing = this._local.getProgress(challengeId);
-    const payload: Record<string, unknown> = {
-      user_id: user.id,
-      challenge_id: challengeId,
-      code: code ?? '',
-      hints_used: existing?.hintsUsed ?? 0,
-      saved_at: new Date().toISOString(),
-    };
-    // Un upsert remplace toute la ligne : on préserve la complétion existante
-    // pour ne pas remettre medal/completed_at à null lors d'un simple autosave.
-    if (existing?.medal)       payload.medal        = existing.medal;
-    if (existing?.completedAt) payload.completed_at = existing.completedAt;
-    fire(supabase.from('challenge_progress').upsert(payload, { onConflict: 'user_id,challenge_id' }));
   }
 
   getProgress(challengeId: number): ChallengeProgress | null {
@@ -82,13 +53,11 @@ export class SupabaseStorageAdapter implements IStorageService {
     const user = authService.getUser();
     if (user) {
       fire(supabase.from('challenge_progress').upsert({
-        user_id: user.id,
+        user_id:      user.id,
         challenge_id: challengeId,
-        code: updated.code ?? '',
         medal,
-        hints_used: hintsUsed ?? 0,
+        hints_used:   hintsUsed ?? 0,
         completed_at: updated.completedAt,
-        saved_at: new Date().toISOString(),
       }, { onConflict: 'user_id,challenge_id' }));
     }
     return updated;
@@ -108,39 +77,28 @@ export class SupabaseStorageAdapter implements IStorageService {
       .eq('user_id', user.id);
     if (error || !data) return;
 
-    // Indexe les lignes serveur par challenge_id pour comparaison.
-    const serverRows = new Map<number, any>();
+    const serverIds = new Set<number>();
+
+    // Serveur → local : recopie toute complétion serveur absente en local.
     for (const row of data) {
-      serverRows.set(row.challenge_id, row);
-      // Serveur → local (le serveur est plus récent)
-      const local    = this._local.getProgress(row.challenge_id);
-      const serverTs = new Date(row.saved_at).getTime();
-      const localTs  = local ? new Date(local.savedAt).getTime() : 0;
-      if (serverTs > localTs) {
-        this._local.saveCode(row.challenge_id, row.code);
-        if (row.medal) this._local.saveCompletion(row.challenge_id, row.medal, row.hints_used ?? 0);
+      serverIds.add(row.challenge_id);
+      if (row.completed_at && row.medal && !this._local.isCompleted(row.challenge_id)) {
+        this._local.saveCompletion(row.challenge_id, row.medal, row.hints_used ?? 0);
       }
     }
 
-    // Local → serveur : pousse tout ce que le serveur ignore ou a plus ancien.
-    // C'est ce qui remonte les challenges 1, 2, 3 faits avant connexion.
+    // Local → serveur : pousse les complétions locales que le serveur ignore
+    // (défis validés avant connexion, p. ex. les premiers steps gratuits).
     const rows: any[] = [];
     for (const local of Object.values(this._local.getAllProgress())) {
-      const row      = serverRows.get(local.challengeId);
-      const localTs  = new Date(local.savedAt).getTime();
-      const serverTs = row ? new Date(row.saved_at).getTime() : -1;
-      if (localTs > serverTs) {
-        const payload: Record<string, unknown> = {
-          user_id:      user.id,
-          challenge_id: local.challengeId,
-          code:         local.code ?? '',
-          hints_used:   local.hintsUsed ?? 0, // colonne NOT NULL
-          saved_at:     local.savedAt,
-        };
-        if (local.medal)       payload.medal        = local.medal;
-        if (local.completedAt) payload.completed_at  = local.completedAt;
-        rows.push(payload);
-      }
+      if (serverIds.has(local.challengeId)) continue;
+      rows.push({
+        user_id:      user.id,
+        challenge_id: local.challengeId,
+        medal:        local.medal,
+        hints_used:   local.hintsUsed ?? 0,
+        completed_at: local.completedAt,
+      });
     }
     if (rows.length) {
       fire(supabase.from('challenge_progress').upsert(rows, { onConflict: 'user_id,challenge_id' }));

@@ -1272,7 +1272,6 @@ export class ChuckEditor extends ChuckComponent {
   private _output!: HTMLDivElement;
   private _tabLabel!: HTMLSpanElement;
   private _currentId = 0;
-  private _autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── API publique ────────────────────────────────────────
   getSource(): string {
@@ -1368,7 +1367,6 @@ export class ChuckEditor extends ChuckComponent {
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               this.emit("chuck:code-changed", undefined);
-              this._scheduleAutosave();
             }
             if (update.selectionSet) {
               this._emitCursor();
@@ -1402,7 +1400,7 @@ export class ChuckEditor extends ChuckComponent {
 
     this.sub("chuck:ide-free", () => {
       // Mode libre : on charge le code de démonstration (bac à sable volatil).
-      this._currentId = 0;            // désactive l'autosave de défi (cf. _scheduleAutosave)
+      this._currentId = 0;
       this._tabLabel.textContent = "demo.asm";
       this.setSource(DEFAULT_SOURCE);
       this._emitCursor();
@@ -1453,19 +1451,6 @@ export class ChuckEditor extends ChuckComponent {
     requestAnimationFrame(() => this._view.focus());
   }
 
-  // ── Autosave (Tâche 2.3) ────────────────────────────────
-  private _scheduleAutosave(): void {
-    if (this._autosaveTimer) clearTimeout(this._autosaveTimer);
-    this._autosaveTimer = setTimeout(() => {
-      if (this._currentId > 0) {
-        this.emit("chuck:autosave", {
-          id: this._currentId,
-          code: this.getSource(),
-        });
-      }
-    }, 800);
-  }
-
   // ── Helpers ──────────────────────────────────────────────
   private _emitCursor(): void {
     if (!this._view) return;
@@ -1502,7 +1487,6 @@ export class ChuckEditor extends ChuckComponent {
   }
 
   protected teardown(): void {
-    if (this._autosaveTimer) clearTimeout(this._autosaveTimer);
     this._view?.destroy();
   }
 }

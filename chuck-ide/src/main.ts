@@ -13,7 +13,6 @@ import "./components/chuck-display.js";
 import "./components/chuck-registers.js";
 import "./components/chuck-side-panel.js";
 import "./components/chuck-help-modal.js";
-import "./components/chuck-learn-modal.js";
 import "./components/chuck-auth-gate.js";
 import "./components/chuck-account-modal.js";
 import "./components/chuck-main-modal.js";
@@ -341,12 +340,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   console.info("[Chuck IDE v0.2.0 — Rust/WASM core] Initialisé ✓");
-
-  // ── ?learn → ouvre la modale de formation ────────────────
-  if (new URLSearchParams(window.location.search).has("learn")) {
-    const learnEl = document.getElementById("modal-learn") as
-      | (HTMLElement & { open(): void })
-      | null;
-    learnEl?.open();
-  }
 });

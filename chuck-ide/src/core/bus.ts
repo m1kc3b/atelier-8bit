@@ -81,7 +81,6 @@ export interface ChuckEventMap {
   'chuck:challenge-loaded':  {
     challenge: import('../types/challenge.js').Challenge;
     code: string;
-    fromStorage: boolean;
     medal?: string;
     /** Renseigné uniquement quand le défi chargé est une étape de parcours */
     track?: { trackId: string; stepIndex: number; stepCount: number };
@@ -94,7 +93,6 @@ export interface ChuckEventMap {
    *  dans l'ordre step_index (les ids de track_steps ne sont PAS contigus,
    *  donc id+1 ne marche pas). */
   'chuck:goto-next-track-step': { fromId: number };
-  'chuck:autosave':          { id: number; code: string };
   'chuck:challenges-list':   { items: import('../types/challenge.js').ChallengeListItem[] };
 
   // ── Parcours guidés (généralisé depuis Coder Pong) ──────────

@@ -1,4 +1,5 @@
 import { createClient, type Session } from "@supabase/supabase-js";
+import { bus } from "../bus.js";
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -32,20 +33,13 @@ class AuthService {
         .catch(() => {});
       this._notify();
       if (event === "SIGNED_IN" && session?.user) {
-        // Relie le visitor_id anonyme au compte (signup ET login).
-        // Import dynamique : évite la dépendance circulaire avec
-        // funnel-tracker (qui importe `supabase` depuis ce module).
-        // Fire-and-forget : n'interrompt jamais le flux d'auth.
-        const userId = session.user.id;
-        void import("../funnel-tracker.js")
-          .then(({ funnelTracker }) => funnelTracker.linkIdentity(userId))
-          .catch(() => {
-            /* module indisponible — ignore */
-          });
+        // Seule étape « entrée de funnel » conservée : la connexion.
+        // Fire-and-forget — n'interrompt jamais le flux d'auth.
+        bus.emit("chuck:funnel-step", {
+          step: "signed-in",
+          meta: { userId: session.user.id },
+        });
       }
-      // if (event === "PASSWORD_RECOVERY") {
-      //   this._recoveryListeners.forEach((cb) => cb());
-      // }
     });
   }
 
@@ -67,25 +61,6 @@ class AuthService {
   isAuthenticated(): boolean {
     return !!this._session;
   }
-
-  // async signUp(
-  //   email: string,
-  //   password: string,
-  // ): Promise<{ error: string | null }> {
-  //   const { error } = await supabase.auth.signUp({ email, password });
-  //   return { error: error?.message ?? null };
-  // }
-
-  // async signIn(
-  //   email: string,
-  //   password: string,
-  // ): Promise<{ error: string | null }> {
-  //   const { error } = await supabase.auth.signInWithPassword({
-  //     email,
-  //     password,
-  //   });
-  //   return { error: error?.message ?? null };
-  // }
 
   async signInWithGithub(
     opts: { redirectTo?: string } = {},
@@ -112,23 +87,6 @@ class AuthService {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { error: error?.message ?? null };
   }
-
-  // private _recoveryListeners = new Set<() => void>();
-
-  /** Appelé quand l'utilisateur revient sur l'app via le lien de réinitialisation. */
-  // onPasswordRecovery(cb: () => void): () => void {
-  //   this._recoveryListeners.add(cb);
-  //   return () => this._recoveryListeners.delete(cb);
-  // }
-
-  // async resetPasswordForEmail(
-  //   email: string,
-  // ): Promise<{ error: string | null }> {
-  //   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-  //     redirectTo: window.location.origin,
-  //   });
-  //   return { error: error?.message ?? null };
-  // }
 }
 
 export const authService = new AuthService();
