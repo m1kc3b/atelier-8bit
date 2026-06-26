@@ -614,6 +614,42 @@ fn dispatch(cpu: &mut Cpu, mem: &mut Memory, opcode: u8, _mode: AddrMode, op: Op
         }
 
         // Opcode illégal / non supporté : NOP silencieux
+        // ── LAX (illégal) : A = X = M ─────────────────────────────────────
+        0xA7 | 0xAF | 0xB3 => {
+            cpu.a = op.value;
+            cpu.x = op.value;
+            cpu.set_nz(cpu.a);
+            if op.page_cross { 1 } else { 0 }
+        }
+
+        // ── SAX (illégal) : M = A & X ─ ne touche AUCUN flag ──────────────
+        0x87 | 0x8F => {
+            mem.write(op.addr, cpu.a & cpu.x);
+            0
+        }
+
+        // ── DCP (illégal) : M = M-1 puis CMP A ───────────────────────────
+        0xC7 | 0xCF => {
+            let m = op.value.wrapping_sub(1);
+            mem.write(op.addr, m);
+            do_compare(cpu, cpu.a, m);
+            0
+        }
+
+        // ── ISC (illégal) : M = M+1 puis SBC A ───────────────────────────
+        0xE7 | 0xEF => {
+            let m = op.value.wrapping_add(1);
+            mem.write(op.addr, m);
+            // SBC binaire (pas de mode décimal — déterminisme du barème)
+            let a = cpu.a as u16;
+            let c = if cpu.get_flag(flags::C) { 1u16 } else { 0 };
+            let result = a.wrapping_add(!m as u16 & 0xFF).wrapping_add(c);
+            cpu.set_flag(flags::C, result > 0xFF);
+            cpu.set_flag(flags::V, (a ^ m as u16) & (a ^ result) & 0x80 != 0);
+            cpu.a = result as u8;
+            cpu.set_nz(cpu.a);
+            0
+        }
         _ => 0,
     }
 }

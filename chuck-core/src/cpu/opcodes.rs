@@ -258,6 +258,19 @@ pub static OPCODE_TABLE: [OpcodeEntry; 256] = {
     t[0x8A] = e("TXA", Imp, 1, 2);
     t[0x9A] = e("TXS", Imp, 1, 2);
     t[0x98] = e("TYA", Imp, 1, 2);
+    
+    // ── Opcodes non documentés (illégaux NMOS) ────────────────────
+    // Activés volontairement comme idiomes d'optimisation cachés.
+    // NE PAS exposer dans l'autocomplétion ni la doc publique.
+    t[0xA7] = e("LAX", Zp,  2, 3);   // A = X = M
+    t[0xAF] = e("LAX", Abs, 3, 4);
+    t[0xB3] = e("LAX", Iny, 2, 5);   // +1 si page cross
+    t[0x87] = e("SAX", Zp,  2, 3);   // M = A & X (aucun flag)
+    t[0x8F] = e("SAX", Abs, 3, 4);
+    t[0xC7] = e("DCP", Zp,  2, 5);   // M = M-1 puis CMP A
+    t[0xCF] = e("DCP", Abs, 3, 6);
+    t[0xE7] = e("ISC", Zp,  2, 5);   // M = M+1 puis SBC A
+    t[0xEF] = e("ISC", Abs, 3, 6);
 
     t
 };
