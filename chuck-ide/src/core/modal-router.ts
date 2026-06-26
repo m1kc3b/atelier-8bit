@@ -63,7 +63,7 @@ export class ModalRouter {
   constructor(modal: MainModalEl) {
     this._modal = modal;
 
-    bus.on("chuck:ide-free", () => this.close());
+    bus.on("chuck:modal-close", () => this.close());
 
     bus.on("chuck:modal-show", ({ view, params, gate }) => {
       void this.show(view, { params, gate });

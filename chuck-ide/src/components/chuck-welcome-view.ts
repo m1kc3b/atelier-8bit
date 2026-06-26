@@ -121,6 +121,7 @@ export class ChuckWelcomeView extends ChuckComponent {
 
     root.querySelector('[data-choice="free"]')?.addEventListener("click", () => {
       this.emit("chuck:ide-free", undefined);
+      this.emit("chuck:modal-close", undefined);
       if (!ChuckOnboardingTour.hasBeenSeen()) {
         this.emit("chuck:start-tour", undefined);
       }

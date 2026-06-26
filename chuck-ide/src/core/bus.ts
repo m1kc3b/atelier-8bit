@@ -151,6 +151,7 @@ export interface ChuckEventMap {
   'chuck:modal-back':   undefined;
   'chuck:modal-opened': undefined;
   'chuck:modal-closed': undefined;
+  'chuck:modal-close':  undefined;
   
 }
 
