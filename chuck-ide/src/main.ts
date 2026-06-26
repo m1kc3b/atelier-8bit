@@ -84,10 +84,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ?.addEventListener("click", () => registersEl?.toggle());
   
   document.getElementById("btn-show-help")?.addEventListener("click", () => {
-    const help = document.getElementById("modal-help") as
-      | (HTMLElement & { toggle(): void })
-      | null;
-    help?.toggle();
+    bus.emit("chuck:modal-show", { view: "help" });
   });
 
   function openSidePanel(): void {
@@ -302,7 +299,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (isOpen) return;
     if (el.show) el.show();
     else el.classList.add("visible");
-    el.style.zIndex = "1000";
   }
 
   bus.on("chuck:run", () => {
