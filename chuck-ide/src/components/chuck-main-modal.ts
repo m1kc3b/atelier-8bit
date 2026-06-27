@@ -68,7 +68,6 @@ export class ChuckMainModal extends ChuckComponent {
       <div class="topbar">
         <button class="back-btn" id="back-btn" title="Retour">←</button>
         <span class="topbar-title" id="modal-title">🕹️ L'Atelier 8-bit</span>
-        <button class="close-btn" id="close-btn" title="Fermer (Échap)">✕</button>
       </div>
 
       <div class="modal-body" id="modal-body">
@@ -86,9 +85,6 @@ export class ChuckMainModal extends ChuckComponent {
   }
 
   protected setup(): void {
-    this.shadow.getElementById('close-btn')!.addEventListener('click', () => {
-      if (this._dismissible) this.close();
-    });
 
     this.shadow.getElementById('back-btn')!.addEventListener('click', () => {
       this.emit('chuck:modal-back', undefined);
@@ -138,8 +134,6 @@ export class ChuckMainModal extends ChuckComponent {
     const backBtn = this.shadow.getElementById('back-btn')!;
     backBtn.classList.toggle('visible', !!options.showBackBtn);
 
-    const closeBtn = this.shadow.getElementById('close-btn')!;
-    closeBtn.style.display = this._dismissible ? '' : 'none';
   }
 
   /**

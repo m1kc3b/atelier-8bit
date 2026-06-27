@@ -472,6 +472,10 @@ export class ChuckDisplay extends ChuckComponent {
     this.sub('chuck:cpu-reset',  () => { this._setLive(false); this._clearPixels(0); this._flush(); });
     this.sub('chuck:run',        () => this._setLive(true));
     this.sub('chuck:stop',       () => this._setLive(false));
+    const _onModeChange = () => { this._setLive(false); this.hide(); };
+    this.sub('chuck:ide-free',        _onModeChange);
+    this.sub('chuck:ide-defi',        _onModeChange);
+    this.sub('chuck:tutos-requested', _onModeChange);
 
     // Réception VRAM depuis l'émulateur
     // L'émulateur envoie toute la VRAM $4000–$7FFF dans bytes

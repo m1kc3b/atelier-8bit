@@ -228,6 +228,9 @@ export class Emulator {
     sub("chuck:run", () => this._run());
     sub("chuck:stop", () => this._stop());
     sub("chuck:reset", () => this._reset());
+    sub("chuck:ide-free",        () => this._resetForModeChange());
+    sub("chuck:ide-defi",        () => this._resetForModeChange());
+    sub("chuck:tutos-requested", () => this._resetForModeChange());
     sub("chuck:step", () => this._step());
     sub("chuck:goto", ({ address }) => this._goto(address));
     sub("chuck:hexdump", () => this._hexdump());
@@ -449,6 +452,21 @@ export class Emulator {
       text: "↺ Reset — PC=$E000, mémoire programme préservée",
       level: "info",
     });
+    this._emitVpuState();
+  }
+
+  /** Reset déclenché par un changement de mode : coupe la boucle, remet le
+   *  CPU à zéro et désactive la toolbar. Contrairement à _reset(), repasse en
+   *  'idle' (et non 'assembled') car le programme du mode précédent ne doit
+   *  plus être ni exécutable ni resettable depuis le nouveau mode. */
+  private _resetForModeChange(): void {
+    if (!this.core) return;
+    this._stopLoop();
+    this.core.soft_reset();
+    this._flushDisplay(true);          // écran noir
+    bus.emit("chuck:cpu-reset", toBusState(this.core.get_state()));
+    bus.emit("chuck:toolbar-state", { state: "idle" }); // tous boutons désactivés
+    this._emitRamSnapshot();
     this._emitVpuState();
   }
 

@@ -339,6 +339,9 @@ export class ChuckRegisters extends ChuckComponent {
     this.sub("chuck:cpu-updated", (s) => this.updateRegs(s));
     this.sub("chuck:cpu-reset", (s) => this.updateRegs(s));
     this.sub("chuck:cpu-halted", (s) => this.updateRegs(s));
+    this.sub("chuck:ide-free",        () => this.hide());
+    this.sub("chuck:ide-defi",        () => this.hide());
+    this.sub("chuck:tutos-requested", () => this.hide());
 
     // Recevoir les données mémoire depuis Emulator
     this.sub(
