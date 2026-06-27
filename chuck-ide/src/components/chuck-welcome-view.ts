@@ -93,13 +93,13 @@ export class ChuckWelcomeView extends ChuckComponent {
             <span class="cta-arrow">Commencer →</span>
           </button>
 
-          <button class="cta-card" data-choice="tutos">
+          <button class="cta-card" data-choice="challenges">
             <picture class="cta-icon">
               <source srcset="/images/tutos.gif" type="image/webp">
               <img src="/images/pencil.gif" alt="✏" width="32" height="32">
             </picture>
-            <strong>Les Tutos</strong>
-            <span>${this._challengeCount} tutos progressifs, du premier LDA au pixel à l'écran.</span>
+            <strong>Les Challenges</strong>
+            <span>${this._challengeCount} challenges progressifs, du premier LDA au pixel à l'écran.</span>
             <span class="cta-arrow">Explorer →</span>
           </button>
 
@@ -128,9 +128,9 @@ export class ChuckWelcomeView extends ChuckComponent {
     });
 
     // Liste des tutos : accès libre (le gate s'applique AU LANCEMENT d'un tuto).
-    root.querySelector('[data-choice="tutos"]')?.addEventListener("click", () => {
+    root.querySelector('[data-choice="challenges"]')?.addEventListener("click", () => {
       this.emit("chuck:tutos-requested", undefined);
-      this.emit("chuck:modal-show", { view: "tutos" });
+      this.emit("chuck:modal-show", { view: "challenges" });
     });
 
     // Défi du mois : accès libre, va directement à l'IDE + side-panel

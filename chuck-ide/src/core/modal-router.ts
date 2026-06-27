@@ -42,8 +42,8 @@ export class ModalRouter {
       root: true,
       factory: () => document.createElement("chuck-welcome-view"),
     },
-    tutos: {
-      title: "🏆 Les Tutos",
+    challenges: {
+      title: "🏆 Les Challenges",
       factory: () => document.createElement("chuck-challenges-list"),
     },
     help: {

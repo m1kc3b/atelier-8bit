@@ -6,7 +6,7 @@
    EventTarget dédié (pas le document global, évite les fuites).
    ───────────────────────────────────────────────────────────── */
 
-export type ModalView = 'welcome' | 'tutos' | 'help';
+export type ModalView = 'welcome' | 'challenges' | 'help';
 
 /* ── Types des événements ────────────────────────────────────── */
 export interface CpuState {
@@ -123,7 +123,7 @@ export interface ChuckEventMap {
   };
 
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
-  'chuck:view-changed':      { view: 'atelier' | 'tutos' | 'defis' };
+  'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'defis' };
 
   // ── Tracking funnel (cf. core/funnel-tracker.ts) ────────────
   'chuck:funnel-step': {
