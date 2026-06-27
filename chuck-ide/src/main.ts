@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       urlParams.has("parcours") || urlParams.has("challenge") || urlParams.has("lesson");
     const isBareChallenge = hasParcours && !isNumericChallenge;
     if (!isNumericChallenge) {
-      void modalRouter?.show(isBareChallenge ? "tutos" : "welcome");
+      void modalRouter?.show(isBareChallenge ? "challenges" : "welcome");
     }
   }
 
