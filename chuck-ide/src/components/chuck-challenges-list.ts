@@ -95,6 +95,7 @@ export class ChuckChallengesList extends ChuckComponent {
       this._items = items;
       this._renderGrid();
     });
+    this.emit("chuck:tutos-requested", undefined);   
   }
 
   private _renderGrid(): void {

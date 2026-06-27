@@ -75,15 +75,13 @@ export class ChallengeManager {
 
   async init(emulator: Emulator): Promise<void> {
     this._emulator = emulator;
-    await Promise.all([this._loadChallenges(), this._loadContent()]);
     this._bindBus();
 
     const urlId = this._getIdFromUrl();
     if (urlId !== null) {
-      // _loadById redirige automatiquement si l'id est inaccessible
-      this._loadById(urlId, false);
+      await this._ensureLoaded();
     } else if (this._hasTrackParam()) {
-      // ?challenge / ?parcours sans valeur valide → challenge courant
+      await this._ensureLoaded();
       this._loadById(this.currentChallenge(), false);
     } else {
       bus.emit(IDE_FREE_MODE, undefined);
@@ -106,43 +104,36 @@ export class ChallengeManager {
   }
 
   // ── Chargement ────────────────────────────────────────────
+  private _loaded = false;
+  private _loadingPromise: Promise<void> | null = null;
 
-  private async _loadChallenges(): Promise<void> {
-    try {
-      const [challenges, steps] = await Promise.all([
-        challengesService.getAll(),
-        tracksService.getAllSteps(),
-      ]);
-      for (const c of challenges) this._challenges.set(c.id, c);
-      for (const s of steps) this._challenges.set(s.id, s);
-    } catch (e) {
-      bus.emit("chuck:log", {
-        text: `Chargement des défis : ${(e as Error).message}`,
-        level: "err",
-      });
-    }
+  /** Charge challenges + steps une seule fois, à la demande.
+   *  Idempotent : appels concurrents partagent la même promesse. */
+  private _ensureLoaded(): Promise<void> {
+    if (this._loaded) return Promise.resolve();
+    if (this._loadingPromise) return this._loadingPromise;
+
+    this._loadingPromise = (async () => {
+      try {
+        const [challenges, steps] = await Promise.all([
+          challengesService.getAll(),
+          tracksService.getAllSteps(),
+        ]);
+        for (const c of challenges) this._challenges.set(c.id, c);
+        for (const s of steps) this._challenges.set(s.id, s);
+        this._loaded = true;
+      } catch (e) {
+        bus.emit("chuck:log", {
+          text: `Chargement des défis : ${(e as Error).message}`,
+          level: "err",
+        });
+        this._loadingPromise = null; // permet un nouvel essai après échec
+        throw e;
+      }
+    })();
+    return this._loadingPromise;
   }
 
-  private async _loadContent(): Promise<void> {
-    try {
-      const [challenges, steps] = await Promise.all([
-        challengesService.getAll(),
-        tracksService.getAllSteps(),
-      ]);
-      for (const c of challenges) this._challenges.set(c.id, c);
-      for (const s of steps) this._challenges.set(s.id, s);
-      bus.emit("chuck:challenges-count" as any, {
-        count: challenges.length,
-      });
-      this._emitChallengesList();
-      this._emitAllTrackSteps();
-    } catch (e) {
-      bus.emit("chuck:log", {
-        text: `Chargement des défis : ${(e as Error).message}`,
-        level: "err",
-      });
-    }
-  }
 
   // ── Navigation ────────────────────────────────────────────
 
@@ -688,6 +679,10 @@ export class ChallengeManager {
         url.searchParams.delete("challenge");
         url.searchParams.delete("lesson");
         window.history.replaceState({}, "", url.toString());
+      }),
+      bus.on("chuck:tutos-requested", async () => {
+        await this._ensureLoaded();
+        this._emitChallengesList();
       }),
     );
   }

@@ -129,6 +129,7 @@ export class ChuckWelcomeView extends ChuckComponent {
 
     // Liste des tutos : accès libre (le gate s'applique AU LANCEMENT d'un tuto).
     root.querySelector('[data-choice="tutos"]')?.addEventListener("click", () => {
+      this.emit("chuck:tutos-requested", undefined);
       this.emit("chuck:modal-show", { view: "tutos" });
     });
 
