@@ -81,7 +81,7 @@ export class ChuckWelcomeView extends ChuckComponent {
       <div class="choice-view">
         <div class="hero">
           <h1>Programme comme en 1980</h1>
-          <p>Écris de l’assembleur sur un ordinateur 8-bit fictif, directement dans ton navigateur, pour te reconnecter à la réalité physique du code, comprendre enfin comment la machine fonctionne, et développer une intuition système solide.</p>
+          <p>Plonge dans l'assembleur d'un ordinateur 8-bit fictif, sans filet ni abstraction. Affronte les défis du mois, optimise au cycle près et ressens enfin le code dans tes mains.</p>
         </div>
         <div class="cta-grid">
           <button class="cta-card" data-choice="free">
