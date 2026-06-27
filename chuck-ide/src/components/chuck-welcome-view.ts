@@ -22,6 +22,7 @@ const STYLES = /* css */ `
   .cta-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:0 40px; margin-bottom:34px; }
   .cta-card {
     color:var(--text-black);
+    background: var(--card);
     position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:9px;
     padding:22px 18px 22px 21px; border:1px solid var(--border);
     border-left:3px solid var(--card, var(--accent));
@@ -29,8 +30,8 @@ const STYLES = /* css */ `
     transition:border-color var(--t-fast), background var(--t-fast), transform .12s;
   }
   .cta-card[data-choice="free"]   { --card:var(--mode-free);  --card-dim:var(--mode-free-dim); }
-  .cta-card[data-choice="tutos"]  { --card:var(--mode-tutos); --card-dim:var(--mode-tutos-dim); }
-  .cta-card[data-choice="defi"]   { --card:var(--mode-defi);  --card-dim:var(--mode-defi-dim); }
+  .cta-card[data-choice="challenges"]  { --card:var(--mode-tutos); --card-dim:var(--mode-tutos-dim); }
+  .cta-card[data-choice="defis"]   { --card:var(--mode-defi);  --card-dim:var(--mode-defi-dim); }
   .cta-card:hover { border-color:var(--card); color:var(--text); background:var(--card-dim); transform:translateY(-2px); }
   .cta-card strong { font-size:13.5px; }
   .cta-card span { font-size:11.5px; line-height:1.55; }
@@ -95,7 +96,7 @@ export class ChuckWelcomeView extends ChuckComponent {
 
           <button class="cta-card" data-choice="challenges">
             <picture class="cta-icon">
-              <source srcset="/images/tutos.gif" type="image/webp">
+              <source srcset="/images/challenges.gif" type="image/webp">
               <img src="/images/pencil.gif" alt="✏" width="32" height="32">
             </picture>
             <strong>Les Challenges</strong>
