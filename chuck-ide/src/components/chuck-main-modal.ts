@@ -24,7 +24,10 @@ export class ChuckMainModal extends ChuckComponent {
         position: relative; width: min(1100px, 94vw); height: min(760px, 92vh);
         background: var(--surface); border: 1px solid var(--border);
         border-radius: 18px; display: flex; flex-direction: column;
-        overflow: hidden; box-shadow: var(--modal-shadow); 
+        overflow: hidden; box-shadow: var(--modal-shadow);
+        font-family: var(--font-mono);
+        color: var(--accent);
+        text-align: center;
       }
 
       /* ── TOPBAR ────────────────────────────────────────── */
@@ -33,8 +36,8 @@ export class ChuckMainModal extends ChuckComponent {
         border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface-2);
       }
       .topbar-title { 
-        flex: 1; text-align: center; font-family: var(--font-mono);
-        font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: .06em; 
+        flex: 1; text-align: center; 
+        font-size: 13px; font-weight: 700; letter-spacing: .06em; 
       }
       .back-btn, .close-btn { 
         width: 26px; height: 26px; border-radius: 50%;
@@ -55,10 +58,10 @@ export class ChuckMainModal extends ChuckComponent {
 
       /* ── BOTTOMBAR ────────────────────────────────────── */
       .bottombar { 
-        display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+        display: flex; align-items: center; justify-content: center; gap: 12px;
         padding: 14px 22px; border-top: 1px solid var(--border); 
         background: var(--surface-2); flex-shrink: 0; 
-        text-align: center;
+        
       }
       /* Cache la bottombar si aucun élément n'est injecté dedans */
       .bottombar:empty, .bottombar::slotted(:empty) { display: none; }
@@ -67,7 +70,7 @@ export class ChuckMainModal extends ChuckComponent {
     <div class="modal">
       <div class="topbar">
         <button class="back-btn" id="back-btn" title="Retour">←</button>
-        <span class="topbar-title" id="modal-title">🕹️ L'Atelier 8-bit</span>
+        <span class="topbar-title" id="modal-title">L'Atelier 8-bit</span>
       </div>
 
       <div class="modal-body" id="modal-body">
