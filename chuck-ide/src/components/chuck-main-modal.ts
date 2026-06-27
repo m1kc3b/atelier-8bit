@@ -111,7 +111,6 @@ export class ChuckMainModal extends ChuckComponent {
    * Injecte dynamiquement un composant dans le Body et configure la modale
    */
   public setContent(element: HTMLElement | string, options: MainModalOptions = {}): void {
-    const bodyContainer = this.shadow.getElementById('modal-body')!;
     
     // Nettoyage du Light DOM actuel (sauf les éléments affectés aux slots spécifiques)
     const children = Array.from(this.children);

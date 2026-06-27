@@ -9,7 +9,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { bus, type ModalView } from "./bus.js";
-import { authService } from "./auth/auth-service.js";
+import { authService } from "../features/auth/auth-service.js";
 import type { MainModalOptions } from "../components/chuck-main-modal.js";
 
 interface MainModalEl extends HTMLElement {

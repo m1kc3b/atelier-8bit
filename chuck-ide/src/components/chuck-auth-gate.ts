@@ -1,5 +1,5 @@
 import { ChuckComponent } from "../core/base-component.js";
-import { authService } from "../core/auth/auth-service.js";
+import { authService } from "../features/auth/auth-service.js";
 
 /** Options d'ouverture de la gate. Le copy (title/sub) est fourni par
  *  l'appelant pour s'adapter au contexte (défi verrouillé, sauvegarde,

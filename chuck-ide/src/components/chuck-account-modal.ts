@@ -1,7 +1,7 @@
 import { ChuckComponent } from "../core/base-component.js";
-import { authService } from "../core/auth/auth-service.js";
-import { challengesService } from "../core/challenges/challenges-service.js";
-import { storage } from "../core/storage/storage-service.js";
+import { authService } from "../features/auth/auth-service.js";
+import { challengesService } from "../features/challenges/challenges-service.js";
+import { storage } from "../infra/storage/storage-service.js";
 
 type Tab = "profile" | "medals";
 

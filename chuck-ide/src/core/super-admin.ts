@@ -16,7 +16,7 @@
         tout juste restaurée au boot.
    ───────────────────────────────────────────────────────────── */
 
-import { supabase } from "./auth/auth-service.js";
+import { supabase } from "../features/auth/auth-service.js";
 
 /** Passe à true pour voir la raison exacte d'un blocage dans la console. */
 const DEBUG = false;

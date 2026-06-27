@@ -7,8 +7,8 @@
      - Dispatche les événements Bus
    ───────────────────────────────────────────────────────────── */
 
-import { bus } from "./bus.js";
-import { superAdmin } from "./super-admin.js";
+import { bus } from "../../core/bus";
+import { superAdmin } from "../../core/super-admin";
 
 /**
  * Nettoie les messages d'erreur bruts venant de l'assembleur Rust/WASM.
@@ -201,7 +201,7 @@ export class Emulator {
 
   private async _loadWasm(): Promise<void> {
     // @ts-ignore — module généré par wasm-pack, disponible au runtime
-    const mod = (await import("../lib/chuck_core.js")) as WasmModule;
+    const mod = (await import("./chuck_core.js")) as WasmModule;
     await mod.default();
     this.core = new mod.ChuckCore();
 

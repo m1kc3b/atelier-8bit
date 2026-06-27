@@ -25,8 +25,8 @@
        for insert to authenticated with check (true);
    ───────────────────────────────────────────────────────────── */
 
-import { bus } from "./bus.js";
-import { supabase } from "./auth/auth-service.js";
+import { bus } from "../../core/bus";
+import { supabase } from "../../features/auth/auth-service";
 
 /** Étapes tracées sous le funnel actuel. */
 export type FunnelStep =

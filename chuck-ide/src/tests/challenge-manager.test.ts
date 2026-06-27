@@ -35,7 +35,7 @@ vi.mock('../core/bus.js', () => ({
 // ── Mock storage ──────────────────────────────────────────────────
 
 vi.mock('../core/storage/storage-service.js', async () => {
-  const { LocalStorageAdapter } = await import('../core/storage/local-storage-adapter.js');
+  const { LocalStorageAdapter } = await import('../infra/storage/local-storage-adapter.js');
   return { storage: new LocalStorageAdapter() };
 });
 
@@ -63,7 +63,7 @@ afterEach(() => {
  * challenge-manager.integration.test.ts (environnement JSDOM).
  */
 
-import { LocalStorageAdapter } from '../core/storage/local-storage-adapter.js';
+import { LocalStorageAdapter } from '../infra/storage/local-storage-adapter.js';
 
 describe('Logique accessibilité des défis (via storage)', () => {
   let storage: LocalStorageAdapter;

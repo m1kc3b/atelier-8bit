@@ -171,10 +171,6 @@ export class ChuckFoundationsCelebration extends ChuckComponent {
     this._lastBurst = -Infinity;
     this._parts = [];
     this._startLoops();
-    this.emit("chuck:funnel-step", {
-      step: "pong-basic-completed",
-      meta: { source: "foundations-celebration" },
-    });
   }
 
   close(): void {

@@ -22,13 +22,13 @@ import "./components/chuck-challenges-list.js";
 import "./components/chuck-track-paywall.js";
 import "./components/chuck-foundations-celebration";
 
-import { authService } from "./core/auth/auth-service.js";
+import { authService } from "./features/auth/auth-service.js";
 
 import { bus } from "./core/bus.js";
-import { Emulator } from "./core/emulator.js";
-import { ChallengeManager } from "./core/challenge-manager.js";
-import { storage } from "./core/storage/storage-service.js";
-import { funnelTracker } from "./core/funnel-tracker.js";
+import { Emulator } from "./infra/wasm/emulator.js";
+import { ChallengeManager } from "./features/challenges/challenge-manager.js";
+import { storage } from "./infra/storage/storage-service.js";
+import { funnelTracker } from "./infra/tracking/funnel-tracker.js";
 import { superAdmin } from "./core/super-admin.js";
 import { ModalRouter } from "./core/modal-router.js";
 

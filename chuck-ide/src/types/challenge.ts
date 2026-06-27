@@ -3,7 +3,7 @@
    Types TypeScript pour challenges.json.
    ───────────────────────────────────────────────────────────── */
 
-   import type { Medal } from '../core/storage/types.js';
+   import type { Medal } from '../infra/storage/types.js';
 
 // ── Condition de validation ───────────────────────────────────
 

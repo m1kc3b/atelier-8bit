@@ -99,13 +99,13 @@ export interface ChuckEventMap {
   'chuck:track-steps': {
     trackId: string;
     trackName: string;
-    config: import('./challenges/tracks-service.js').TrackConfig;
+    config: import('../features/challenges/tracks-service.js').TrackConfig;
     items: import('../types/challenge.js').TrackStepListItem[];
   };
   /** Mur premium d'un parcours : déclenché en fin d'étapes gratuites. */
   'chuck:track-completed': {
     trackId: string;
-    config: import('./challenges/tracks-service.js').TrackConfig;
+    config: import('../features/challenges/tracks-service.js').TrackConfig;
     trackName: string;
   };
   /** Intention d'achat — traitée par le backend (pas de Stripe côté front). */
@@ -127,7 +127,7 @@ export interface ChuckEventMap {
 
   // ── Tracking funnel (cf. core/funnel-tracker.ts) ────────────
   'chuck:funnel-step': {
-    step: import('./funnel-tracker.js').FunnelStep;
+    step: import('../infra/tracking/funnel-tracker.js').FunnelStep;
     meta?: Record<string, unknown>;
   };
 

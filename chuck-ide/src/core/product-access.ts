@@ -15,7 +15,7 @@
    volonté de payer (clic « acheter » tracké via le funnel).
    ───────────────────────────────────────────────────────────── */
 
-import { supabase } from "./auth/auth-service.js";
+import { supabase } from "../features/auth/auth-service.js";
 
 const LOCAL_PURCHASE_PREFIX = "chuck8_purchased_";
 

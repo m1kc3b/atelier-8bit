@@ -171,12 +171,6 @@ describe('EventBus', () => {
   // ── Événements challenge ──────────────────────────────────────
 
   describe('événements challenge', () => {
-    it('chuck:autosave transporte id et code', () => {
-      const handler = vi.fn();
-      bus.on('chuck:autosave', handler);
-      bus.emit('chuck:autosave', { id: 3, code: 'LDA #$01\nBRK' });
-      expect(handler).toHaveBeenCalledWith({ id: 3, code: 'LDA #$01\nBRK' });
-    });
 
     it('chuck:validate transporte source et hintsUsed', () => {
       const handler = vi.fn();

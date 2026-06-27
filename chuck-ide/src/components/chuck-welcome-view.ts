@@ -5,7 +5,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import { challengesService } from "../core/challenges/challenges-service.js";
+import { challengesService } from "../features/challenges/challenges-service.js";
 import { ChuckOnboardingTour } from "./chuck-onboarding-tour.js";
 
 const STYLES = /* css */ `

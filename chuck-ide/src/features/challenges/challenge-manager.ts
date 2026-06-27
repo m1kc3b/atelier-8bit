@@ -2,28 +2,27 @@
    Chuck IDE — core/challenge-manager.ts  (version WASM)
    ───────────────────────────────────────────────────────────── */
 
-import { bus } from "./bus.js";
-import type { Emulator } from "./emulator.js";
+import { bus } from "../../core/bus";
+import type { Emulator } from "../../infra/wasm/emulator";
 import {
   type Challenge,
   type ValidationResult,
   type AssertionFailure,
   type Assertion,
   type ChallengeListItem,
-} from "../types/challenge.js";
+} from "../../types/challenge.js";
 import type {
   ContentItem,
-  ChallengeItem,
-  ContentBlock,
-} from "../types/content.js";
-import { storage } from "./storage/storage-service.js";
-import type { ChallengeProgress, Medal } from "./storage/types.js";
-import { challengesService } from "./challenges/challenges-service.js";
-import { tracksService } from "./challenges/tracks-service.js";
-import type { TrackMeta, TrackConfig } from "./challenges/tracks-service.js";
-import { productAccess } from "./product-access.js";
-import { superAdmin } from "./super-admin.js";
-import { authService } from "./auth/auth-service.js";
+} from "../../types/content.js";
+import { storage } from "../../infra/storage/storage-service.js";
+import type { ChallengeProgress, Medal } from "../../infra/storage/types.js";
+import { challengesService } from "../../features/challenges/challenges-service.js";
+import { tracksService } from "../../features/challenges/tracks-service.js";
+import type { TrackMeta, TrackConfig } from "../../features/challenges/tracks-service.js";
+import { productAccess } from "../../core/product-access.js";
+import { superAdmin } from "../../core/super-admin.js";
+import { authService } from "../../features/auth/auth-service.js";
+import { challengeToContentItem, trackStepToContentItem } from "../content/content-mappers.js";
 
 const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
@@ -392,7 +391,7 @@ export class ChallengeManager {
   private _emitTrackSteps(track: TrackMeta): void {
     const steps = this._trackStepsByName(track.name);
     const currentId = this._currentTrackStepId(track.name);
-    const items: import("../types/challenge.js").TrackStepListItem[] = steps.map(
+    const items: import("../../types/challenge.js").TrackStepListItem[] = steps.map(
       (c, i) => ({
         id: c.id,
         stepIndex: i + 1,
@@ -697,73 +696,3 @@ export class ChallengeManager {
 // ── Helpers ──────────────────────────────────────────────────
 const h = (n: number) => n.toString(16).padStart(2, "0").toUpperCase();
 const addr = (n: number) => n.toString(16).padStart(4, "0").toUpperCase();
-
-// ── Adaptateur Challenge → ContentItem ───────────────────────
-function challengeToContentItem(c: Challenge): ChallengeItem {
-  const blocks: ContentBlock[] = [];
-
-  if (c.description) {
-    blocks.push({ kind: "theory", content: c.description });
-  }
-  if ((c.meta as any)?.zaks) {
-    const z = (c.meta as any).zaks;
-    blocks.push({
-      kind: "ref",
-      icon: "📖",
-      label: `${z.chapter}, p. ${z.page}`,
-      detail: z.topic,
-    });
-  }
-  if (c.meta?.concepts?.length) {
-    blocks.push({ kind: "concepts", items: c.meta.concepts });
-  }
-  if (c.hints?.length) {
-    blocks.push({ kind: "hints", items: c.hints.map((h: any) => h.text ?? h) });
-  }
-
-  return {
-    type: "challenge",
-    id: c.id,
-    arena: (c as any).arena,
-    arena_name: (c as any).arena_name,
-    title: c.title,
-    blocks,
-    template: c.template ?? "",
-    assertions: c.assertions ?? [],
-    maxCycles: c.maxCycles,
-    meta: c.meta as any,
-  };
-}
-
-/** Adaptateur Challenge (étape de parcours) → TrackStepItem.
- *  Mêmes blocs pédagogiques qu'un défi classique, mais type 'track-step'
- *  pour un affichage et une navigation dédiés dans <chuck-side-panel>. */
-function trackStepToContentItem(
-  c: Challenge,
-  trackId: string,
-  stepIndex: number,
-  stepCount: number,
-): import("../types/content.js").TrackStepItem {
-  const blocks: ContentBlock[] = [];
-
-  if (c.description) {
-    blocks.push({ kind: "theory", content: c.description });
-  }
-  if (c.meta?.concepts?.length) {
-    blocks.push({ kind: "concepts", items: c.meta.concepts });
-  }
-  if (c.hints?.length) {
-    blocks.push({ kind: "hints", items: c.hints.map((h: any) => h.text ?? h) });
-  }
-
-  return {
-    type: "track-step",
-    id: c.id,
-    trackId,
-    title: c.title,
-    subtitle: c.arena_name,
-    blocks,
-    stepIndex,
-    stepCount,
-  };
-}

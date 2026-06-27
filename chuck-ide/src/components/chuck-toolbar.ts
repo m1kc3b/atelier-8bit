@@ -5,7 +5,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent }          from '../core/base-component.js';
-import { authService } from '../core/auth/auth-service.js';
+import { authService } from '../features/auth/auth-service.js';
 import { type ToolbarState }  from '../core/bus.js';
 
 const STYLES = /* css */`

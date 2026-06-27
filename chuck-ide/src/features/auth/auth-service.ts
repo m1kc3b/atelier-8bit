@@ -1,5 +1,5 @@
 import { createClient, type Session } from "@supabase/supabase-js";
-import { bus } from "../bus.js";
+import { bus } from "../../core/bus";
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -18,7 +18,7 @@ class AuthService {
   constructor() {
     supabase.auth.getSession().then(({ data }) => {
       this._session = data.session;
-      void import("../super-admin.js")
+      void import("../../core/super-admin")
         .then(({ superAdmin }) => superAdmin.refresh())
         .catch(() => {});
       this._notify();
@@ -26,7 +26,7 @@ class AuthService {
 
     supabase.auth.onAuthStateChange((event, session) => {
       this._session = session;
-      void import("../super-admin.js")
+      void import("../../core/super-admin")
         .then(({ superAdmin }) =>
           session ? superAdmin.refresh() : superAdmin.reset(),
         )

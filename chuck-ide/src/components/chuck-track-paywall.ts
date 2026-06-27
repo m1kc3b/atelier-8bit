@@ -16,7 +16,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import type { TrackConfig, TrackPerk } from "../core/challenges/tracks-service.js";
+import type { TrackConfig, TrackPerk } from "../features/challenges/tracks-service.js";
 
 const STYLES = /* css */ `
   @import '/src/styles/tokens.css';
@@ -134,12 +134,6 @@ export class ChuckTrackPaywall extends ChuckComponent {
     this._renderOffer();
     this._renderStage();
     this.classList.add("open");
-
-    // Funnel : le mur premium est affiché.
-    this.emit("chuck:funnel-step", {
-      step: "premium-wall-shown",
-      meta: { trackId: this._trackId },
-    });
   }
 
   close(): void {
@@ -191,11 +185,7 @@ export class ChuckTrackPaywall extends ChuckComponent {
 
     const payBtn = this.shadow.getElementById("pay-btn") as HTMLButtonElement;
     payBtn.addEventListener("click", () => {
-      // Funnel : clic acheter (signal FORT — la vraie question de la stratégie).
-      this.emit("chuck:funnel-step", {
-        step: "premium-pay-clicked",
-        meta: { trackId: this._trackId },
-      });
+      
       // Le backend prend le relais (création session paiement, etc.).
       this.emit("chuck:track-purchase-requested", { trackId: this._trackId });
 
