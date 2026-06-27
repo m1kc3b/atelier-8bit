@@ -38,7 +38,7 @@ export class ModalRouter {
 
   private readonly _views: Record<ModalView, ViewDef> = {
     welcome: {
-      title: "🕹️ L'Atelier 8-bit",
+      title: "L'Atelier 8-bit",
       root: true,
       factory: () => document.createElement("chuck-welcome-view"),
     },
