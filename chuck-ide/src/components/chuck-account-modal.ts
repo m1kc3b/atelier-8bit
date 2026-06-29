@@ -1,13 +1,16 @@
 import { ChuckComponent } from "../core/base-component.js";
 import { authService } from "../features/auth/auth-service.js";
 import { challengesService } from "../features/challenges/challenges-service.js";
+import { profileService } from "../features/profile/profile-service.js";
+import type { PublicProfile } from "../types/defi.js";
 import { storage } from "../infra/storage/storage-service.js";
 
-type Tab = "profile" | "medals";
+type Tab = "profile" | "public" | "medals";
 
 export class ChuckAccountModal extends ChuckComponent {
   private _tab: Tab = "profile";
   private _challengeTitles = new Map<number, string>();
+  private _publicProfile: PublicProfile | null = null;
 
   protected render(): void {
     this.shadow.innerHTML = `<style>@import '/src/styles/tokens.css';
@@ -68,6 +71,7 @@ export class ChuckAccountModal extends ChuckComponent {
       </div>
       <div class="tabs">
         <button class="tab-btn active" data-tab="profile">Profil</button>
+        <button class="tab-btn" data-tab="public">Profil public</button>
         <button class="tab-btn" data-tab="medals">Mes médailles</button>
       </div>
       <div class="body" id="body"></div>
@@ -118,6 +122,8 @@ export class ChuckAccountModal extends ChuckComponent {
       const list = await challengesService.getAll();
       for (const c of list) this._challengeTitles.set(c.id, c.title);
     }
+    // Profil public chargé à l'ouverture de la modale uniquement (lazy).
+    this._publicProfile = await profileService.getMyProfile();
   }
 
   private _switchTab(tab: Tab): void {
@@ -133,6 +139,7 @@ export class ChuckAccountModal extends ChuckComponent {
   private _renderBody(): void {
     const body = this.shadow.getElementById("body")!;
     if (this._tab === "profile") body.innerHTML = this._renderProfile();
+    else if (this._tab === "public") body.innerHTML = this._renderPublic();
     else body.innerHTML = this._renderMedals();
     this._bindBodyEvents();
   }
@@ -160,6 +167,43 @@ export class ChuckAccountModal extends ChuckComponent {
       <div class="signout">
         <button id="signout-btn">Se déconnecter</button>
       </div>`;
+  }
+
+  // ── Profil public ───────────────────────────────────────
+  private _renderPublic(): string {
+    const p = this._publicProfile;
+    const name = p?.displayName ?? "";
+    const bio = p?.bio ?? "";
+    const stats =
+      p && (p.defisEntered != null || p.bestRank != null)
+        ? `<div class="medal-summary">
+             <div>🎯 <span>${p.defisEntered ?? 0}</span> défi(s)</div>
+             ${p.bestRank != null ? `<div>🏆 meilleur rang <span>${p.bestRank}</span></div>` : ""}
+           </div>`
+        : "";
+
+    return `
+      ${stats}
+      <div class="field">
+        <label>Pseudo public (affiché dans les classements)</label>
+        <div class="row">
+          <input id="dname-input" type="text" maxlength="32" value="${this._escAttr(name)}" placeholder="Ton pseudo d'arène">
+          <button class="action" id="save-dname-btn">Enregistrer</button>
+        </div>
+        <div class="msg" id="dname-msg"></div>
+      </div>
+      <div class="field">
+        <label>Bio (optionnelle)</label>
+        <div class="row">
+          <input id="bio-input" type="text" maxlength="140" value="${this._escAttr(bio)}" placeholder="Une ligne sur toi">
+          <button class="action" id="save-bio-btn">Enregistrer</button>
+        </div>
+        <div class="msg" id="bio-msg"></div>
+      </div>`;
+  }
+
+  private _escAttr(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   }
 
   // ── Médailles ───────────────────────────────────────────
@@ -214,8 +258,36 @@ export class ChuckAccountModal extends ChuckComponent {
       .querySelector("#save-password-btn")
       ?.addEventListener("click", () => this._savePassword());
     body
+      .querySelector("#save-dname-btn")
+      ?.addEventListener("click", () => this._saveDisplayName());
+    body
+      .querySelector("#save-bio-btn")
+      ?.addEventListener("click", () => this._saveBio());
+    body
       .querySelector("#signout-btn")
       ?.addEventListener("click", () => this._signOut());
+  }
+
+  private async _saveDisplayName(): Promise<void> {
+    const input = this.shadow.getElementById("dname-input") as HTMLInputElement;
+    const msg = this.shadow.getElementById("dname-msg")!;
+    const value = input.value.trim();
+    if (value.length < 2) {
+      msg.className = "msg err";
+      msg.textContent = "2 caractères minimum.";
+      return;
+    }
+    const { error } = await profileService.updateMyProfile({ displayName: value });
+    msg.className = "msg " + (error ? "err" : "ok");
+    msg.textContent = error ?? "Pseudo mis à jour.";
+  }
+
+  private async _saveBio(): Promise<void> {
+    const input = this.shadow.getElementById("bio-input") as HTMLInputElement;
+    const msg = this.shadow.getElementById("bio-msg")!;
+    const { error } = await profileService.updateMyProfile({ bio: input.value.trim() });
+    msg.className = "msg " + (error ? "err" : "ok");
+    msg.textContent = error ?? "Bio mise à jour.";
   }
 
   private async _saveEmail(): Promise<void> {

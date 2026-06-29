@@ -122,6 +122,24 @@ export interface ChuckEventMap {
     firstPongStepId: number | null;
   };
 
+  // ── Défi du mois (Arène mensuelle) ──────────────────────────
+  /** Données du défi courant pour le side-panel (énoncé visible). null =
+   *  aucun défi publié. Émis par le defi-manager après chargement DB. */
+  'chuck:defi-loaded': {
+    defi: import('../types/defi.js').Defi | null;
+  };
+  /** Classement du défi courant (relatif, recalculé serveur). */
+  'chuck:defi-ranking': {
+    entries: import('../types/defi.js').RankingEntry[];
+  };
+  /** Intention de soumettre la solution courante au scoring serveur.
+   *  Émis par le side-panel (bouton « Soumettre »), traité par le manager. */
+  'chuck:defi-submit': { source: string };
+  /** Verdict serveur après soumission (accepté + rang, ou erreur). */
+  'chuck:defi-submitted': {
+    result: import('../types/defi.js').SubmissionResult;
+  };
+
   // ── Navigation / Funnel (accueil → 3 sections) ──────────────
   'chuck:view-changed':      { view: 'atelier' | 'challenges' | 'defis' };
 

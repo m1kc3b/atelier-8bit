@@ -33,6 +33,23 @@ import { superAdmin } from "./core/super-admin.js";
 import { ModalRouter } from "./core/modal-router.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // ── Route page publique /u/{github_login} ────────────────
+  // Servie par le même index.html (SPA fallback). Si l'URL matche, on monte
+  // la page profil en plein écran et on n'initialise PAS l'IDE. Le composant
+  // et son service sont chargés en import dynamique (lazy) : zéro coût sur
+  // le boot normal de l'atelier.
+  {
+    const m = window.location.pathname.match(/^\/u\/([^/]+)\/?$/);
+    if (m) {
+      const login = decodeURIComponent(m[1]!);
+      await import("./components/chuck-public-profile");
+      const el = document.createElement("chuck-public-profile");
+      el.setAttribute("login", login);
+      document.body.appendChild(el);
+      return; // court-circuit : pas d'IDE sur une page profil.
+    }
+  }
+
   // ── Tracking funnel ──────────────────────────────────────
   // Démarré en premier : visitor_id prêt avant la 1ère étape tracée.
   funnelTracker.start();
@@ -214,11 +231,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 3e choix « Défi du mois » : IDE + side-panel ouvert directement.
   // Le side-panel présentera classement (haut) + instructions/soumettre (bas).
+  //
+  // Lazy loading : le defi-manager (et sa chaîne defis-service → Supabase)
+  // n'est NI importé NI initialisé au boot. On le charge en import dynamique
+  // au tout premier passage en mode défi. init() ne fait que poser les
+  // abonnements bus ; le chargement DB réel (défi + classement) part ensuite
+  // sur le même événement chuck:ide-defi, à la navigation utilisateur.
+  let _defiManagerReady = false;
   bus.on("chuck:ide-defi", () => {
     setMode("defis");
     titlebarFile.textContent = "défi du mois";
     document.title = "Défi du mois — Chuck IDE";
     openSidePanel();
+    if (!_defiManagerReady) {
+      _defiManagerReady = true;
+      // Import dynamique : aucun coût tant que l'utilisateur n'ouvre pas
+      // l'arène. On ré-émet chuck:ide-defi APRÈS init() pour que le manager,
+      // qui vient de s'abonner, déclenche son chargement (ce handler-ci a
+      // précédé l'abonnement du manager sur le tout premier passage).
+      void import("./features/defis/defi-manager.js").then(({ defiManager }) => {
+        defiManager.init();
+        bus.emit("chuck:ide-defi", undefined);
+      });
+    }
   });
 
   // Lancement d'un tuto : compte GitHub obligatoire. On intercepte AVANT le

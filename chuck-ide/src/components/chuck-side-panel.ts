@@ -27,7 +27,19 @@ export class ChuckSidePanel extends ChuckComponent {
   /** Données du défi du mois (null = pas de défi à afficher). */
   private _defi: { title: string; instructionsHtml: string } | null = null;
   /** Classement du mois (vide = pas de classement). */
-  private _ranking: Array<{ rank: number; name: string; score: number }> = [];
+  private _ranking: Array<{
+    rank: number;
+    name: string;
+    score: number;
+    isMe: boolean;
+    prestige: boolean;
+  }> = [];
+  /** Vue active du panneau : 'item' (défi/leçon/étape) ou 'defi' (arène). */
+  private _mode: "item" | "defi" = "item";
+  /** true pendant l'attente du verdict serveur d'une soumission. */
+  private _submitting = false;
+  /** Retour de la dernière soumission (succès/échec), null si aucun. */
+  private _submitFeedback: { ok: boolean; text: string } | null = null;
 
   protected render(): void {
     this.shadow.innerHTML = `<style>${STYLES}</style>
@@ -78,11 +90,45 @@ export class ChuckSidePanel extends ChuckComponent {
     this.sub("chuck:code-changed", () => this._resetFeedback());
 
     // ── Mode « Défi du mois » : panneau scindé (classement / brief) ──
-    // Pour l'instant, structure + états vides. Les données réelles
-    // (défi courant, classement) seront injectées plus tard.
+    // Les données réelles arrivent par le bus depuis le defi-manager :
+    //  - chuck:ide-defi    → bascule en vue défi (état courant ré-rendu)
+    //  - chuck:defi-loaded → énoncé du mois (ou null)
+    //  - chuck:defi-ranking→ classement relatif (recalculé serveur)
+    //  - chuck:defi-submitted → verdict après soumission
     this.sub("chuck:ide-defi", () => {
       this._item = null;
+      this._mode = "defi";
       this._renderDefi();
+    });
+    this.sub("chuck:defi-loaded", ({ defi }) => {
+      this._defi = defi
+        ? { title: defi.title, instructionsHtml: this._md(defi.instructions) }
+        : null;
+      // Injecte le template du défi dans l'éditeur si présent et éditeur vide.
+      if (defi?.template) this._maybeSeedEditor(defi.template);
+      if (this._mode === "defi") this._renderDefi();
+    });
+    this.sub("chuck:defi-ranking", ({ entries }) => {
+      this._ranking = entries.map((e) => ({
+        rank: e.rank,
+        name: e.displayName,
+        score: e.score,
+        isMe: e.isMe ?? false,
+        prestige: e.prestige ?? false,
+      }));
+      if (this._mode === "defi") this._renderDefi();
+    });
+    this.sub("chuck:defi-submitted", ({ result }) => {
+      this._submitting = false;
+      this._submitFeedback = result.accepted
+        ? {
+            ok: true,
+            text:
+              `✓ Acceptée — rang ${result.rank ?? "?"}` +
+              (result.score != null ? ` · score ${result.score.toFixed(3)}` : ""),
+          }
+        : { ok: false, text: `✗ ${result.error ?? "Soumission refusée."}` };
+      if (this._mode === "defi") this._renderDefi();
     });
   }
 
@@ -92,9 +138,21 @@ export class ChuckSidePanel extends ChuckComponent {
 
   private _loadItem(item: ContentItem): void {
     this._item = item;
+    this._mode = "item";
     this._hintStates = [];
     this._renderItem();
     this._updateNav();
+  }
+
+  /** Injecte le template du défi dans l'éditeur uniquement s'il est vide,
+   *  pour ne jamais écraser le travail en cours du joueur. */
+  private _maybeSeedEditor(template: string): void {
+    const editor = document.getElementById("editor") as
+      | (HTMLElement & { getSource?(): string; setSource?(s: string): void })
+      | null;
+    if (!editor?.setSource) return;
+    const current = editor.getSource?.() ?? "";
+    if (current.trim().length === 0) editor.setSource(template);
   }
 
   private _updateNav(): void {
@@ -253,12 +311,16 @@ export class ChuckSidePanel extends ChuckComponent {
 
     // ── Haut : classement ────────────────────────────────────────
     const rankBody = this._ranking.length
-      ? `<table class="content-table">
+      ? `<table class="content-table defi-rank-table">
            <thead><tr><th>#</th><th>Joueur</th><th>Score</th></tr></thead>
            <tbody>${this._ranking
              .map(
                (r) =>
-                 `<tr><td>${r.rank}</td><td>${this._esc(r.name)}</td><td>${r.score.toFixed(3)}</td></tr>`,
+                 `<tr class="${r.isMe ? "is-me" : ""}">
+                    <td>${r.rank}</td>
+                    <td>${this._esc(r.name)}${r.prestige ? ' <span class="prestige" title="Opcode caché">★</span>' : ""}</td>
+                    <td>${r.score.toFixed(3)}</td>
+                  </tr>`,
              )
              .join("")}</tbody>
          </table>`
@@ -285,18 +347,34 @@ export class ChuckSidePanel extends ChuckComponent {
 
     // ── Bouton soumettre : visible toujours, actif si connecté + abonné ──
     const canSubmit =
-      authService.isAuthenticated() && productAccess.hasPurchasedSync(DEFI_TRACK_ID);
+      !!this._defi &&
+      authService.isAuthenticated() &&
+      productAccess.hasPurchasedSync(DEFI_TRACK_ID);
     const submitNote = !authService.isAuthenticated()
       ? "Connecte-toi et abonne-toi pour soumettre ton score."
       : !productAccess.hasPurchasedSync(DEFI_TRACK_ID)
         ? "Abonne-toi à l'arène pour soumettre ton score."
-        : "";
+        : !this._defi
+          ? "Aucun défi actif pour le moment."
+          : "";
+
+    const feedbackHtml = this._submitFeedback
+      ? `<div class="defi-submit-feedback ${this._submitFeedback.ok ? "ok" : "err"}">${this._esc(
+          this._submitFeedback.text,
+        )}</div>`
+      : "";
+
+    const btnDisabled = !canSubmit || this._submitting;
     const submitZone = `
       <div class="defi-submit-zone">
         ${submitNote ? `<div class="defi-submit-note">${submitNote}</div>` : ""}
-        <button class="defi-submit-btn" id="defi-submit-btn" ${canSubmit ? "" : "disabled"}>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          Soumettre
+        ${feedbackHtml}
+        <button class="defi-submit-btn" id="defi-submit-btn" ${btnDisabled ? "disabled" : ""}>
+          ${
+            this._submitting
+              ? `<span class="defi-spinner"></span> Scoring serveur…`
+              : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Soumettre`
+          }
         </button>
       </div>`;
 
@@ -316,13 +394,22 @@ export class ChuckSidePanel extends ChuckComponent {
     this.shadow
       .getElementById("defi-submit-btn")
       ?.addEventListener("click", () => {
-        if (!canSubmit) return;
-        this.emit("chuck:validate", {
-          source:
-            (document.getElementById("editor") as HTMLElement & {
-              getSource?: () => string;
-            })?.getSource?.() ?? "",
-        });
+        if (!canSubmit || this._submitting) return;
+        const editor = document.getElementById("editor") as
+          | (HTMLElement & { getSource?(): string })
+          | null;
+        const source = editor?.getSource?.() ?? "";
+        if (!source.trim()) {
+          this._submitFeedback = { ok: false, text: "✗ Le code est vide." };
+          this._renderDefi();
+          return;
+        }
+        // Soumission au scoring serveur (déterministe, cas cachés). Le front
+        // ne calcule rien : il transmet et attend le verdict via le bus.
+        this._submitting = true;
+        this._submitFeedback = null;
+        this._renderDefi();
+        this.emit("chuck:defi-submit", { source });
       });
   }
 

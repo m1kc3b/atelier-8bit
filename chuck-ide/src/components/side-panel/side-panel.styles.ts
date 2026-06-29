@@ -165,4 +165,25 @@ export const STYLES = /* css */ `
   .defi-submit-btn:hover:not(:disabled) { opacity:.88; }
   .defi-submit-btn:active:not(:disabled) { transform:scale(.98); }
   .defi-submit-btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+
+  /* Classement : surlignage de la ligne du joueur courant + badge prestige. */
+  .defi-rank-table tr.is-me { background:var(--mode-defi-dim, rgba(245,180,40,.14)); }
+  .defi-rank-table tr.is-me td { color:var(--text); font-weight:700; }
+  .defi-rank-table .prestige { color:var(--amber, #f5b428); font-size:11px; }
+
+  /* Retour de soumission (verdict serveur). */
+  .defi-submit-feedback {
+    font-size:11.5px; line-height:1.4; padding:7px 10px; border-radius:6px;
+    text-align:center; font-weight:600;
+  }
+  .defi-submit-feedback.ok  { background:rgba(59,219,140,.14); color:var(--green, #3BDB8C); }
+  .defi-submit-feedback.err { background:rgba(255,107,107,.14); color:var(--red, #FF6B6B); }
+
+  /* Spinner pendant l'attente du scoring serveur. */
+  .defi-spinner {
+    width:13px; height:13px; border-radius:50%;
+    border:2px solid rgba(0,0,0,.25); border-top-color:#1a1206;
+    display:inline-block; animation:defi-spin .7s linear infinite;
+  }
+  @keyframes defi-spin { to { transform:rotate(360deg); } }
 `;
