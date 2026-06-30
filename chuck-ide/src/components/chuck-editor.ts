@@ -173,6 +173,18 @@ export class ChuckEditor extends ChuckComponent {
       this._emitCursor();
     });
 
+    // Défi du mois : charge le template de départ dans l'éditeur. On ne
+    // remplace que si l'utilisateur n'a pas déjà commencé à coder, pour ne
+    // pas écraser son travail s'il revient sur l'onglet instructions.
+    this.sub("chuck:defi-loaded", ({ defi }) => {
+      if (!defi) return;
+      this._tabLabel.textContent = `defi_${defi.month}.asm`;
+      if (defi.template && this.getSource().trim() === DEFAULT_SOURCE.trim()) {
+        this.setSource(defi.template);
+        this._emitCursor();
+      }
+    });
+
     // Erreur d'assemblage → log + surlignage de la ligne fautive
     this.sub(
       "chuck:assemble-err" as any,
