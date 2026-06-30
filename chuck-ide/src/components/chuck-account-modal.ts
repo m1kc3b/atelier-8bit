@@ -173,14 +173,13 @@ export class ChuckAccountModal extends ChuckComponent {
   private _renderPublic(): string {
     const p = this._publicProfile;
     const name = p?.displayName ?? "";
-    const bio = p?.bio ?? "";
-    const stats =
-      p && (p.defisEntered != null || p.bestRank != null)
-        ? `<div class="medal-summary">
-             <div>🎯 <span>${p.defisEntered ?? 0}</span> défi(s)</div>
-             ${p.bestRank != null ? `<div>🏆 meilleur rang <span>${p.bestRank}</span></div>` : ""}
-           </div>`
-        : "";
+    const country = p?.country ?? "";
+    const stats = p
+      ? `<div class="medal-summary">
+           <div>⭐ <span>${p.atpPoints}</span> points ATP</div>
+           <div>🎯 <span>${p.challengesDone}</span> défi(s) validé(s)</div>
+         </div>`
+      : "";
 
     return `
       ${stats}
@@ -193,12 +192,12 @@ export class ChuckAccountModal extends ChuckComponent {
         <div class="msg" id="dname-msg"></div>
       </div>
       <div class="field">
-        <label>Bio (optionnelle)</label>
+        <label>Pays (code à 2 lettres, ex. FR — drapeau du classement)</label>
         <div class="row">
-          <input id="bio-input" type="text" maxlength="140" value="${this._escAttr(bio)}" placeholder="Une ligne sur toi">
-          <button class="action" id="save-bio-btn">Enregistrer</button>
+          <input id="country-input" type="text" maxlength="2" value="${this._escAttr(country)}" placeholder="FR" style="text-transform:uppercase">
+          <button class="action" id="save-country-btn">Enregistrer</button>
         </div>
-        <div class="msg" id="bio-msg"></div>
+        <div class="msg" id="country-msg"></div>
       </div>`;
   }
 
@@ -261,8 +260,8 @@ export class ChuckAccountModal extends ChuckComponent {
       .querySelector("#save-dname-btn")
       ?.addEventListener("click", () => this._saveDisplayName());
     body
-      .querySelector("#save-bio-btn")
-      ?.addEventListener("click", () => this._saveBio());
+      .querySelector("#save-country-btn")
+      ?.addEventListener("click", () => this._saveCountry());
     body
       .querySelector("#signout-btn")
       ?.addEventListener("click", () => this._signOut());
@@ -282,12 +281,18 @@ export class ChuckAccountModal extends ChuckComponent {
     msg.textContent = error ?? "Pseudo mis à jour.";
   }
 
-  private async _saveBio(): Promise<void> {
-    const input = this.shadow.getElementById("bio-input") as HTMLInputElement;
-    const msg = this.shadow.getElementById("bio-msg")!;
-    const { error } = await profileService.updateMyProfile({ bio: input.value.trim() });
+  private async _saveCountry(): Promise<void> {
+    const input = this.shadow.getElementById("country-input") as HTMLInputElement;
+    const msg = this.shadow.getElementById("country-msg")!;
+    const value = input.value.trim().toUpperCase();
+    if (value && !/^[A-Z]{2}$/.test(value)) {
+      msg.className = "msg err";
+      msg.textContent = "Code pays à 2 lettres (ex. FR).";
+      return;
+    }
+    const { error } = await profileService.updateMyProfile({ country: value });
     msg.className = "msg " + (error ? "err" : "ok");
-    msg.textContent = error ?? "Bio mise à jour.";
+    msg.textContent = error ?? "Pays mis à jour.";
   }
 
   private async _saveEmail(): Promise<void> {

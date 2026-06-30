@@ -84,19 +84,36 @@ export class ChuckPublicProfile extends ChuckComponent {
     const p = this._profile;
     const name = p.displayName || this._login;
     const stats: string[] = [];
-    if (p.defisEntered != null)
-      stats.push(`<div class="stat"><span class="num">${p.defisEntered}</span><span class="lbl">défis</span></div>`);
-    if (p.bestRank != null)
-      stats.push(`<div class="stat"><span class="num">#${p.bestRank}</span><span class="lbl">meilleur rang</span></div>`);
+    stats.push(`<div class="stat"><span class="num">${p.atpPoints}</span><span class="lbl">points ATP</span></div>`);
+    stats.push(`<div class="stat"><span class="num">${p.challengesDone}</span><span class="lbl">défis validés</span></div>`);
+
+    const flag = p.country ? this._flag(p.country) : "";
+    const avatar = p.avatarUrl
+      ? `<img class="avatar" src="${this._escAttr(p.avatarUrl)}" alt="" referrerpolicy="no-referrer">`
+      : `<div class="avatar avatar-fallback">${this._esc(name.charAt(0).toUpperCase())}</div>`;
 
     return `<div class="card">
-      <div class="avatar">${this._esc(name.charAt(0).toUpperCase())}</div>
-      <div class="title">${this._esc(name)}</div>
+      ${avatar}
+      <div class="title">${this._esc(name)} ${flag}</div>
       <div class="handle">@${this._esc(this._login)}</div>
-      ${p.bio ? `<div class="bio">${this._esc(p.bio)}</div>` : ""}
-      ${stats.length ? `<div class="stats">${stats.join("")}</div>` : ""}
+      <div class="stats">${stats.join("")}</div>
       <button class="home" id="home-btn">Retour à l'atelier</button>
     </div>`;
+  }
+
+  /** Drapeau emoji à partir d'un code pays ISO 3166-1 alpha-2 (ex. 'FR' → 🇫🇷). */
+  private _flag(code: string): string {
+    const cc = code.trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(cc)) return "";
+    const A = 0x1f1e6;
+    return String.fromCodePoint(
+      A + (cc.charCodeAt(0) - 65),
+      A + (cc.charCodeAt(1) - 65),
+    );
+  }
+
+  private _escAttr(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   }
 
   private _esc(s: string): string {
@@ -120,13 +137,14 @@ const STYLES = `
   .avatar {
     width:72px; height:72px; margin:0 auto 16px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
+    object-fit:cover; background:var(--mode-defi, var(--amber, #f5b428));
+  }
+  .avatar-fallback {
     font-size:30px; font-weight:800; color:#1a1206;
-    background:var(--mode-defi, var(--amber, #f5b428));
   }
   .icon { font-size:34px; margin-bottom:10px; }
   .title { font-size:19px; font-weight:700; color:var(--text); }
   .handle { font-size:12px; color:var(--text-muted); margin-top:2px; }
-  .bio { font-size:13px; color:var(--text-dim); margin-top:14px; line-height:1.5; }
   .stats { display:flex; gap:24px; justify-content:center; margin-top:22px; }
   .stat { display:flex; flex-direction:column; gap:2px; }
   .stat .num { font-size:20px; font-weight:800; color:var(--accent, #38BDF8); }

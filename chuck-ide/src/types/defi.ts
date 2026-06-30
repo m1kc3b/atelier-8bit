@@ -66,15 +66,24 @@ export interface SubmissionResult {
   error?: string;
 }
 
-/** Profil public d'un joueur — vitrine du compte (pseudo + palmarès défis). */
+/** Profil public d'un joueur — vitrine du compte (pseudo + palmarès arène).
+ *  Schéma canonique aligné sur la table `profiles` (PK `id` = auth.users.id)
+ *  et sur la vue `defi_rankings`. Les compteurs (atpPoints, challengesDone)
+ *  sont alimentés CÔTÉ SERVEUR après chaque soumission/validation ; le front
+ *  ne les écrit jamais. Seuls `displayName` et `country` sont éditables. */
 export interface PublicProfile {
-  userId: string;
-  /** Pseudo public, modifiable par le joueur. Défaut : login GitHub. */
+  /** Identifiant interne (auth.users.id). */
+  id: string;
+  /** Login GitHub — segment d'URL de la page publique /u/{login}. */
+  githubLogin: string;
+  /** Pseudo public affiché dans les classements. Défaut : login GitHub. */
   displayName: string;
-  /** Bio courte optionnelle. */
-  bio?: string;
-  /** Nombre de défis mensuels auxquels le joueur a participé. */
-  defisEntered?: number;
-  /** Meilleur rang jamais atteint (1 = champion). */
-  bestRank?: number;
+  /** URL de l'avatar (récupéré depuis GitHub à la connexion). */
+  avatarUrl?: string;
+  /** Code pays ISO 3166-1 alpha-2 (ex. 'FR'), pour le drapeau du classement. */
+  country?: string;
+  /** Points ATP cumulés (somme pondérée des défis). Calculé serveur. */
+  atpPoints: number;
+  /** Nombre de défis/étapes validés. Calculé serveur. */
+  challengesDone: number;
 }
