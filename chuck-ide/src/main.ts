@@ -256,12 +256,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!_defiManagerReady) {
       _defiManagerReady = true;
       // Import dynamique : aucun coût tant que l'utilisateur n'ouvre pas
-      // l'arène. On ré-émet chuck:ide-defi APRÈS init() pour que le manager,
-      // qui vient de s'abonner, déclenche son chargement (ce handler-ci a
-      // précédé l'abonnement du manager sur le tout premier passage).
+      // l'arène. Après init() (le manager vient de s'abonner), on déclenche
+      // son chargement DB via chuck:defis-requested — écouté UNIQUEMENT par le
+      // manager, pas par ce handler UI (évite de rejouer setMode/openSidePanel).
       void import("./features/defis/defi-manager.js").then(({ defiManager }) => {
         defiManager.init();
-        bus.emit("chuck:ide-defi", undefined);
+        bus.emit("chuck:defis-requested", undefined);
       });
     }
   });

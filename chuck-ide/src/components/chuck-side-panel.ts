@@ -3,7 +3,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { ChuckComponent } from "../core/base-component.js";
-import type { ValidationResult } from "../types/challenge.js";
+import type { ValidationResult, TrackStepListItem } from "../types/challenge.js";
 import type {
   ContentItem,
   ContentBlock,
@@ -32,6 +32,11 @@ export class ChuckSidePanel extends ChuckComponent {
   }> = [];
   /** Vue active du panneau : 'item' (défi/leçon/étape) ou 'defi' (arène). */
   private _mode: "item" | "defi" = "item";
+  /** Roadmap du parcours courant (liste des étapes), par nom de parcours.
+   *  Alimentée par chuck:track-steps ; affichée en tête quand une étape de
+   *  parcours est ouverte, pour matérialiser la progression pas-à-pas. */
+  private _trackSteps: TrackStepListItem[] = [];
+  private _trackName: string | null = null;
   /** true pendant l'attente du verdict serveur d'une soumission. */
   private _submitting = false;
   /** Retour de la dernière soumission (succès/échec), null si aucun. */
@@ -77,6 +82,18 @@ export class ChuckSidePanel extends ChuckComponent {
         this._loadItem(item);
       },
     );
+
+    // Roadmap d'un parcours : la liste des étapes est émise par le
+    // challenge-manager à l'entrée d'un parcours. On la mémorise pour
+    // l'afficher en tête du panneau quand une étape est ouverte (vue Ikea
+    // pas-à-pas). Si l'étape courante est déjà affichée, on re-render.
+    this.sub("chuck:track-steps", ({ trackName, items }) => {
+      this._trackName = trackName;
+      this._trackSteps = items;
+      if (this._mode === "item" && this._item && isTrackStep(this._item)) {
+        this._renderItem();
+      }
+    });
     this.sub("chuck:challenge-success", ({ result, medal }) =>
       this._showFeedback({ ...result, medal }, true),
     );
@@ -253,6 +270,7 @@ export class ChuckSidePanel extends ChuckComponent {
       : "";
 
     this.shadow.getElementById("body")!.innerHTML = `
+    ${isTrackStep(item) ? this._trackRoadmapHtml(item.id) : ""}
     <div class="item-header">
       <div class="item-header-left">
         <span class="type-badge ${item.type}">${badgeLabel[item.type] ?? item.type}</span>
@@ -265,6 +283,18 @@ export class ChuckSidePanel extends ChuckComponent {
     </div>
     <div class="blocks">${blocksHtml}</div>
     ${validationHtml}`;
+
+    // Navigation directe depuis la roadmap : ne saute que vers une étape
+    // accessible (déjà validée ou immédiatement suivante). Le manager résout
+    // l'ordre réel (step_index), donc on émet l'id de l'étape ciblée.
+    this.shadow.querySelectorAll<HTMLElement>(".roadmap-step[data-step-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const id = Number(el.dataset["stepId"]);
+        const step = this._trackSteps.find((s) => s.id === id);
+        if (!step || !step.accessible || step.current) return;
+        this.emit("chuck:goto-challenge", { id });
+      });
+    });
 
     // --- Gestion du clic sur le bouton "Défi/Étape suivant(e)" ---
     const validateBtn = this.shadow.getElementById("validate-btn");
@@ -293,6 +323,45 @@ export class ChuckSidePanel extends ChuckComponent {
         }
       });
     });
+  }
+
+  /** Bandeau de progression d'un parcours : pastilles d'étapes cliquables.
+   *  N'affiche rien tant que la roadmap n'est pas connue ou ne correspond pas
+   *  à l'étape courante (évite d'afficher une roadmap d'un autre parcours). */
+  private _trackRoadmapHtml(currentId: number): string {
+    const steps = this._trackSteps;
+    if (steps.length === 0) return "";
+    // Sécurité : l'étape courante doit appartenir à cette roadmap.
+    if (!steps.some((s) => s.id === currentId)) return "";
+
+    const done = steps.filter((s) => s.completed).length;
+    const dots = steps
+      .map((s) => {
+        const classes = ["roadmap-step"];
+        if (s.completed) classes.push("done");
+        if (s.id === currentId) classes.push("current");
+        if (!s.accessible) classes.push("locked");
+        const label = s.completed
+          ? s.medal ?? "✓"
+          : s.id === currentId
+            ? "▶"
+            : !s.accessible
+              ? "🔒"
+              : s.stepIndex;
+        const title = this._esc(`Étape ${s.stepIndex} — ${s.title}`);
+        return `<button class="${classes.join(" ")}" data-step-id="${s.id}" title="${title}">${label}</button>`;
+      })
+      .join("");
+
+    const name = this._trackName ? this._esc(this._trackName) : "Parcours";
+    return `
+    <div class="roadmap">
+      <div class="roadmap-head">
+        <span class="roadmap-name">🎮 ${name}</span>
+        <span class="roadmap-count">${done} / ${steps.length}</span>
+      </div>
+      <div class="roadmap-track">${dots}</div>
+    </div>`;
   }
 
   /** Rendu du mode « Défi du mois » : haut = classement, bas = brief + soumettre. */

@@ -186,4 +186,51 @@ export const STYLES = /* css */ `
     display:inline-block; animation:defi-spin .7s linear infinite;
   }
   @keyframes defi-spin { to { transform:rotate(360deg); } }
+
+  /* ── Roadmap de parcours (vue Ikea pas-à-pas) ───────────────── */
+  .roadmap {
+    margin:14px 16px 0; padding:10px 12px;
+    background:var(--surface-2); border:1px solid var(--border);
+    border-radius:8px;
+  }
+  .roadmap-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .roadmap-name {
+    font-size:11px; font-weight:800; color:var(--text);
+    letter-spacing:.02em;
+  }
+  .roadmap-count {
+    font-size:10px; font-weight:700; color:var(--text-dim);
+    font-family:var(--font-mono);
+  }
+  .roadmap-track {
+    display:flex; flex-wrap:wrap; gap:6px;
+  }
+  .roadmap-step {
+    width:26px; height:26px; border-radius:6px;
+    border:1px solid var(--border); background:var(--surface-3);
+    color:var(--text-dim); font-size:11px; font-weight:700;
+    font-family:var(--font-mono);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0; line-height:1;
+    transition:border-color var(--t-fast), transform var(--t-fast);
+  }
+  .roadmap-step:hover:not(.current):not(.locked) {
+    border-color:var(--mode-color, var(--cyan, #38BDF8)); transform:translateY(-1px);
+  }
+  .roadmap-step.done {
+    background:rgba(59,219,140,.14); border-color:rgba(59,219,140,.35);
+    color:var(--green, #3BDB8C);
+  }
+  .roadmap-step.current {
+    border-color:var(--mode-color, var(--cyan, #38BDF8));
+    color:var(--mode-color, var(--cyan, #38BDF8));
+    box-shadow:0 0 0 1px var(--mode-color, var(--cyan, #38BDF8));
+    cursor:default;
+  }
+  .roadmap-step.locked {
+    opacity:.45; cursor:not-allowed;
+  }
 `;

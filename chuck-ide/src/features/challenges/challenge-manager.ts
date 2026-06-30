@@ -371,8 +371,6 @@ export class ChallengeManager {
         current: c.id === currentId,
       }),
     );
-    const config: TrackConfig = track;
-    bus.emit("chuck:track-steps", { trackId: track.id, trackName: track.name, config, items });
   }
 
   private _loadContentItem(item: ContentItem): void {

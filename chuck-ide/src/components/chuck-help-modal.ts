@@ -177,7 +177,19 @@ export class ChuckHelpModal extends ChuckComponent {
 
   private async _loadMd(): Promise<void> {
     try {
-      const res  = await fetch('/docs.md');
+      const res = await fetch('/docs.md');
+
+      // Cloudflare Pages renvoie index.html en HTTP 200 pour une route
+      // inconnue (SPA fallback) : un simple res.ok ne suffit pas. Si docs.md
+      // venait à manquer, on récupérerait la page HTML et on la rendrait comme
+      // « documentation ». On rejette donc le non-ok ET une réponse HTML.
+      const ctype = res.headers.get('content-type') ?? '';
+      if (!res.ok || ctype.includes('text/html')) {
+        throw new Error(
+          `docs.md indisponible (status ${res.status}, content-type « ${ctype} »)`,
+        );
+      }
+
       const text = await res.text();
       const html = renderDocs(text);
 
