@@ -95,23 +95,22 @@ export interface ChuckEventMap {
   'chuck:goto-next-track-step': { fromId: number };
   'chuck:challenges-list':   { items: import('../types/challenge.js').ChallengeListItem[] };
 
-  // ── Parcours guidés (généralisé depuis Coder Pong) ──────────
+  // ── Parcours guidés (tutos gratuits, gate GitHub) ───────────
   'chuck:track-steps': {
     trackId: string;
     trackName: string;
     config: import('../features/challenges/tracks-service.js').TrackConfig;
     items: import('../types/challenge.js').TrackStepListItem[];
   };
-  /** Mur premium d'un parcours : déclenché en fin d'étapes gratuites. */
+  /** Fin d'un parcours : la DERNIÈRE étape vient d'être validée. Déclenche
+   *  l'écran de célébration de parcours. Aucune dimension d'achat : tous les
+   *  parcours sont gratuits (accès gated par le compte GitHub uniquement). */
   'chuck:track-completed': {
     trackId: string;
-    config: import('../features/challenges/tracks-service.js').TrackConfig;
     trackName: string;
   };
-  /** Intention d'achat — traitée par le backend (pas de Stripe côté front). */
-  'chuck:track-purchase-requested': { trackId: string };
-  /** Demande de (ré)ouverture du paywall (ex. « revoir la célébration »).
-   *  Le manager résout la config et ré-émet chuck:track-completed. */
+  /** Demande de (ré)ouverture de l'écran de fin de parcours (ex. « revoir la
+   *  célébration »). Le manager résout le nom et ré-émet chuck:track-completed. */
   'chuck:track-completed-request': { trackId: string };
   /** Fin des fondations : le DERNIER challenge classique vient d'être validé.
    *  Déclenche la célébration spéciale (pop-up confettis + Pong) qui invite à
@@ -153,6 +152,8 @@ export interface ChuckEventMap {
   'chuck:start-tour': undefined;
 
   // ── Auth ────────────────────────────────────
+  /** Demande de connexion GitHub (gate). `reason` ne sert qu'à choisir la copy
+   *  de la modale ; l'accès est toujours « compte GitHub gratuit ». */
   'chuck:require-auth': { reason: 'save' | 'new-project' | 'challenge' | 'defis' };
   'chuck:load-project':  { id: string; name: string; code: string };
   'chuck:signed-out':    undefined;
@@ -164,7 +165,7 @@ export interface ChuckEventMap {
    *  (instructions en haut / leaderboard en bas), sans roadmap. */
   'chuck:ide-defi':     undefined;
   'chuck:modal-show':   { view: ModalView; params?: Record<string, unknown>; gate?: boolean };
-  /** Repli depuis paywall / célébration : rouvre la modale d'accueil. */
+  /** Repli depuis une célébration : rouvre la modale d'accueil. */
   'chuck:open-welcome': undefined;
   'chuck:modal-back':   undefined;
   'chuck:modal-opened': undefined;
@@ -173,7 +174,7 @@ export interface ChuckEventMap {
 
   'chuck:tutos-requested': undefined;
   'chuck:defis-requested': undefined;
-  
+
 }
 
 export type ChuckEventName = keyof ChuckEventMap;

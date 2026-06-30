@@ -19,7 +19,6 @@ import "./components/chuck-main-modal.js";
 import "./components/chuck-welcome-view.js";
 import "./components/chuck-onboarding-tour.js";
 import "./components/chuck-challenges-list.js";
-import "./components/chuck-track-paywall.js";
 import "./components/chuck-foundations-celebration";
 
 import { authService } from "./features/auth/auth-service.js";
@@ -227,6 +226,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     titlebarFile.textContent = "mode libre";
     document.title = "L'atelier 8-bit — Chuck IDE";
     closeSidePanel();
+  });
+
+  // Fin de parcours (tous gratuits) : célébration légère. Plus de mur premium.
+  // L'écran de fin se réduit à un message de félicitations + retour accueil ;
+  // le bouton « Revoir la célébration » du side-panel ré-émet la demande.
+  bus.on("chuck:track-completed", ({ trackName }) => {
+    bus.emit("chuck:log", {
+      text: `🎉 Parcours « ${trackName} » terminé — bravo !`,
+      level: "ok",
+    });
+    bus.emit("chuck:modal-show", { view: "welcome" });
   });
 
   // 3e choix « Défi du mois » : IDE + side-panel ouvert directement.

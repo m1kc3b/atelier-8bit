@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   Chuck IDE — core/challenge-manager.ts  (version WASM)
+   Chuck IDE — features/challenges/challenge-manager.ts  (version WASM)
    ───────────────────────────────────────────────────────────── */
 
 import { bus } from "../../core/bus";
@@ -19,7 +19,6 @@ import type { ChallengeProgress, Medal } from "../../infra/storage/types.js";
 import { challengesService } from "../../features/challenges/challenges-service.js";
 import { tracksService } from "../../features/challenges/tracks-service.js";
 import type { TrackMeta, TrackConfig } from "../../features/challenges/tracks-service.js";
-import { productAccess } from "../../core/product-access.js";
 import { superAdmin } from "../../core/super-admin.js";
 import { authService } from "../../features/auth/auth-service.js";
 import { challengeToContentItem, trackStepToContentItem } from "../content/content-mappers.js";
@@ -28,8 +27,8 @@ const DEFAULT_MAX_CYCLES = 100_000;
 const IDE_FREE_MODE = "chuck:ide-free" as const;
 
 /** True si le challenge appartient à un parcours guidé (a une arène nommée
- *  correspondant à une track connue). La frontière gratuit/premium et le prix
- *  sont portés par la track (cf. tracks-service), plus aucune constante globale. */
+ *  correspondant à une track connue). Les parcours sont gratuits : la track
+ *  ne porte plus que la structure pédagogique (cf. tracks-service). */
 function trackOf(c: Challenge | undefined): TrackMeta | null {
   if (!c || !c.arena_name) return null;
   return tracksService.getTrackByName(c.arena_name);
@@ -291,22 +290,20 @@ export class ChallengeManager {
     return steps[0]?.id ?? null;
   }
 
-  /** True si `id` est la DERNIÈRE étape gratuite de son parcours (fin du lead
-   *  magnet). C'est là qu'on déclenche le mur premium. Si le parcours a moins
-   *  de freeSteps étapes, c'est sa dernière étape. */
-  private _isLastFreeStep(id: number): boolean {
+  /** True si `id` est la DERNIÈRE étape de son parcours. C'est là qu'on
+   *  déclenche l'écran de célébration de fin de parcours. */
+  private _isLastTrackStep(id: number): boolean {
     const track = trackOf(this._challenges.get(id));
     if (!track) return false;
     const steps = this._trackStepsByName(track.name);
     if (steps.length === 0) return false;
-    const freeIdx = Math.min(track.freeSteps, steps.length) - 1;
-    return steps[freeIdx]?.id === id;
+    return steps[steps.length - 1]?.id === id;
   }
 
   /** Étape de parcours accessible : la 1ère l'est toujours, les suivantes
    *  nécessitent que l'étape précédente ait été validée. Exempté de la gating
-   *  séquentielle globale. Les étapes premium (index > freeSteps) nécessitent
-   *  en plus l'achat du parcours. */
+   *  séquentielle globale. Aucun palier payant : les parcours sont gratuits
+   *  (l'accès aux tutos est gated en amont par le compte GitHub). */
   isTrackStepAccessible(id: number): boolean {
     const track = trackOf(this._challenges.get(id));
     if (!track) return false;
@@ -315,29 +312,9 @@ export class ChallengeManager {
     const idx = steps.findIndex((c) => c.id === id);
     if (idx < 0) return false;
 
-    // Palier premium : au-delà des étapes gratuites, accès réservé aux acheteurs.
-    if (
-      track.priceCents != null &&
-      idx + 1 > track.freeSteps &&
-      !productAccess.hasPurchasedSync(track.id)
-    ) {
-      return false;
-    }
-
     if (idx === 0) return true;
     const prev = steps[idx - 1];
     return !!prev && storage.isCompleted(prev.id);
-  }
-
-  /** True si l'étape est verrouillée SPÉCIFIQUEMENT par le mur premium (par
-   *  opposition au verrou séquentiel). Permet à l'UI de montrer le mur d'achat. */
-  isTrackStepPremiumLocked(id: number): boolean {
-    const track = trackOf(this._challenges.get(id));
-    if (!track || track.priceCents == null) return false;
-    const steps = this._trackStepsByName(track.name);
-    const idx = steps.findIndex((c) => c.id === id);
-    if (idx < 0) return false;
-    return !superAdmin.active && idx + 1 > track.freeSteps && !productAccess.hasPurchasedSync(track.id);
   }
 
   /** Première étape non validée d'un parcours, ou la dernière si tout est fait. */
@@ -391,7 +368,6 @@ export class ChallengeManager {
         completed: storage.isCompleted(c.id),
         medal: storage.getMedal(c.id),
         accessible: this.isTrackStepAccessible(c.id),
-        premiumLocked: this.isTrackStepPremiumLocked(c.id),
         current: c.id === currentId,
       }),
     );
@@ -537,23 +513,14 @@ export class ChallengeManager {
           firstPongStepId: this._firstPongStepId(),
         });
       }
-      if (this._isTrackStepId(challenge.id) && this._isLastFreeStep(challenge.id)) {
+      if (this._isTrackStepId(challenge.id) && this._isLastTrackStep(challenge.id)) {
         const track = trackOf(challenge)!;
-        // Mur premium : affiché à la fin des étapes gratuites (lead magnet
-        // consommé, raison de payer encore intacte — cf. stratégie §2).
-        // N'apparaît pas pour un parcours gratuit (priceCents == null), ni
-        // si l'utilisateur a déjà acheté l'accès avancé.
-        if (
-          !superAdmin.active &&
-          track.priceCents != null &&
-          !productAccess.hasPurchasedSync(track.id)
-        ) {
-          bus.emit("chuck:track-completed", {
-            trackId: track.id,
-            config: track,
-            trackName: track.name,
-          });
-        }
+        // Fin de parcours : écran de célébration. Tous les parcours sont
+        // gratuits — aucune condition d'achat.
+        bus.emit("chuck:track-completed", {
+          trackId: track.id,
+          trackName: track.name,
+        });
       }
     } else {
       bus.emit("chuck:challenge-failed", { result });
@@ -665,7 +632,6 @@ export class ChallengeManager {
         if (!track) return;
         bus.emit("chuck:track-completed", {
           trackId: track.id,
-          config: track,
           trackName: track.name,
         });
       }),

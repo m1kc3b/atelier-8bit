@@ -13,12 +13,8 @@ import { isChallenge, isTrackStep } from "../types/content.js";
 import { storage } from '../infra/storage/storage-service.js';
 import { renderMarkdown, renderMarkdownInline } from '../core/markdown.js';
 import { authService } from '../features/auth/auth-service.js';
-import { productAccess } from '../core/product-access.js';
 import { challengeToContentItem, trackStepToContentItem } from "../features/content/content-mappers.js";
 import { STYLES } from "./side-panel/side-panel.styles.js";
-
-/** Slug du produit/arène mensuelle (clé d'abonnement dans `purchases`). */
-const DEFI_TRACK_ID = "defi";
 
 export class ChuckSidePanel extends ChuckComponent {
   private _item: ContentItem | null = null;
@@ -345,18 +341,17 @@ export class ChuckSidePanel extends ChuckComponent {
            <div class="defi-empty-hint">Le défi du mois n'est pas encore disponible. Reviens bientôt.</div>
          </div>`;
 
-    // ── Bouton soumettre : visible toujours, actif si connecté + abonné ──
+    // ── Bouton soumettre : visible toujours, actif si connecté (GitHub) ──
+    // Le défi du mois est gratuit : seule la connexion GitHub est requise
+    // pour soumettre un score (rattachement au profil public + classement).
     const canSubmit =
       !!this._defi &&
-      authService.isAuthenticated() &&
-      productAccess.hasPurchasedSync(DEFI_TRACK_ID);
+      authService.isAuthenticated();
     const submitNote = !authService.isAuthenticated()
-      ? "Connecte-toi et abonne-toi pour soumettre ton score."
-      : !productAccess.hasPurchasedSync(DEFI_TRACK_ID)
-        ? "Abonne-toi à l'arène pour soumettre ton score."
-        : !this._defi
-          ? "Aucun défi actif pour le moment."
-          : "";
+      ? "Connecte-toi avec GitHub pour soumettre ton score."
+      : !this._defi
+        ? "Aucun défi actif pour le moment."
+        : "";
 
     const feedbackHtml = this._submitFeedback
       ? `<div class="defi-submit-feedback ${this._submitFeedback.ok ? "ok" : "err"}">${this._esc(

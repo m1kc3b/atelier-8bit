@@ -1,3 +1,7 @@
+/* ─────────────────────────────────────────────────────────────
+   Chuck IDE — fatures/challenges/tracks-services.ts  (version WASM)
+   ───────────────────────────────────────────────────────────── */
+
 import { supabase } from '../auth/auth-service.js';
 import type { Challenge } from '../../types/challenge.js';
 
@@ -7,38 +11,19 @@ import type { Challenge } from '../../types/challenge.js';
  * Chaque étape de parcours est convertie en `Challenge` pour que TOUT
  * l'aval (challenge-manager, side-panel, validation) continue de
  * fonctionner sans modification. La distinction « étape de parcours »
- * reste portée par `arena_name`, désormais alimenté par le nom de la
- * track plutôt que par une colonne sur `challenges`.
+ * reste portée par `arena_name`, alimenté par le nom de la track.
  *
- * Conséquence : `isPongArena(c)` (c.arena_name === 'Projet Pong') reste
- * valide pour les étapes de la track 'pong', sans toucher ses 6 sites
- * d'appel. Le hack historique `id ≥ 1000` n'est plus nécessaire.
+ * MODÈLE : tous les parcours sont GRATUITS. L'accès aux tutos exige un
+ * compte GitHub (gate de connexion), jamais un achat. La config d'un
+ * parcours est donc purement pédagogique / présentationnelle — plus
+ * aucune notion de prix, d'offre premium ni d'étapes payantes.
  */
-
-/** Une ligne d'offre premium affichée dans le paywall (offer-card). */
-export interface TrackPerk {
-  ico: string;
-  text: string;
-}
 
 /**
- * Configuration d'un parcours : frontière gratuit/premium + présentation.
- * Tout ce qui était figé en dur pour Pong (3 étapes gratuites, 99 €, copy
- * de l'offre, header) vit désormais ici, par parcours.
+ * Configuration de présentation d'un parcours (header roadmap).
+ * Purement cosmétique : aucune frontière d'accès n'en dépend.
  */
 export interface TrackConfig {
-  /** Nb d'étapes gratuites (lead magnet). Au-delà : premium. */
-  freeSteps: number;
-  /** Prix premium en centimes. null = parcours 100 % gratuit (pas de paywall). */
-  priceCents: number | null;
-  /** Code devise ISO (affichage), ex. 'EUR'. */
-  currency: string;
-  /** Nom de l'offre premium, ex. 'Pong Avancé'. */
-  premiumName: string | null;
-  /** Phrase d'accroche du paywall. */
-  premiumTagline: string | null;
-  /** Lignes de l'offer-card. */
-  premiumPerks: TrackPerk[];
   /** Icône du header roadmap, ex. '🏓'. */
   icon: string | null;
   /** Sous-titre du header roadmap. */
@@ -55,24 +40,12 @@ interface TrackRow {
   id: string;
   name: string;
   position: number | null;
-  free_steps: number | null;
-  price_cents: number | null;
-  currency: string | null;
-  premium_name: string | null;
-  premium_tagline: string | null;
-  premium_perks: unknown;
   icon: string | null;
   subtitle: string | null;
 }
 
 /** Config par défaut quand une colonne est nulle (parcours non configuré). */
 const DEFAULT_TRACK_CONFIG: TrackConfig = {
-  freeSteps: 3,
-  priceCents: null,
-  currency: "EUR",
-  premiumName: null,
-  premiumTagline: null,
-  premiumPerks: [],
   icon: null,
   subtitle: null,
 };
@@ -112,14 +85,6 @@ class TracksService {
       id: row.id,
       name: row.name,
       position: row.position ?? 0,
-      freeSteps: row.free_steps ?? DEFAULT_TRACK_CONFIG.freeSteps,
-      priceCents: row.price_cents ?? DEFAULT_TRACK_CONFIG.priceCents,
-      currency: row.currency ?? DEFAULT_TRACK_CONFIG.currency,
-      premiumName: row.premium_name ?? DEFAULT_TRACK_CONFIG.premiumName,
-      premiumTagline: row.premium_tagline ?? DEFAULT_TRACK_CONFIG.premiumTagline,
-      premiumPerks: Array.isArray(row.premium_perks)
-        ? (row.premium_perks as TrackPerk[])
-        : DEFAULT_TRACK_CONFIG.premiumPerks,
       icon: row.icon ?? DEFAULT_TRACK_CONFIG.icon,
       subtitle: row.subtitle ?? DEFAULT_TRACK_CONFIG.subtitle,
     }));
@@ -129,7 +94,7 @@ class TracksService {
   /**
    * Toutes les étapes de parcours, converties en `Challenge`.
    * `arena_name` = nom de la track (ex. 'Projet Pong').
-   * Triées par (track position, step_index) puis renvoyées à plat.
+   * Triées par step_index puis renvoyées à plat.
    */
   async getAllSteps(): Promise<Challenge[]> {
     if (this._stepsCache) return this._stepsCache;
@@ -168,7 +133,6 @@ class TracksService {
   /** Étapes d'un parcours donné (par slug), triées par step_index. */
   async getStepsByTrack(trackId: string): Promise<Challenge[]> {
     const all = await this.getAllSteps();
-    // arena_name a été résolu en nom ; on refiltre via le cache des tracks
     const tracks = await this.getTracks();
     const name = tracks.find((t) => t.id === trackId)?.name;
     if (!name) return [];
