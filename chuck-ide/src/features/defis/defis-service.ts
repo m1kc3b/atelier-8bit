@@ -30,7 +30,7 @@ class DefisService {
 
     const nowIso = new Date().toISOString();
     const { data, error } = await supabase
-      .from('defis')
+      .from('defis_public')
       .select('*')
       .lte('opens_at', nowIso)
       .order('month', { ascending: false })
