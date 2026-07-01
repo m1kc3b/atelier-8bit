@@ -79,6 +79,11 @@ export class ChallengeManager {
     const urlId = this._getIdFromUrl();
     if (urlId !== null) {
       await this._ensureLoaded();
+      // Deep-link direct (?challenge=X / ?parcours=X / ?lesson=X) et retour
+      // OAuth : on charge effectivement l'item demandé. Sans ce _loadById, la
+      // donnée était chargée mais aucune navigation n'avait lieu (le tuto ne
+      // se relançait pas au retour de connexion, contrairement au flux voulu).
+      this._loadById(urlId, false);
     } else if (this._hasTrackParam()) {
       await this._ensureLoaded();
       this._loadById(this.currentChallenge(), false);
@@ -371,6 +376,14 @@ export class ChallengeManager {
         current: c.id === currentId,
       }),
     );
+    // La config (icon/subtitle) est portée par TrackMeta (extends TrackConfig).
+    const config: TrackConfig = { icon: track.icon, subtitle: track.subtitle };
+    bus.emit("chuck:track-steps", {
+      trackId: track.id,
+      trackName: track.name,
+      config,
+      items,
+    });
   }
 
   private _loadContentItem(item: ContentItem): void {
@@ -522,6 +535,14 @@ export class ChallengeManager {
       }
     } else {
       bus.emit("chuck:challenge-failed", { result });
+      if (timeout) {
+        // Aucune assertion en échec mais le CPU n'a pas atteint BRK : cas
+        // typique du « BRK oublié » (le validateur headless exige BRK).
+        bus.emit("chuck:log", {
+          text: `✗ Programme non terminé (timeout après ${run.cycles} cycles) — atteins BRK pour valider.`,
+          level: "err",
+        });
+      }
       for (const f of failures)
         bus.emit("chuck:log", { text: `✗ ${f.message}`, level: "err" });
     }
