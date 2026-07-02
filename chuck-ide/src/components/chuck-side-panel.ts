@@ -706,7 +706,13 @@ export class ChuckSidePanel extends ChuckComponent {
       "position:fixed;top:0;left:0;width:100%;height:100%;" +
       "pointer-events:none;z-index:99999";
     document.body.appendChild(canvas);
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      // Contexte 2D indisponible (jsdom, canvas non supporté) : on retire le
+      // canvas et on abandonne l'animation — la célébration est décorative.
+      canvas.remove();
+      return;
+    }
 
     const COLORS = [
       "#3BDB8C",
