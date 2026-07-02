@@ -15,7 +15,7 @@ import { superAdmin } from "../../core/super-admin";
  * Les variants Rust comme `Some(Colon)` ou `Token::Ident` ne sont pas
  * des messages utilisateur — on les remplace par des explications claires.
  */
-function cleanAsmError(raw: string): string {
+export function cleanAsmError(raw: string): string {
   return (
     raw
       // Tokens Rust bruts → noms lisibles
@@ -56,7 +56,7 @@ function cleanAsmError(raw: string): string {
 // opcodes réassignés secrets (MUL, MCP). On ne révèle jamais leur
 // mnémonique dans le désassemblage public : ils s'affichent en "???".
 // Le super-admin (toi) conserve un désassemblage complet pour le debug.
-const HIDDEN_MNEMONICS = new Set([
+export const HIDDEN_MNEMONICS = new Set([
   "LAX", "SAX", "DCP", "ISC",
   "SLO", "RLA", "SRE", "RRA",
   "ANC", "ALR", "ARR", "AXS",
@@ -65,7 +65,7 @@ const HIDDEN_MNEMONICS = new Set([
 
 /** Remplace un mnémonique caché par "???" dans une ligne désassemblée,
  *  sauf si le super-admin est actif. */
-function maskDisasm(disasm: string): string {
+export function maskDisasm(disasm: string): string {
   if (superAdmin.active) return disasm;
   const mnem = disasm.trimStart().split(/\s+/)[0]?.toUpperCase();
   if (mnem && HIDDEN_MNEMONICS.has(mnem)) {
